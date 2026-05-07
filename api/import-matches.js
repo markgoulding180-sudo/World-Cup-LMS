@@ -115,8 +115,15 @@ module.exports = async (req, res) => {
         return;
       }
 
-      // Parse date and time
-      const matchTime = new Date(`${match.date}T${match.time.replace(' UTC', '').replace(/UTC[+-]\d+/, '')}:00Z`);
+      // Parse date and time (handle format like "13:00 UTC-6")
+      const timeMatch = match.time.match(/(\d{2}):(\d{2})/);
+      if (!timeMatch) {
+        skipped.push({ match: `${match.team1} vs ${match.team2}`, reason: 'Invalid time format' });
+        return;
+      }
+      
+      const [_, hours, minutes] = timeMatch;
+      const matchTime = new Date(`${match.date}T${hours}:${minutes}:00`);
 
       matches.push({
         round_id: roundId,
