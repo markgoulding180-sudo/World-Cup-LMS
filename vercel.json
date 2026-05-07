@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "outputDirectory": "frontend",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/leaderboard", "destination": "/leaderboard.html" },
+    { "source": "/rules", "destination": "/rules.html" },
+    { "source": "/admin", "destination": "/admin.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ]
+}
