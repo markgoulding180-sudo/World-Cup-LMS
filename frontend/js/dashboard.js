@@ -51,6 +51,9 @@ function updateStatusCard(data) {
   }
 }
 
+let allTeams = [];
+let currentGroup = 'ALL';
+
 function displayAvailableTeams(teams) {
   const container = document.getElementById('available-teams');
   
@@ -59,22 +62,60 @@ function displayAvailableTeams(teams) {
     return;
   }
   
-  let html = '<div class="teams-grid">';
+  allTeams = teams;
   
-  teams.forEach(team => {
-    if (!team.eliminated) {
-      html += `
-        <div class="team-card" onclick="selectTeam('${team.id}')">
-          <img src="${team.flag_url}" alt="${team.name}" class="team-flag">
-          <span class="team-name">${team.name}</span>
-          <span class="team-group">Group ${team.group_name}</span>
-        </div>
-      `;
+  // Get unique groups
+  const groups = [...new Set(teams.map(t => t.group_name))].sort();
+  
+  let html = '<div class="group-filter">';
+  html += `<button class="group-btn ${currentGroup === 'ALL' ? 'active' : ''}" onclick="filterTeams('ALL')">All Groups</button>`;
+  groups.forEach(group => {
+    html += `<button class="group-btn ${currentGroup === group ? 'active' : ''}" onclick="filterTeams('${group}')">Group ${group}</button>`;
+  });
+  html += '</div>';
+  
+  html += '<div class="teams-grid" id="teams-grid">';
+  html += renderTeamCards(teams);
+  html += '</div>';
+  
+  container.innerHTML = html;
+}
+
+function renderTeamCards(teams) {
+  const filteredTeams = currentGroup === 'ALL' 
+    ? teams 
+    : teams.filter(t => t.group_name === currentGroup);
+  
+  if (filteredTeams.length === 0) {
+    return '<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary);">No teams in this group</p>';
+  }
+  
+  return filteredTeams.map(team => {
+    const eliminatedClass = team.eliminated ? 'eliminated' : '';
+    return `
+      <div class="team-card ${eliminatedClass}" onclick="${team.eliminated ? '' : `selectTeam('${team.id}')`}">
+        <img src="${team.flag_url || 'https://flagcdn.com/w80/xx.png'}" alt="${team.name}" class="team-flag" onerror="this.src='https://flagcdn.com/w80/xx.png'">
+        <span class="team-name">${team.name}</span>
+        <span class="team-group">Group ${team.group_name}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterTeams(group) {
+  currentGroup = group;
+  const grid = document.getElementById('teams-grid');
+  if (grid) {
+    grid.innerHTML = renderTeamCards(allTeams);
+  }
+  
+  // Update active button
+  document.querySelectorAll('.group-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.textContent === (group === 'ALL' ? 'All Groups' : `Group ${group}`)) {
+      btn.classList.add('active');
     }
   });
-  
-  html += '</div>';
-  container.innerHTML = html;
 }
 
 async function selectTeam(teamId) {
