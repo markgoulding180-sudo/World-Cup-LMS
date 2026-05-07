@@ -66,14 +66,14 @@ module.exports = async (req, res) => {
       if (!teamsMap.has(match.team1)) {
         teamsMap.set(match.team1, { 
           name: match.team1, 
-          group: match.group?.replace('Group ', '') || 'A',
+          group_name: match.group?.replace('Group ', '') || 'A',
           code: generateCode(match.team1)
         });
       }
       if (!teamsMap.has(match.team2)) {
         teamsMap.set(match.team2, { 
           name: match.team2, 
-          group: match.group?.replace('Group ', '') || 'A',
+          group_name: match.group?.replace('Group ', '') || 'A',
           code: generateCode(match.team2)
         });
       }
