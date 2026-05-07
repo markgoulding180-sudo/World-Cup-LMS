@@ -387,6 +387,109 @@ body {
   color: var(--accent-red);
 }
 
+/* Picks List */
+.picks-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.pick-stat {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pick-stat.pending {
+  background: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.pick-stat.win {
+  background: var(--accent-green);
+  color: var(--bg-primary);
+}
+
+.pick-stat.loss {
+  background: var(--accent-red);
+  color: white;
+}
+
+.picks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pick-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  gap: 1rem;
+}
+
+.pick-user {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.pick-round {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.pick-team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.pick-flag {
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 0.125rem;
+}
+
+.pick-group {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.pick-result {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-pending {
+  background: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.status-win {
+  background: var(--accent-green);
+  color: var(--bg-primary);
+}
+
+.status-loss {
+  background: var(--accent-red);
+  color: white;
+}
+
 /* Utilities */
 .text-center {
   text-align: center;

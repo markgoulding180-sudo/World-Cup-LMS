@@ -94,7 +94,56 @@ async function loadMatchesForResults() {
 
 async function loadAllPicks() {
   const container = document.getElementById('all-picks');
-  container.innerHTML = '<p class="text-secondary">Player picks will appear here once users start making selections...</p>';
+  
+  try {
+    const response = await fetch('/api/admin-picks');
+    const data = await response.json();
+    
+    if (!response.ok) {
+      container.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+      return;
+    }
+    
+    if (!data.picks || data.picks.length === 0) {
+      container.innerHTML = '<p class="text-secondary">No picks yet. Players haven\'t made any selections.</p>';
+      return;
+    }
+    
+    let html = `
+      <div class="picks-summary">
+        <span class="pick-stat">Total: ${data.totalPicks}</span>
+        <span class="pick-stat pending">Pending: ${data.stats.pending}</span>
+        <span class="pick-stat win">Wins: ${data.stats.win}</span>
+        <span class="pick-stat loss">Losses: ${data.stats.loss}</span>
+      </div>
+      <div class="picks-list">
+    `;
+    
+    data.picks.forEach(pick => {
+      const statusClass = pick.result === 'pending' ? 'status-pending' :
+                         pick.result === 'win' ? 'status-win' : 'status-loss';
+      html += `
+        <div class="pick-item">
+          <div class="pick-user">
+            <strong>${pick.users?.display_name || pick.users?.username || 'Unknown'}</strong>
+            <span class="pick-round">${pick.rounds?.name || 'Unknown Round'}</span>
+          </div>
+          <div class="pick-team">
+            <img src="${pick.teams?.flag_url}" alt="" class="pick-flag">
+            <span>${pick.teams?.name}</span>
+            <span class="pick-group">Group ${pick.teams?.group_name}</span>
+          </div>
+          <span class="pick-result ${statusClass}">${pick.result}</span>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+  } catch (error) {
+    container.innerHTML = `<p class="error">Error loading picks: ${error.message}</p>`;
+  }
 }
 
 async function importWorldCupData() {
