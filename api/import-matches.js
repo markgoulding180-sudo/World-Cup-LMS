@@ -122,8 +122,21 @@ module.exports = async (req, res) => {
         return;
       }
       
-      const [_, hours, minutes] = timeMatch;
-      const matchTime = new Date(`${match.date}T${hours}:${minutes}:00`);
+      // Validate date format (YYYY-MM-DD)
+      if (!match.date || !match.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        skipped.push({ match: `${match.team1} vs ${match.team2}`, reason: 'Invalid date format' });
+        return;
+      }
+      
+      const [__, hours, minutes] = timeMatch;
+      const matchTimeStr = `${match.date}T${hours}:${minutes}:00`;
+      const matchTime = new Date(matchTimeStr);
+      
+      // Validate the date object
+      if (isNaN(matchTime.getTime())) {
+        skipped.push({ match: `${match.team1} vs ${match.team2}`, reason: 'Invalid date/time value', date: match.date, time: match.time });
+        return;
+      }
 
       matches.push({
         round_id: roundId,
