@@ -1,6 +1,5 @@
-// Admin panel JavaScript - v3
+// Admin panel JavaScript - v4
 
-// Admin PIN
 const ADMIN_PIN = '1234';
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,7 +23,6 @@ async function checkAdminAccess() {
 }
 
 function showPinModal() {
-  // Simple PIN prompt for now
   const pin = prompt('Enter admin PIN:');
   if (pin === ADMIN_PIN) {
     sessionStorage.setItem('admin_pin_verified', 'true');
@@ -78,7 +76,6 @@ async function loadMatchesForResults() {
   const resultContainer = document.getElementById('result-entry');
   
   try {
-    // Get upcoming matches
     const response = await fetch('/api/matches?status=upcoming&limit=20');
     const data = await response.json();
     
@@ -119,7 +116,7 @@ async function loadMatchesForResults() {
       resultContainer.innerHTML = html;
     }
     
-    // Get all matches for summary
+    // Summary
     const allResponse = await fetch('/api/matches?limit=100');
     const allData = await allResponse.json();
     const allMatches = allData.matches || [];
@@ -130,54 +127,6 @@ async function loadMatchesForResults() {
     container.innerHTML = `
       <p><strong>Upcoming:</strong> ${upcomingCount} matches</p>
       <p><strong>Finished:</strong> ${finishedCount} matches</p>
-    `;
-    
-  } catch (error) {
-    console.error('Error loading matches:', error);
-    container.innerHTML = `<p class="error">Error loading matches</p>`;
-    resultContainer.innerHTML = `<p class="error">Error loading matches for entry</p>`;
-  }
-}
-    
-    // Display upcoming matches for result entry
-    const upcomingMatches = matches?.filter(m => m.status === 'upcoming') || [];
-    
-    if (upcomingMatches.length === 0) {
-      resultContainer.innerHTML = '<p class="text-secondary">No upcoming matches to enter results for.</p>';
-    } else {
-      let html = '<div class="matches-for-entry">';
-      upcomingMatches.forEach(match => {
-        html += `
-          <div class="match-entry-row">
-            <div class="match-teams">
-              <div class="team">
-                <img src="${match.home_team?.flag_url}" alt="" class="team-flag-small">
-                <span>${match.home_team?.name}</span>
-              </div>
-              <span class="vs">vs</span>
-              <div class="team">
-                <img src="${match.away_team?.flag_url}" alt="" class="team-flag-small">
-                <span>${match.away_team?.name}</span>
-              </div>
-            </div>
-            <div class="score-inputs">
-              <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="score-input">
-              <span>-</span>
-              <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
-              <button class="btn btn-primary btn-sm" onclick="submitResult('${match.id}')">Save</button>
-            </div>
-          </div>
-        `;
-      });
-      html += '</div>';
-      resultContainer.innerHTML = html;
-    }
-    
-    // Display match list summary
-    const finishedMatches = matches?.filter(m => m.status === 'finished') || [];
-    container.innerHTML = `
-      <p><strong>Upcoming:</strong> ${upcomingMatches.length} matches</p>
-      <p><strong>Finished:</strong> ${finishedMatches.length} matches</p>
     `;
     
   } catch (error) {
@@ -211,7 +160,7 @@ async function submitResult(matchId) {
     
     if (response.ok) {
       alert(`Result saved!\n${data.match.home} ${data.match.score} ${data.match.away}\n${data.match.result}`);
-      loadAdminData(); // Refresh all data
+      loadAdminData();
     } else {
       alert('Error: ' + data.error);
     }
@@ -290,23 +239,16 @@ async function importWorldCupData() {
     });
     
     const data = await response.json();
-    console.log('Import response:', data);
     
     if (response.ok) {
       statusDiv.innerHTML = `
         <p style="color: var(--accent-green);">
-          <i class="fas fa-check-circle"></i> 
-          Import successful!
+          <i class="fas fa-check-circle"></i> Import successful!
         </p>
-        <p>Teams: ${data.teams}</p>
-        <p>Rounds: ${data.rounds}</p>
-        <p>Tournament: ${data.tournament?.name}</p>
+        <p>Rounds: ${data.roundsCreated}</p>
       `;
     } else {
-      statusDiv.innerHTML = `
-        <p style="color: var(--accent-red);">Error: ${data.error}</p>
-        <pre style="font-size: 0.75rem; color: var(--text-secondary); overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
-      `;
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
     }
   } catch (error) {
     statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
@@ -314,43 +256,9 @@ async function importWorldCupData() {
 }
 
 async function openRound() {
-  const token = localStorage.getItem('wc_lms_token');
-  
-  try {
-    const response = await fetch('/api/rounds', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: 'open' })
-    });
-    
-    if (response.ok) {
-      alert('Round opened!');
-    }
-  } catch (error) {
-    alert('Error opening round');
-  }
+  alert('Round opening - implement via API');
 }
 
 async function closeRound() {
-  const token = localStorage.getItem('wc_lms_token');
-  
-  try {
-    const response = await fetch('/api/rounds', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: 'close' })
-    });
-    
-    if (response.ok) {
-      alert('Round closed!');
-    }
-  } catch (error) {
-    alert('Error closing round');
-  }
+  alert('Round closing - implement via API');
 }
