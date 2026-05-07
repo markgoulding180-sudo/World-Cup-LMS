@@ -96,7 +96,7 @@ async function loadAllPicks() {
   const container = document.getElementById('all-picks');
   
   try {
-    const response = await fetch('/api/admin-picks');
+    const response = await fetch('/api/picks?admin=true');
     const data = await response.json();
     
     if (!response.ok) {
@@ -152,11 +152,13 @@ async function importWorldCupData() {
   
   try {
     const token = localStorage.getItem('wc_lms_token');
-    const response = await fetch('/api/import-worldcup', {
+    const response = await fetch('/api/import', {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-      }
+      },
+      body: JSON.stringify({ action: 'setup' })
     });
     
     const data = await response.json();

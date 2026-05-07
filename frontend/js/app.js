@@ -75,10 +75,10 @@ async function validateSession() {
 
 async function loginUser(credentials) {
   try {
-    const response = await fetch(`${API_BASE}/login`, {
+    const response = await fetch(`${API_BASE}/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify({ action: 'login', ...credentials })
     });
 
     const data = await response.json();
@@ -100,10 +100,10 @@ async function loginUser(credentials) {
 
 async function registerUser(userData) {
   try {
-    const response = await fetch(`${API_BASE}/register`, {
+    const response = await fetch(`${API_BASE}/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
+      body: JSON.stringify({ action: 'register', ...userData })
     });
 
     const data = await response.json();
