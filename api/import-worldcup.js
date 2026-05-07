@@ -117,14 +117,30 @@ module.exports = async (req, res) => {
       { name: 'Final', round_number: 7 }
     ];
 
-    const { data: insertedRounds, error: roundsError } = await supabase
+    // First, check if rounds already exist
+    const { data: existingRounds } = await supabase
       .from('rounds')
-      .upsert(rounds, { onConflict: 'round_number' })
-      .select();
-
-    if (roundsError) {
-      return res.status(500).json({ error: 'Failed to insert rounds', details: roundsError.message });
+      .select('round_number');
+    
+    const existingRoundNumbers = new Set(existingRounds?.map(r => r.round_number) || []);
+    const newRounds = rounds.filter(r => !existingRoundNumbers.has(r.round_number));
+    
+    let insertedRounds = [];
+    if (newRounds.length > 0) {
+      const { data, error: roundsError } = await supabase
+        .from('rounds')
+        .insert(newRounds)
+        .select();
+      
+      if (roundsError) {
+        return res.status(500).json({ error: 'Failed to insert rounds', details: roundsError.message });
+      }
+      insertedRounds = data || [];
+    } else {
+      insertedRounds = existingRounds || [];
     }
+
+
 
     return res.status(200).json({
       success: true,
