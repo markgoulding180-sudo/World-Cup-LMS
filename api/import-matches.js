@@ -156,9 +156,34 @@ module.exports = async (req, res) => {
       });
     }
 
+    // First check for existing matches to avoid duplicates
+    const { data: existingMatches } = await supabase
+      .from('matches')
+      .select('home_team_id, away_team_id, match_time');
+    
+    const existingSet = new Set();
+    existingMatches?.forEach(m => {
+      existingSet.add(`${m.home_team_id}-${m.away_team_id}-${m.match_time}`);
+    });
+    
+    // Filter out duplicates
+    const newMatches = matches.filter(m => {
+      const key = `${m.home_team_id}-${m.away_team_id}-${m.match_time}`;
+      return !existingSet.has(key);
+    });
+    
+    if (newMatches.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'All matches already imported',
+        skipped: skipped.length,
+        duplicatesSkipped: matches.length
+      });
+    }
+
     const { data: insertedMatches, error: insertError } = await supabase
       .from('matches')
-      .upsert(matches, { onConflict: 'round_id,home_team_id,away_team_id,match_time' })
+      .insert(newMatches)
       .select();
 
     if (insertError) {
