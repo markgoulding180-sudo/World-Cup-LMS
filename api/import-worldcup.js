@@ -28,19 +28,50 @@ module.exports = async (req, res) => {
 
     // Extract unique teams
     const teamsMap = new Map();
+    const usedCodes = new Set();
+    
+    function generateCode(name) {
+      // Try first 3 letters
+      let code = name.substring(0, 3).toUpperCase();
+      if (!usedCodes.has(code)) {
+        usedCodes.add(code);
+        return code;
+      }
+      // Try first 2 + last 1
+      code = (name.substring(0, 2) + name.substring(name.length - 1)).toUpperCase();
+      if (!usedCodes.has(code)) {
+        usedCodes.add(code);
+        return code;
+      }
+      // Try first 1 + last 2
+      code = (name.substring(0, 1) + name.substring(name.length - 2)).toUpperCase();
+      if (!usedCodes.has(code)) {
+        usedCodes.add(code);
+        return code;
+      }
+      // Fallback: add number
+      let counter = 1;
+      while (usedCodes.has(code + counter)) {
+        counter++;
+      }
+      code = code + counter;
+      usedCodes.add(code);
+      return code;
+    }
+    
     data.matches.forEach(match => {
       if (!teamsMap.has(match.team1)) {
         teamsMap.set(match.team1, { 
           name: match.team1, 
           group: match.group?.replace('Group ', '') || 'A',
-          code: match.team1.substring(0, 3).toUpperCase()
+          code: generateCode(match.team1)
         });
       }
       if (!teamsMap.has(match.team2)) {
         teamsMap.set(match.team2, { 
           name: match.team2, 
           group: match.group?.replace('Group ', '') || 'A',
-          code: match.team2.substring(0, 3).toUpperCase()
+          code: generateCode(match.team2)
         });
       }
     });
