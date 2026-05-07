@@ -36,17 +36,18 @@ module.exports = async (req, res) => {
       }
 
       // Get user's tournament entry
-      const { data: entry, error } = await supabase
+      const { data: entries, error } = await supabase
         .from('tournament_entries')
         .select('*, tournaments:tournament_id(*)')
         .eq('user_id', user.id)
         .order('entered_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         return res.status(500).json({ error: error.message });
       }
+      
+      const entry = entries && entries.length > 0 ? entries[0] : null;
 
       // Get current round from master clock
       const { data: clock } = await supabase
