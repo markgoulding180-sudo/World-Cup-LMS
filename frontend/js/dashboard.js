@@ -173,13 +173,50 @@ async function selectTeam(teamId) {
   if (!confirm('Select this team for the current round?')) return;
   
   try {
+    // Get current round and tournament info first
+    const statusResponse = await fetch('/api/entries', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const statusData = await statusResponse.json();
+    
+    // Get tournaments to find active one
+    const tourneyResponse = await fetch('/api/tournaments');
+    const tourneyData = await tourneyResponse.json();
+    
+    if (!tourneyData.tournaments || tourneyData.tournaments.length === 0) {
+      alert('No active tournament found');
+      return;
+    }
+    
+    const tournamentId = tourneyData.tournaments[0].id;
+    
+    // Get rounds to find current round
+    const roundsResponse = await fetch('/api/rounds');
+    const roundsData = await roundsResponse.json();
+    
+    // Find the first open round, or default to round 1
+    let roundId = null;
+    if (roundsData.rounds) {
+      const openRound = roundsData.rounds.find(r => r.status === 'open');
+      roundId = openRound ? openRound.id : roundsData.rounds[0]?.id;
+    }
+    
+    if (!roundId) {
+      alert('No active round found');
+      return;
+    }
+    
     const response = await fetch('/api/picks', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ team_id: teamId })
+      body: JSON.stringify({ 
+        team_id: teamId,
+        round_id: roundId,
+        tournament_id: tournamentId
+      })
     });
     
     if (response.ok) {
@@ -190,7 +227,7 @@ async function selectTeam(teamId) {
       alert(error.error || 'Failed to select team');
     }
   } catch (error) {
-    alert('Error selecting team');
+    alert('Error selecting team: ' + error.message);
   }
 }
 
