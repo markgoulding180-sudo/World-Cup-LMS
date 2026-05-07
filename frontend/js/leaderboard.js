@@ -3,60 +3,91 @@
 async function loadLeaderboard() {
   try {
     const response = await fetch('/api/leaderboard');
+    const data = await response.json();
     
-    if (response.ok) {
-      const data = await response.json();
-      displayLeaderboard(data);
+    if (!response.ok) {
+      console.error('Leaderboard error:', data.error);
+      return;
     }
+    
+    displayStats(data.stats);
+    displayActivePlayers(data.leaderboard);
+    displayEliminatedPlayers(data.leaderboard);
+    
   } catch (error) {
-    console.error('Leaderboard error:', error);
+    console.error('Error loading leaderboard:', error);
   }
 }
 
-function displayLeaderboard(data) {
-  // Active players
-  const activeDiv = document.getElementById('active-players');
-  if (data.active && data.active.length > 0) {
-    let html = '<table class="leaderboard-table">';
-    html += '<tr><th>Position</th><th>Player</th><th>Round</th></tr>';
-    
-    data.active.forEach((player, index) => {
-      html += `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${player.display_name}</td>
-          <td>${player.current_round}</td>
-        </tr>
-      `;
-    });
-    
-    html += '</table>';
-    activeDiv.innerHTML = html;
-  } else {
-    activeDiv.innerHTML = '<p>No active players</p>';
+function displayStats(stats) {
+  // Could add a stats section at top
+  console.log('Stats:', stats);
+}
+
+function displayActivePlayers(leaderboard) {
+  const container = document.getElementById('active-players');
+  const activePlayers = leaderboard.filter(p => p.status === 'active');
+  
+  if (activePlayers.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No active players yet.</p>';
+    return;
   }
   
-  // Eliminated players
-  const eliminatedDiv = document.getElementById('eliminated-players');
-  if (data.eliminated && data.eliminated.length > 0) {
-    let html = '<table class="leaderboard-table">';
-    html += '<tr><th>Player</th><th>Eliminated Round</th></tr>';
-    
-    data.eliminated.forEach(player => {
-      html += `
-        <tr>
-          <td>${player.display_name}</td>
-          <td>Round ${player.eliminated_round}</td>
-        </tr>
-      `;
-    });
-    
-    html += '</table>';
-    eliminatedDiv.innerHTML = html;
-  } else {
-    eliminatedDiv.innerHTML = '<p>No eliminated players yet</p>';
-  }
+  let html = '<div class="leaderboard-list">';
+  
+  activePlayers.forEach((player, index) => {
+    html += `
+      <div class="leaderboard-item active">
+        <div class="position">${player.position}</div>
+        <div class="player-info">
+          <strong>${player.display_name}</strong>
+          <span class="username">@${player.username}</span>
+        </div>
+        <div class="current-pick">
+          ${player.current_pick ? `
+            <img src="${player.current_pick.flag}" alt="" class="pick-flag-small">
+            <span>${player.current_pick.team}</span>
+          ` : '<span class="no-pick">No pick</span>'}
+        </div>
+        <span class="status-badge active">Still Standing</span>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
 }
 
-// Load leaderboard on page load
+function displayEliminatedPlayers(leaderboard) {
+  const container = document.getElementById('eliminated-players');
+  const eliminatedPlayers = leaderboard.filter(p => p.status === 'eliminated');
+  
+  if (eliminatedPlayers.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No eliminated players yet.</p>';
+    return;
+  }
+  
+  let html = '<div class="leaderboard-list">';
+  
+  eliminatedPlayers.forEach((player, index) => {
+    html += `
+      <div class="leaderboard-item eliminated">
+        <div class="position">-</div>
+        <div class="player-info">
+          <strong>${player.display_name}</strong>
+          <span class="username">@${player.username}</span>
+        </div>
+        <div class="eliminated-info">
+          <span>Eliminated Round ${player.eliminated_round}</span>
+        </div>
+        <span class="status-badge eliminated">Eliminated</span>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Load on page load
 document.addEventListener('DOMContentLoaded', loadLeaderboard);

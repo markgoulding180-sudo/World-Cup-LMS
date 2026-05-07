@@ -575,6 +575,96 @@ body {
   color: white;
 }
 
+/* Leaderboard */
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border-left: 4px solid transparent;
+}
+
+.leaderboard-item.active {
+  border-left-color: var(--accent-green);
+}
+
+.leaderboard-item.eliminated {
+  border-left-color: var(--accent-red);
+  opacity: 0.7;
+}
+
+.position {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  min-width: 40px;
+  text-align: center;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.player-info strong {
+  color: var(--text-primary);
+}
+
+.player-info .username {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.current-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pick-flag-small {
+  width: 32px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.no-pick {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background: var(--accent-green);
+  color: var(--bg-primary);
+}
+
+.status-badge.eliminated {
+  background: var(--accent-red);
+  color: white;
+}
+
+.eliminated-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 /* Utilities */
 .text-center {
   text-align: center;
