@@ -75,20 +75,102 @@ async function loadRoundStatus() {
 
 async function loadMatchesForResults() {
   const container = document.getElementById('match-list');
+  const resultContainer = document.getElementById('result-entry');
   
   try {
-    // Get matches with team names
-    const response = await fetch('/api/teams');
-    const teamsData = await response.json();
-    const teamMap = new Map(teamsData.teams?.map(t => [t.id, t]));
+    // Get all matches with team info
+    const supabase = window.supabaseClient;
+    const { data: matches, error } = await supabase
+      .from('matches')
+      .select(`
+        *,
+        home_team:home_team_id(name, flag_url),
+        away_team:away_team_id(name, flag_url),
+        rounds:round_id(name)
+      `)
+      .order('match_time', { ascending: true })
+      .limit(20);
     
-    // For now show placeholder - would need a matches API
+    if (error) throw error;
+    
+    // Display upcoming matches for result entry
+    const upcomingMatches = matches?.filter(m => m.status === 'upcoming') || [];
+    
+    if (upcomingMatches.length === 0) {
+      resultContainer.innerHTML = '<p class="text-secondary">No upcoming matches to enter results for.</p>';
+    } else {
+      let html = '<div class="matches-for-entry">';
+      upcomingMatches.forEach(match => {
+        html += `
+          <div class="match-entry-row">
+            <div class="match-teams">
+              <div class="team">
+                <img src="${match.home_team?.flag_url}" alt="" class="team-flag-small">
+                <span>${match.home_team?.name}</span>
+              </div>
+              <span class="vs">vs</span>
+              <div class="team">
+                <img src="${match.away_team?.flag_url}" alt="" class="team-flag-small">
+                <span>${match.away_team?.name}</span>
+              </div>
+            </div>
+            <div class="score-inputs">
+              <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="score-input">
+              <span>-</span>
+              <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
+              <button class="btn btn-primary btn-sm" onclick="submitResult('${match.id}')">Save</button>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      resultContainer.innerHTML = html;
+    }
+    
+    // Display match list summary
+    const finishedMatches = matches?.filter(m => m.status === 'finished') || [];
     container.innerHTML = `
-      <p class="text-secondary">Match result entry coming soon...</p>
-      <p>Total matches in database: 72 group stage games</p>
+      <p><strong>Upcoming:</strong> ${upcomingMatches.length} matches</p>
+      <p><strong>Finished:</strong> ${finishedMatches.length} matches</p>
     `;
+    
   } catch (error) {
+    console.error('Error loading matches:', error);
     container.innerHTML = `<p class="error">Error loading matches</p>`;
+    resultContainer.innerHTML = `<p class="error">Error loading matches for entry</p>`;
+  }
+}
+
+async function submitResult(matchId) {
+  const homeScore = document.getElementById(`score-${matchId}-home`).value;
+  const awayScore = document.getElementById(`score-${matchId}-away`).value;
+  
+  if (homeScore === '' || awayScore === '') {
+    alert('Please enter both scores');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/admin-results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        match_id: matchId,
+        home_score: parseInt(homeScore),
+        away_score: parseInt(awayScore)
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      alert(`Result saved!\n${data.match.home} ${data.match.score} ${data.match.away}\n${data.match.result}`);
+      loadAdminData(); // Refresh all data
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (error) {
+    alert('Error saving result: ' + error.message);
   }
 }
 
