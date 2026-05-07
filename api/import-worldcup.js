@@ -26,8 +26,15 @@ module.exports = async (req, res) => {
     console.log('Fetching World Cup data from:', WORLD_CUP_DATA_URL);
     const response = await fetch(WORLD_CUP_DATA_URL);
     console.log('Response status:', response.status);
-    const data = await response.json();
+    const text = await response.text();
+    
+    // Parse JSON (handle potential BOM or whitespace)
+    const data = JSON.parse(text.trim());
     console.log('Data loaded, matches:', data.matches?.length);
+    
+    if (!data.matches || !Array.isArray(data.matches)) {
+      return res.status(500).json({ error: 'Invalid data format from source' });
+    }
 
     // Extract unique teams
     const teamsMap = new Map();
