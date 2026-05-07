@@ -14,17 +14,53 @@ async function loadDashboard() {
       updateStatusCard(statusData);
     }
     
+    // Load user's current picks
+    const picksResponse = await fetch('/api/picks', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    let userPicks = [];
+    if (picksResponse.ok) {
+      const picksData = await picksResponse.json();
+      userPicks = picksData.picks || [];
+    }
+    
     // Load available teams
     const teamsResponse = await fetch('/api/teams');
     if (teamsResponse.ok) {
       const teamsData = await teamsResponse.json();
-      displayAvailableTeams(teamsData.teams);
+      displayAvailableTeams(teamsData.teams, userPicks);
+      displayCurrentPick(userPicks);
     }
     
   } catch (error) {
     console.error('Dashboard error:', error);
     document.getElementById('player-status').innerHTML = '<p class="error">Error loading dashboard</p>';
   }
+}
+
+function displayCurrentPick(picks) {
+  const container = document.getElementById('current-pick');
+  if (!container) return;
+  
+  if (picks.length === 0) {
+    container.innerHTML = '<p class="text-secondary">You haven\'t made a pick yet for this round.</p>';
+    return;
+  }
+  
+  const latestPick = picks[0];
+  container.innerHTML = `
+    <div class="current-pick-card">
+      <h3>Your Current Pick</h3>
+      <div class="pick-display">
+        <img src="${latestPick.teams?.flag_url}" alt="" class="pick-flag-large">
+        <div class="pick-info">
+          <strong>${latestPick.teams?.name}</strong>
+          <span class="pick-status ${latestPick.result}">${latestPick.result}</span>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function updateStatusCard(data) {

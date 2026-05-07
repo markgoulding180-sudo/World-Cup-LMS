@@ -511,6 +511,70 @@ body {
   margin-bottom: 1rem;
 }
 
+/* Current Pick Display */
+.current-pick-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-gold);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.current-pick-card h3 {
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.pick-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.pick-flag-large {
+  width: 80px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pick-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.pick-info strong {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.pick-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pick-status.pending {
+  background: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.pick-status.win {
+  background: var(--accent-green);
+  color: var(--bg-primary);
+}
+
+.pick-status.loss {
+  background: var(--accent-red);
+  color: white;
+}
+
 /* Utilities */
 .text-center {
   text-align: center;
