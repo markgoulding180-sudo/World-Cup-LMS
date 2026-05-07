@@ -12,11 +12,6 @@ module.exports = async (req, res) => {
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-  );
-
-  const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET
   );
 
@@ -29,7 +24,7 @@ module.exports = async (req, res) => {
       }
 
       const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return res.status(401).json({ error: 'Invalid token' });
@@ -77,7 +72,7 @@ module.exports = async (req, res) => {
       }
 
       const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return res.status(401).json({ error: 'Invalid token' });
@@ -85,7 +80,7 @@ module.exports = async (req, res) => {
 
       const { tournament_id } = req.body;
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('tournament_entries')
         .insert({
           user_id: user.id,
