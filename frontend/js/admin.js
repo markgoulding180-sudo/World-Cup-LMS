@@ -37,7 +37,64 @@ function showPinModal() {
 
 async function loadAdminData() {
   console.log('Admin panel loaded');
-  // Load rounds, matches, picks
+  await loadRoundStatus();
+  await loadMatchesForResults();
+  await loadAllPicks();
+}
+
+async function loadRoundStatus() {
+  const container = document.getElementById('round-status');
+  
+  try {
+    const response = await fetch('/api/rounds');
+    const data = await response.json();
+    
+    if (!response.ok) {
+      container.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+      return;
+    }
+    
+    let html = '<div class="rounds-list">';
+    data.rounds?.forEach(round => {
+      const statusClass = round.status === 'open' ? 'status-open' : 
+                         round.status === 'closed' ? 'status-closed' : 'status-upcoming';
+      html += `
+        <div class="round-item">
+          <span class="round-name">${round.name}</span>
+          <span class="round-status ${statusClass}">${round.status}</span>
+        </div>
+      `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+  } catch (error) {
+    container.innerHTML = `<p class="error">Error loading rounds</p>`;
+  }
+}
+
+async function loadMatchesForResults() {
+  const container = document.getElementById('match-list');
+  
+  try {
+    // Get matches with team names
+    const response = await fetch('/api/teams');
+    const teamsData = await response.json();
+    const teamMap = new Map(teamsData.teams?.map(t => [t.id, t]));
+    
+    // For now show placeholder - would need a matches API
+    container.innerHTML = `
+      <p class="text-secondary">Match result entry coming soon...</p>
+      <p>Total matches in database: 72 group stage games</p>
+    `;
+  } catch (error) {
+    container.innerHTML = `<p class="error">Error loading matches</p>`;
+  }
+}
+
+async function loadAllPicks() {
+  const container = document.getElementById('all-picks');
+  container.innerHTML = '<p class="text-secondary">Player picks will appear here once users start making selections...</p>';
 }
 
 async function importWorldCupData() {

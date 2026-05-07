@@ -339,6 +339,54 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* Admin Panel */
+.rounds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.round-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+}
+
+.round-name {
+  font-weight: 500;
+}
+
+.round-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-open {
+  background: var(--accent-green);
+  color: var(--bg-primary);
+}
+
+.status-closed {
+  background: var(--accent-red);
+  color: white;
+}
+
+.status-upcoming {
+  background: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.error {
+  color: var(--accent-red);
+}
+
 /* Utilities */
 .text-center {
   text-align: center;
