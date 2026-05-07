@@ -40,6 +40,39 @@ async function loadAdminData() {
   // Load rounds, matches, picks
 }
 
+async function importWorldCupData() {
+  const statusDiv = document.getElementById('import-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Importing...</p>';
+  
+  try {
+    const token = localStorage.getItem('wc_lms_token');
+    const response = await fetch('/api/import-worldcup', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);">
+          <i class="fas fa-check-circle"></i> 
+          Import successful!
+        </p>
+        <p>Teams: ${data.teams}</p>
+        <p>Rounds: ${data.rounds}</p>
+        <p>Tournament: ${data.tournament?.name}</p>
+      `;
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
 async function openRound() {
   const token = localStorage.getItem('wc_lms_token');
   

@@ -41,6 +41,16 @@
       <h2>All Picks</h2>
       <div id="all-picks">Loading...</div>
     </div>
+
+    <!-- Data Import -->
+    <div class="admin-card" style="border: 2px solid var(--accent-gold);">
+      <h2><i class="fas fa-database"></i> Data Import</h2>
+      <p>Import World Cup 2026 teams and rounds from openfootball (free open data)</p>
+      <button class="btn btn-primary" onclick="importWorldCupData()">
+        <i class="fas fa-download"></i> Import World Cup 2026 Data
+      </button>
+      <div id="import-status" style="margin-top: 1rem;"></div>
+    </div>
   </main>
 
   <script src="js/app.js"></script>
