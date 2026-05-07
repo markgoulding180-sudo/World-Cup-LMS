@@ -69,17 +69,23 @@ async function enterTournament() {
   
   try {
     // Get the first tournament
-    const tourneyResponse = await fetch('/api/teams');
+    const tourneyResponse = await fetch('/api/tournaments');
     const tourneyData = await tourneyResponse.json();
     
-    // For now, use tournament_id 1 (we'll need to get this properly)
+    if (!tourneyData.tournaments || tourneyData.tournaments.length === 0) {
+      alert('No tournament available. Please contact admin.');
+      return;
+    }
+    
+    const tournamentId = tourneyData.tournaments[0].id;
+    
     const response = await fetch('/api/entries', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ tournament_id: '00000000-0000-0000-0000-000000000001' })
+      body: JSON.stringify({ tournament_id: tournamentId })
     });
     
     if (response.ok) {
