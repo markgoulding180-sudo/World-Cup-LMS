@@ -2,79 +2,85 @@
 const { createClient } = require('@supabase/supabase-js');
 
 // World Cup 2026 teams with groups (from openfootball data)
+// Flag codes mapped to flagcdn.com format
 const WORLD_CUP_TEAMS = [
   // Group A
-  { name: 'Mexico', group_name: 'A', code: 'MEX' },
-  { name: 'South Africa', group_name: 'A', code: 'RSA' },
-  { name: 'South Korea', group_name: 'A', code: 'KOR' },
-  { name: 'Czech Republic', group_name: 'A', code: 'CZE' },
+  { name: 'Mexico', group_name: 'A', code: 'MEX', flag_code: 'mx' },
+  { name: 'South Africa', group_name: 'A', code: 'RSA', flag_code: 'za' },
+  { name: 'South Korea', group_name: 'A', code: 'KOR', flag_code: 'kr' },
+  { name: 'Czech Republic', group_name: 'A', code: 'CZE', flag_code: 'cz' },
   
   // Group B
-  { name: 'Canada', group_name: 'B', code: 'CAN' },
-  { name: 'Bosnia & Herzegovina', group_name: 'B', code: 'BIH' },
-  { name: 'Qatar', group_name: 'B', code: 'QAT' },
-  { name: 'Switzerland', group_name: 'B', code: 'SUI' },
+  { name: 'Canada', group_name: 'B', code: 'CAN', flag_code: 'ca' },
+  { name: 'Bosnia & Herzegovina', group_name: 'B', code: 'BIH', flag_code: 'ba' },
+  { name: 'Qatar', group_name: 'B', code: 'QAT', flag_code: 'qa' },
+  { name: 'Switzerland', group_name: 'B', code: 'SUI', flag_code: 'ch' },
   
   // Group C
-  { name: 'Brazil', group_name: 'C', code: 'BRA' },
-  { name: 'Morocco', group_name: 'C', code: 'MAR' },
-  { name: 'Haiti', group_name: 'C', code: 'HAI' },
-  { name: 'Scotland', group_name: 'C', code: 'SCO' },
+  { name: 'Brazil', group_name: 'C', code: 'BRA', flag_code: 'br' },
+  { name: 'Morocco', group_name: 'C', code: 'MAR', flag_code: 'ma' },
+  { name: 'Haiti', group_name: 'C', code: 'HAI', flag_code: 'ht' },
+  { name: 'Scotland', group_name: 'C', code: 'SCO', flag_code: 'gb-sct' },
   
   // Group D
-  { name: 'USA', group_name: 'D', code: 'USA' },
-  { name: 'Paraguay', group_name: 'D', code: 'PAR' },
-  { name: 'Australia', group_name: 'D', code: 'AUS' },
-  { name: 'Turkey', group_name: 'D', code: 'TUR' },
+  { name: 'USA', group_name: 'D', code: 'USA', flag_code: 'us' },
+  { name: 'Paraguay', group_name: 'D', code: 'PAR', flag_code: 'py' },
+  { name: 'Australia', group_name: 'D', code: 'AUS', flag_code: 'au' },
+  { name: 'Turkey', group_name: 'D', code: 'TUR', flag_code: 'tr' },
   
   // Group E
-  { name: 'Germany', group_name: 'E', code: 'GER' },
-  { name: 'Curaçao', group_name: 'E', code: 'CUR' },
-  { name: 'Ivory Coast', group_name: 'E', code: 'CIV' },
-  { name: 'Ecuador', group_name: 'E', code: 'ECU' },
+  { name: 'Germany', group_name: 'E', code: 'GER', flag_code: 'de' },
+  { name: 'Curaçao', group_name: 'E', code: 'CUR', flag_code: 'cw' },
+  { name: 'Ivory Coast', group_name: 'E', code: 'CIV', flag_code: 'ci' },
+  { name: 'Ecuador', group_name: 'E', code: 'ECU', flag_code: 'ec' },
   
   // Group F
-  { name: 'Netherlands', group_name: 'F', code: 'NED' },
-  { name: 'Japan', group_name: 'F', code: 'JPN' },
-  { name: 'Sweden', group_name: 'F', code: 'SWE' },
-  { name: 'Tunisia', group_name: 'F', code: 'TUN' },
+  { name: 'Netherlands', group_name: 'F', code: 'NED', flag_code: 'nl' },
+  { name: 'Japan', group_name: 'F', code: 'JPN', flag_code: 'jp' },
+  { name: 'Sweden', group_name: 'F', code: 'SWE', flag_code: 'se' },
+  { name: 'Tunisia', group_name: 'F', code: 'TUN', flag_code: 'tn' },
   
   // Group G
-  { name: 'Belgium', group_name: 'G', code: 'BEL' },
-  { name: 'Egypt', group_name: 'G', code: 'EGY' },
-  { name: 'Iran', group_name: 'G', code: 'IRN' },
-  { name: 'New Zealand', group_name: 'G', code: 'NZL' },
+  { name: 'Belgium', group_name: 'G', code: 'BEL', flag_code: 'be' },
+  { name: 'Egypt', group_name: 'G', code: 'EGY', flag_code: 'eg' },
+  { name: 'Iran', group_name: 'G', code: 'IRN', flag_code: 'ir' },
+  { name: 'New Zealand', group_name: 'G', code: 'NZL', flag_code: 'nz' },
   
   // Group H
-  { name: 'Spain', group_name: 'H', code: 'ESP' },
-  { name: 'Cape Verde', group_name: 'H', code: 'CPV' },
-  { name: 'Saudi Arabia', group_name: 'H', code: 'KSA' },
-  { name: 'Uruguay', group_name: 'H', code: 'URU' },
+  { name: 'Spain', group_name: 'H', code: 'ESP', flag_code: 'es' },
+  { name: 'Cape Verde', group_name: 'H', code: 'CPV', flag_code: 'cv' },
+  { name: 'Saudi Arabia', group_name: 'H', code: 'KSA', flag_code: 'sa' },
+  { name: 'Uruguay', group_name: 'H', code: 'URU', flag_code: 'uy' },
   
   // Group I
-  { name: 'France', group_name: 'I', code: 'FRA' },
-  { name: 'Senegal', group_name: 'I', code: 'SEN' },
-  { name: 'Iraq', group_name: 'I', code: 'IRQ' },
-  { name: 'Norway', group_name: 'I', code: 'NOR' },
+  { name: 'France', group_name: 'I', code: 'FRA', flag_code: 'fr' },
+  { name: 'Senegal', group_name: 'I', code: 'SEN', flag_code: 'sn' },
+  { name: 'Iraq', group_name: 'I', code: 'IRQ', flag_code: 'iq' },
+  { name: 'Norway', group_name: 'I', code: 'NOR', flag_code: 'no' },
   
   // Group J
-  { name: 'Argentina', group_name: 'J', code: 'ARG' },
-  { name: 'Algeria', group_name: 'J', code: 'ALG' },
-  { name: 'Austria', group_name: 'J', code: 'AUT' },
-  { name: 'Jordan', group_name: 'J', code: 'JOR' },
+  { name: 'Argentina', group_name: 'J', code: 'ARG', flag_code: 'ar' },
+  { name: 'Algeria', group_name: 'J', code: 'ALG', flag_code: 'dz' },
+  { name: 'Austria', group_name: 'J', code: 'AUT', flag_code: 'at' },
+  { name: 'Jordan', group_name: 'J', code: 'JOR', flag_code: 'jo' },
   
   // Group K
-  { name: 'Portugal', group_name: 'K', code: 'POR' },
-  { name: 'DR Congo', group_name: 'K', code: 'COD' },
-  { name: 'Uzbekistan', group_name: 'K', code: 'UZB' },
-  { name: 'Colombia', group_name: 'K', code: 'COL' },
+  { name: 'Portugal', group_name: 'K', code: 'POR', flag_code: 'pt' },
+  { name: 'DR Congo', group_name: 'K', code: 'COD', flag_code: 'cd' },
+  { name: 'Uzbekistan', group_name: 'K', code: 'UZB', flag_code: 'uz' },
+  { name: 'Colombia', group_name: 'K', code: 'COL', flag_code: 'co' },
   
   // Group L
-  { name: 'England', group_name: 'L', code: 'ENG' },
-  { name: 'Croatia', group_name: 'L', code: 'CRO' },
-  { name: 'Ghana', group_name: 'L', code: 'GHA' },
-  { name: 'Panama', group_name: 'L', code: 'PAN' }
+  { name: 'England', group_name: 'L', code: 'ENG', flag_code: 'gb-eng' },
+  { name: 'Croatia', group_name: 'L', code: 'CRO', flag_code: 'hr' },
+  { name: 'Ghana', group_name: 'L', code: 'GHA', flag_code: 'gh' },
+  { name: 'Panama', group_name: 'L', code: 'PAN', flag_code: 'pa' }
 ];
+
+// Add flag_url to each team
+WORLD_CUP_TEAMS.forEach(team => {
+  team.flag_url = `https://flagcdn.com/w80/${team.flag_code}.png`;
+});
 
 const ROUNDS = [
   { name: 'Group Stage - Matchday 1', round_number: 1 },
