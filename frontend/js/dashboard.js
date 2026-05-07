@@ -47,7 +47,50 @@ function updateStatusCard(data) {
       </div>
     `;
   } else {
-    statusDiv.innerHTML = '<p>Not entered in current tournament</p>';
+    statusDiv.innerHTML = `
+      <div class="not-entered">
+        <i class="fas fa-info-circle"></i>
+        <h3>Not Entered</h3>
+        <p>You need to enter the tournament to play</p>
+        <button class="btn btn-primary" onclick="enterTournament()" style="margin-top: 1rem;">
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
+        </button>
+      </div>
+    `;
+  }
+}
+
+async function enterTournament() {
+  const token = localStorage.getItem('wc_lms_token');
+  
+  if (!confirm('Enter the World Cup 2026 Last Man Standing tournament?\n\nEntry fee: £20\nPrize pool: Winner takes all!')) {
+    return;
+  }
+  
+  try {
+    // Get the first tournament
+    const tourneyResponse = await fetch('/api/teams');
+    const tourneyData = await tourneyResponse.json();
+    
+    // For now, use tournament_id 1 (we'll need to get this properly)
+    const response = await fetch('/api/entries', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ tournament_id: '00000000-0000-0000-0000-000000000001' })
+    });
+    
+    if (response.ok) {
+      alert('You have entered the tournament! Good luck!');
+      loadDashboard();
+    } else {
+      const error = await response.json();
+      alert(error.error || 'Failed to enter tournament');
+    }
+  } catch (error) {
+    alert('Error entering tournament: ' + error.message);
   }
 }
 

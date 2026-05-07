@@ -490,6 +490,27 @@ body {
   color: white;
 }
 
+.not-entered {
+  text-align: center;
+  padding: 2rem;
+}
+
+.not-entered i {
+  font-size: 3rem;
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.not-entered h3 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.not-entered p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
 /* Utilities */
 .text-center {
   text-align: center;
