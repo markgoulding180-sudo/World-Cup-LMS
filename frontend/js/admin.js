@@ -1,4 +1,4 @@
-// Admin panel JavaScript
+// Admin panel JavaScript - v3
 
 // Admin PIN
 const ADMIN_PIN = '1234';
