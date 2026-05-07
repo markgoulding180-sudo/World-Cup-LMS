@@ -78,20 +78,66 @@ async function loadMatchesForResults() {
   const resultContainer = document.getElementById('result-entry');
   
   try {
-    // Get all matches with team info
-    const supabase = window.supabaseClient;
-    const { data: matches, error } = await supabase
-      .from('matches')
-      .select(`
-        *,
-        home_team:home_team_id(name, flag_url),
-        away_team:away_team_id(name, flag_url),
-        rounds:round_id(name)
-      `)
-      .order('match_time', { ascending: true })
-      .limit(20);
+    // Get upcoming matches
+    const response = await fetch('/api/matches?status=upcoming&limit=20');
+    const data = await response.json();
     
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(data.error);
+    }
+    
+    const matches = data.matches || [];
+    
+    if (matches.length === 0) {
+      resultContainer.innerHTML = '<p class="text-secondary">No upcoming matches to enter results for.</p>';
+    } else {
+      let html = '<div class="matches-for-entry">';
+      matches.forEach(match => {
+        html += `
+          <div class="match-entry-row">
+            <div class="match-teams">
+              <div class="team">
+                <img src="${match.home_team?.flag_url}" alt="" class="team-flag-small">
+                <span>${match.home_team?.name}</span>
+              </div>
+              <span class="vs">vs</span>
+              <div class="team">
+                <img src="${match.away_team?.flag_url}" alt="" class="team-flag-small">
+                <span>${match.away_team?.name}</span>
+              </div>
+            </div>
+            <div class="score-inputs">
+              <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="score-input">
+              <span>-</span>
+              <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
+              <button class="btn btn-primary btn-sm" onclick="submitResult('${match.id}')">Save</button>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      resultContainer.innerHTML = html;
+    }
+    
+    // Get all matches for summary
+    const allResponse = await fetch('/api/matches?limit=100');
+    const allData = await allResponse.json();
+    const allMatches = allData.matches || [];
+    
+    const upcomingCount = allMatches.filter(m => m.status === 'upcoming').length;
+    const finishedCount = allMatches.filter(m => m.status === 'finished').length;
+    
+    container.innerHTML = `
+      <p><strong>Upcoming:</strong> ${upcomingCount} matches</p>
+      <p><strong>Finished:</strong> ${finishedCount} matches</p>
+    `;
+    
+  } catch (error) {
+    console.error('Error loading matches:', error);
+    container.innerHTML = `<p class="error">Error loading matches</p>`;
+    resultContainer.innerHTML = `<p class="error">Error loading matches for entry</p>`;
+  }
+}
     
     // Display upcoming matches for result entry
     const upcomingMatches = matches?.filter(m => m.status === 'upcoming') || [];
