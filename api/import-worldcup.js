@@ -23,8 +23,11 @@ module.exports = async (req, res) => {
     );
 
     // Fetch World Cup data
+    console.log('Fetching World Cup data from:', WORLD_CUP_DATA_URL);
     const response = await fetch(WORLD_CUP_DATA_URL);
+    console.log('Response status:', response.status);
     const data = await response.json();
+    console.log('Data loaded, matches:', data.matches?.length);
 
     // Extract unique teams
     const teamsMap = new Map();
@@ -132,6 +135,10 @@ module.exports = async (req, res) => {
     });
 
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('Import error:', error);
+    return res.status(500).json({ 
+      error: error.message,
+      stack: error.stack 
+    });
   }
 };
