@@ -7,9 +7,9 @@ const SUPABASE_URL = 'https://jqctbpuulyhghrxjmqee.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_vz_kucACOudTn42svAhgg_ZjR9C1KJ1q5A';
 
 // Initialize Supabase
-let supabase = null;
+let supabaseClient = null;
 if (typeof window !== 'undefined' && window.supabase) {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
 // Auth state
