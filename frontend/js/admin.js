@@ -54,6 +54,7 @@ async function importWorldCupData() {
     });
     
     const data = await response.json();
+    console.log('Import response:', data);
     
     if (response.ok) {
       statusDiv.innerHTML = `
@@ -66,7 +67,10 @@ async function importWorldCupData() {
         <p>Tournament: ${data.tournament?.name}</p>
       `;
     } else {
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-red);">Error: ${data.error}</p>
+        <pre style="font-size: 0.75rem; color: var(--text-secondary); overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+      `;
     }
   } catch (error) {
     statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
