@@ -209,11 +209,16 @@ async function selectTeam(teamId) {
   if (!confirm('Select this team for the current round?')) return;
   
   try {
-    // Get current round and tournament info first
+    // Check if user is entered in tournament first
     const statusResponse = await fetch('/api/entries', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const statusData = await statusResponse.json();
+    
+    if (statusData.status !== 'active') {
+      alert('You must enter the tournament before making a pick!\n\nClick "Enter Tournament (£20)" button first.');
+      return;
+    }
     
     // Get tournaments to find active one
     const tourneyResponse = await fetch('/api/tournaments');
