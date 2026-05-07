@@ -2,9 +2,9 @@
 
 const API_BASE = '/api';
 
-// Supabase configuration (will be set after creating project)
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// Supabase configuration
+const SUPABASE_URL = 'https://jqctbpuulyhghrxjmqee.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_vz_kucACOudTn42svAhgg_ZjR9C1KJ1q5A';
 
 // Initialize Supabase
 let supabase = null;
