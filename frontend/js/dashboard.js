@@ -1,4 +1,13 @@
-// Dashboard page JavaScript
+// Dashboard page JavaScript - v2: Structured 3-Step Matchday Pick Flow
+
+// Current matchday state (1, 2, or 3 for group stage)
+let currentMatchday = 1;
+let allMatches = [];
+let allTeams = [];
+let userPicks = [];
+let roundPicks = [];
+let currentRound = null;
+let tournamentId = null;
 
 async function loadDashboard() {
   const token = localStorage.getItem('wc_lms_token');
@@ -17,12 +26,16 @@ async function loadDashboard() {
     
     // Get current round info
     const roundsResponse = await fetch('/api/rounds');
-    let currentRound = null;
-    let picksRequired = 3;
     if (roundsResponse.ok) {
       const roundsData = await roundsResponse.json();
       currentRound = roundsData.rounds?.find(r => r.status === 'open') || roundsData.rounds?.[0];
-      picksRequired = currentRound?.picks_required || 3;
+    }
+    
+    // Get tournament
+    const tourneyResponse = await fetch('/api/tournaments');
+    if (tourneyResponse.ok) {
+      const tourneyData = await tourneyResponse.json();
+      tournamentId = tourneyData.tournaments?.[0]?.id;
     }
     
     // Load user's current picks for this round
@@ -30,8 +43,6 @@ async function loadDashboard() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    let userPicks = [];
-    let roundPicks = [];
     if (picksResponse.ok) {
       const picksData = await picksResponse.json();
       userPicks = picksData.picks || [];
@@ -39,18 +50,24 @@ async function loadDashboard() {
       roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
     }
     
-    // Load all teams for group stage rounds
-    // In group stage, all 48 teams play across the 3 matchdays
-    // Players pick from all available teams
+    // Determine current matchday based on picks made
+    determineCurrentMatchday();
+    
+    // Load all teams and matches
     const teamsResponse = await fetch('/api/teams');
     const matchesResponse = await fetch('/api/matches?limit=100');
     
-    if (teamsResponse.ok) {
+    if (teamsResponse.ok && matchesResponse.ok) {
       const teamsData = await teamsResponse.json();
-      const matchesData = matchesResponse.ok ? await matchesResponse.json() : { matches: [] };
-      displayAvailableTeams(teamsData.teams, userPicks, roundPicks.length, picksRequired, matchesData.matches);
-      displayCurrentPicks(roundPicks, picksRequired, matchesData.matches);
-      displayRoundMatches(matchesData.matches, currentRound);
+      const matchesData = await matchesResponse.json();
+      
+      allTeams = teamsData.teams || [];
+      allMatches = matchesData.matches || [];
+      
+      // Display the structured pick flow
+      displayMatchdayPickFlow();
+      displayCurrentPicks(roundPicks);
+      displayRoundMatches(allMatches, currentRound);
     }
     
   } catch (error) {
@@ -59,57 +76,293 @@ async function loadDashboard() {
   }
 }
 
-function displayCurrentPicks(picks, picksRequired, matches) {
-  const container = document.getElementById('current-pick');
-  if (!container) return;
-  
-  const picksMade = picks.length;
-  
-  // Create match map for lookup
-  const matchMap = new Map();
-  matches?.forEach(m => {
-    const matchDate = new Date(m.match_time);
-    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    matchMap.set(m.home_team_id, { opponent: m.away_team?.name, date: dateStr, time: timeStr });
-    matchMap.set(m.away_team_id, { opponent: m.home_team?.name, date: dateStr, time: timeStr });
+function determineCurrentMatchday() {
+  // Count picks per matchday
+  const matchdayCounts = { 1: 0, 2: 0, 3: 0 };
+  roundPicks.forEach(pick => {
+    if (pick.matchday && matchdayCounts[pick.matchday] !== undefined) {
+      matchdayCounts[pick.matchday]++;
+    }
   });
   
-  if (picksMade === 0) {
+  // Determine which matchday we're on
+  if (matchdayCounts[1] < 3) {
+    currentMatchday = 1;
+  } else if (matchdayCounts[2] < 3) {
+    currentMatchday = 2;
+  } else if (matchdayCounts[3] < 3) {
+    currentMatchday = 3;
+  } else {
+    currentMatchday = 4; // All matchdays complete
+  }
+}
+
+function displayMatchdayPickFlow() {
+  const container = document.getElementById('available-teams');
+  
+  if (!currentRound) {
+    container.innerHTML = '<p class="text-secondary">No active round available.</p>';
+    return;
+  }
+  
+  // Check if user has entered tournament
+  const statusDiv = document.getElementById('player-status');
+  const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
+  
+  if (!isEntered) {
     container.innerHTML = `
-      <div class="current-pick-card">
-        <h3>Your Picks This Round</h3>
-        <p class="text-secondary">No picks yet. You need to make ${picksRequired} pick(s).</p>
-        <p>Picks: 0 / ${picksRequired}</p>
+      <div class="not-entered-message">
+        <p>You need to enter the tournament before making picks.</p>
+        <button class="btn btn-primary" onclick="enterTournament()">
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
+        </button>
       </div>
     `;
     return;
   }
   
-  let picksHtml = picks.map(pick => {
-    const matchInfo = matchMap.get(pick.team_id);
-    const matchDetails = matchInfo ? 
-      `<span class="pick-match-day">📅 ${matchInfo.date} @ ${matchInfo.time} vs ${matchInfo.opponent}</span>` : 
-      '<span class="pick-match-day">📅 Match TBC</span>';
-    
-    return `
-    <div class="pick-item-small">
-      <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
-      <div class="pick-details">
-        <span class="pick-team-name">${pick.teams?.name}</span>
-        ${matchDetails}
+  // Check if all matchdays are complete
+  if (currentMatchday > 3) {
+    container.innerHTML = `
+      <div class="all-picks-complete">
+        <i class="fas fa-check-circle"></i>
+        <h3>All Picks Submitted!</h3>
+        <p>You have made all 9 picks for the Group Stage (3 per matchday).</p>
+        <p>Good luck!</p>
       </div>
-      <span class="pick-status-badge ${pick.result}">${pick.result}</span>
-    </div>
-  `}).join('');
+    `;
+    return;
+  }
   
-  container.innerHTML = `
-    <div class="current-pick-card">
-      <h3>Your Picks This Round</h3>
-      <p>Picks: ${picksMade} / ${picksRequired}</p>
-      <div class="picks-list-small">${picksHtml}</div>
+  // Get matches for current matchday
+  const matchdayMatches = allMatches.filter(m => 
+    m.round_id === currentRound.id && m.matchday === currentMatchday
+  );
+  
+  if (matchdayMatches.length === 0) {
+    container.innerHTML = `<p class="text-secondary">No matches found for Matchday ${currentMatchday}.</p>`;
+    return;
+  }
+  
+  // Get teams playing in this matchday
+  const matchdayTeamIds = new Set();
+  matchdayMatches.forEach(m => {
+    matchdayTeamIds.add(m.home_team_id);
+    matchdayTeamIds.add(m.away_team_id);
+  });
+  
+  // Filter to available teams (not picked in any matchday of this round)
+  const usedTeamIds = new Set(roundPicks.map(p => p.team_id));
+  const availableMatchdayTeams = allTeams.filter(t => 
+    matchdayTeamIds.has(t.id) && !usedTeamIds.has(t.id)
+  );
+  
+  // Count picks made for current matchday
+  const picksInCurrentMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+  
+  // Build the matchday pick UI
+  let html = `
+    <div class="matchday-flow">
+      <div class="matchday-header">
+        <h3>Matchday ${currentMatchday} of 3</h3>
+        <div class="matchday-progress">
+          <span class="picks-count">${picksInCurrentMatchday}</span>
+          <span class="picks-total">/ 3 picks</span>
+        </div>
+      </div>
+      
+      <div class="matchday-progress-bar">
+        <div class="progress-fill" style="width: ${(picksInCurrentMatchday / 3) * 100}%"></div>
+      </div>
+      
+      <p class="matchday-instruction">
+        Select <strong>${3 - picksInCurrentMatchday}</strong> more team${3 - picksInCurrentMatchday !== 1 ? 's' : ''} to win their matches.
+        <br><small>Each team can only be used once across all matchdays.</small>
+      </p>
+  `;
+  
+  // Show matches for this matchday
+  html += '<div class="matchday-matches">';
+  matchdayMatches.forEach(m => {
+    const matchDate = new Date(m.match_time);
+    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    
+    const homeTeam = allTeams.find(t => t.id === m.home_team_id);
+    const awayTeam = allTeams.find(t => t.id === m.away_team_id);
+    
+    const homePicked = roundPicks.some(p => p.team_id === m.home_team_id);
+    const awayPicked = roundPicks.some(p => p.team_id === m.away_team_id);
+    
+    html += `
+      <div class="matchday-match-card">
+        <div class="match-info">
+          <span class="match-date">${dateStr} @ ${timeStr}</span>
+          <span class="match-group">Group ${homeTeam?.group_name || '?'}</span>
+        </div>
+        <div class="match-teams">
+          <div class="matchday-team ${homePicked ? 'picked' : ''}" 
+               onclick="${homePicked ? '' : `selectMatchdayTeam('${m.home_team_id}', ${currentMatchday})`}">
+            <img src="${homeTeam?.flag_url || ''}" alt="" class="team-flag-small">
+            <span class="team-name-short">${homeTeam?.name || 'TBD'}</span>
+            ${homePicked ? '<i class="fas fa-check pick-indicator"></i>' : ''}
+          </div>
+          <span class="vs">vs</span>
+          <div class="matchday-team ${awayPicked ? 'picked' : ''}"
+               onclick="${awayPicked ? '' : `selectMatchdayTeam('${m.away_team_id}', ${currentMatchday})`}">
+            <img src="${awayTeam?.flag_url || ''}" alt="" class="team-flag-small">
+            <span class="team-name-short">${awayTeam?.name || 'TBD'}</span>
+            ${awayPicked ? '<i class="fas fa-check pick-indicator"></i>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  
+  // Show upcoming matchdays status
+  html += `
+    <div class="upcoming-matchdays">
+      <h4>Your Progress</h4>
+      <div class="matchday-status-list">
+        <div class="matchday-status ${currentMatchday === 1 ? 'active' : (roundPicks.some(p => p.matchday === 1) ? 'complete' : '')}">
+          <span class="status-dot"></span>
+          <span class="status-label">Matchday 1</span>
+          <span class="status-count">${roundPicks.filter(p => p.matchday === 1).length}/3</span>
+        </div>
+        <div class="matchday-status ${currentMatchday === 2 ? 'active' : (roundPicks.some(p => p.matchday === 2) ? 'complete' : '')}">
+          <span class="status-dot"></span>
+          <span class="status-label">Matchday 2</span>
+          <span class="status-count">${roundPicks.filter(p => p.matchday === 2).length}/3</span>
+        </div>
+        <div class="matchday-status ${currentMatchday === 3 ? 'active' : (roundPicks.some(p => p.matchday === 3) ? 'complete' : '')}">
+          <span class="status-dot"></span>
+          <span class="status-label">Matchday 3</span>
+          <span class="status-count">${roundPicks.filter(p => p.matchday === 3).length}/3</span>
+        </div>
+      </div>
     </div>
   `;
+  
+  html += '</div>'; // Close matchday-flow
+  
+  container.innerHTML = html;
+}
+
+async function selectMatchdayTeam(teamId, matchday) {
+  const token = localStorage.getItem('wc_lms_token');
+  
+  // Check if already at pick limit for this matchday
+  const picksInMatchday = roundPicks.filter(p => p.matchday === matchday).length;
+  if (picksInMatchday >= 3) {
+    alert(`You have already made 3 picks for Matchday ${matchday}!`);
+    return;
+  }
+  
+  // Get team name for confirmation
+  const team = allTeams.find(t => t.id === teamId);
+  if (!team) return;
+  
+  if (!confirm(`Pick ${team.name} to win their Matchday ${matchday} match?\n\n(${picksInMatchday + 1} of 3 picks for this matchday)`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/picks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        team_id: teamId,
+        round_id: currentRound.id,
+        tournament_id: tournamentId,
+        matchday: matchday
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Check if matchday is now complete
+      if (data.matchdayComplete) {
+        if (data.nextMatchday) {
+          alert(`✓ Matchday ${matchday} complete!\n\nMoving to Matchday ${data.nextMatchday}...`);
+        } else {
+          alert(`✓ All picks submitted! Good luck!`);
+        }
+      } else {
+        // Show progress toast or update
+        const remaining = 3 - data.picksInMatchday;
+        console.log(`${remaining} pick${remaining !== 1 ? 's' : ''} remaining for Matchday ${matchday}`);
+      }
+      
+      // Reload dashboard to show updated state
+      loadDashboard();
+    } else {
+      alert(data.error || 'Failed to make pick');
+    }
+  } catch (error) {
+    alert('Error making pick: ' + error.message);
+  }
+}
+
+function displayCurrentPicks(picks) {
+  const container = document.getElementById('current-pick');
+  if (!container) return;
+  
+  const picksMade = picks.length;
+  
+  if (picksMade === 0) {
+    container.innerHTML = `
+      <div class="current-pick-card">
+        <h3>Your Group Stage Picks</h3>
+        <p class="text-secondary">No picks yet. You need to make 9 picks total (3 per matchday).</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Group picks by matchday
+  const picksByMatchday = { 1: [], 2: [], 3: [] };
+  picks.forEach(pick => {
+    if (pick.matchday && picksByMatchday[pick.matchday]) {
+      picksByMatchday[pick.matchday].push(pick);
+    }
+  });
+  
+  let html = `
+    <div class="current-pick-card">
+      <h3>Your Group Stage Picks</h3>
+      <p>Total: ${picksMade} / 9 picks</p>
+  `;
+  
+  [1, 2, 3].forEach(matchday => {
+    const matchdayPicks = picksByMatchday[matchday];
+    html += `<div class="matchday-picks-section">`;
+    html += `<h4>Matchday ${matchday} <span class="pick-count">(${matchdayPicks.length}/3)</span></h4>`;
+    
+    if (matchdayPicks.length === 0) {
+      html += '<p class="no-picks">No picks yet</p>';
+    } else {
+      html += '<div class="picks-list-small">';
+      html += matchdayPicks.map(pick => `
+        <div class="pick-item-small">
+          <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
+          <div class="pick-details">
+            <span class="pick-team-name">${pick.teams?.name}</span>
+          </div>
+          <span class="pick-status-badge ${pick.result}">${pick.result}</span>
+        </div>
+      `).join('');
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 function updateStatusCard(data) {
@@ -192,190 +445,6 @@ async function enterTournament() {
   }
 }
 
-let allTeams = [];
-let currentGroup = 'ALL';
-let currentPicksCount = 0;
-let maxPicksAllowed = 3;
-
-function displayAvailableTeams(teams, allUserPicks, picksMade, picksRequired, matches) {
-  const container = document.getElementById('available-teams');
-  
-  currentPicksCount = picksMade;
-  maxPicksAllowed = picksRequired;
-  
-  if (!teams || teams.length === 0) {
-    container.innerHTML = '<p>No teams available for this round</p>';
-    return;
-  }
-  
-  // Create a map of team_id to match info
-  const teamMatchMap = new Map();
-  matches?.forEach(m => {
-    const matchDate = new Date(m.match_time);
-    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    
-    teamMatchMap.set(m.home_team_id, { opponent: m.away_team?.name, date: dateStr, time: timeStr });
-    teamMatchMap.set(m.away_team_id, { opponent: m.home_team?.name, date: dateStr, time: timeStr });
-  });
-  
-  // Filter out teams already picked in previous rounds
-  const usedTeamIds = new Set(allUserPicks.map(p => p.team_id));
-  const availableTeams = teams.filter(t => !usedTeamIds.has(t.id));
-  
-  // Add match info to teams
-  availableTeams.forEach(team => {
-    team.matchInfo = teamMatchMap.get(team.id);
-  });
-  
-  allTeams = availableTeams;
-  
-  // Show picks progress
-  let html = `<div class="picks-progress">Picks: ${picksMade} / ${picksRequired}</div>`;
-  
-  if (picksMade >= picksRequired) {
-    html += '<div class="picks-complete">✓ All picks submitted for this round!</div>';
-    container.innerHTML = html;
-    return;
-  }
-  
-  // Get unique groups
-  const groups = [...new Set(availableTeams.map(t => t.group_name))].sort();
-  
-  html += '<div class="group-filter">';
-  html += `<button class="group-btn ${currentGroup === 'ALL' ? 'active' : ''}" onclick="filterTeams('ALL')">All Groups</button>`;
-  groups.forEach(group => {
-    html += `<button class="group-btn ${currentGroup === group ? 'active' : ''}" onclick="filterTeams('${group}')">Group ${group}</button>`;
-  });
-  html += '</div>';
-  
-  html += '<div class="teams-grid" id="teams-grid">';
-  html += renderTeamCards(availableTeams);
-  html += '</div>';
-  
-  container.innerHTML = html;
-}
-
-function renderTeamCards(teams) {
-  const filteredTeams = currentGroup === 'ALL' 
-    ? teams 
-    : teams.filter(t => t.group_name === currentGroup);
-  
-  if (filteredTeams.length === 0) {
-    return '<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary);">No teams in this group</p>';
-  }
-  
-  return filteredTeams.map(team => {
-    const eliminatedClass = team.eliminated ? 'eliminated' : '';
-    const matchInfo = team.matchInfo ? `
-      <span class="team-match">vs ${team.matchInfo.opponent}</span>
-      <span class="team-date">${team.matchInfo.date} ${team.matchInfo.time}</span>
-    ` : '<span class="team-match">Match TBC</span>';
-    
-    return `
-      <div class="team-card ${eliminatedClass}" onclick="${team.eliminated ? '' : `selectTeam('${team.id}')`}">
-        <img src="${team.flag_url || 'https://flagcdn.com/w80/xx.png'}" alt="${team.name}" class="team-flag" onerror="this.src='https://flagcdn.com/w80/xx.png'">
-        <span class="team-name">${team.name}</span>
-        <span class="team-group">Group ${team.group_name}</span>
-        ${matchInfo}
-      </div>
-    `;
-  }).join('');
-}
-
-function filterTeams(group) {
-  currentGroup = group;
-  const grid = document.getElementById('teams-grid');
-  if (grid) {
-    grid.innerHTML = renderTeamCards(allTeams);
-  }
-  
-  // Update active button
-  document.querySelectorAll('.group-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.textContent === (group === 'ALL' ? 'All Groups' : `Group ${group}`)) {
-      btn.classList.add('active');
-    }
-  });
-}
-
-async function selectTeam(teamId) {
-  const token = localStorage.getItem('wc_lms_token');
-  
-  // Check if already at pick limit
-  if (currentPicksCount >= maxPicksAllowed) {
-    alert(`You have already made ${maxPicksAllowed} pick(s) for this round!`);
-    return;
-  }
-  
-  if (!confirm(`Select this team for the current round? (${currentPicksCount + 1} of ${maxPicksAllowed})`)) return;
-  
-  try {
-    // Check if user is entered in tournament first
-    const statusResponse = await fetch('/api/entries', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const statusData = await statusResponse.json();
-    
-    if (statusData.status !== 'active') {
-      alert('You must enter the tournament before making a pick!\n\nClick "Enter Tournament (£20)" button first.');
-      return;
-    }
-    
-    // Get tournaments to find active one
-    const tourneyResponse = await fetch('/api/tournaments');
-    const tourneyData = await tourneyResponse.json();
-    
-    if (!tourneyData.tournaments || tourneyData.tournaments.length === 0) {
-      alert('No active tournament found');
-      return;
-    }
-    
-    const tournamentId = tourneyData.tournaments[0].id;
-    
-    // Get rounds to find current round
-    const roundsResponse = await fetch('/api/rounds');
-    const roundsData = await roundsResponse.json();
-    
-    // Find the first open round, or default to round 1
-    let roundId = null;
-    if (roundsData.rounds) {
-      const openRound = roundsData.rounds.find(r => r.status === 'open');
-      roundId = openRound ? openRound.id : roundsData.rounds[0]?.id;
-    }
-    
-    if (!roundId) {
-      alert('No active round found');
-      return;
-    }
-    
-    const response = await fetch('/api/picks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ 
-        team_id: teamId,
-        round_id: roundId,
-        tournament_id: tournamentId
-      })
-    });
-    
-    if (response.ok) {
-      alert('Team selected!');
-      loadDashboard();
-    } else {
-      const error = await response.json();
-      alert(error.error || 'Failed to select team');
-    }
-  } catch (error) {
-    alert('Error selecting team: ' + error.message);
-  }
-}
-
-let currentMatchDay = 0;
-
 function displayRoundMatches(matches, currentRound) {
   const container = document.getElementById('round-matches');
   if (!container || !currentRound) return;
@@ -388,64 +457,52 @@ function displayRoundMatches(matches, currentRound) {
     return;
   }
   
-  // Group matches by date
-  const matchesByDate = {};
-  const dateKeys = [];
+  // Group matches by matchday
+  const matchesByMatchday = { 1: [], 2: [], 3: [] };
   roundMatches.forEach(m => {
-    const date = new Date(m.match_time);
-    const dateKey = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-    const fullDateKey = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-    if (!matchesByDate[dateKey]) {
-      matchesByDate[dateKey] = { fullDate: fullDateKey, matches: [] };
-      dateKeys.push(dateKey);
+    if (m.matchday && matchesByMatchday[m.matchday]) {
+      matchesByMatchday[m.matchday].push(m);
     }
-    matchesByDate[dateKey].matches.push(m);
   });
-  
-  // Reset to first day if out of range
-  if (currentMatchDay >= dateKeys.length) currentMatchDay = 0;
   
   let html = '<div class="round-matches-list">';
-  html += `<h3>${currentRound.name} - Match Schedule</h3>`;
+  html += `<h3>${currentRound.name} - All Matches</h3>`;
   
-  // Day tabs
-  html += '<div class="day-tabs">';
-  dateKeys.forEach((dateKey, index) => {
-    const isActive = index === currentMatchDay ? 'active' : '';
-    html += `<button class="day-tab ${isActive}" onclick="switchMatchDay(${index})">${dateKey}</button>`;
-  });
-  html += '</div>';
-  
-  // Show matches for selected day
-  const selectedDay = dateKeys[currentMatchDay];
-  const dayData = matchesByDate[selectedDay];
-  
-  html += `<div class="match-day-content">`;
-  html += `<h4>${dayData.fullDate}</h4>`;
-  dayData.matches.forEach(m => {
-    const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    html += `
-      <div class="match-item">
-        <span class="match-time">${time}</span>
-        <div class="match-teams-row">
-          <img src="${m.home_team?.flag_url}" alt="" class="match-flag">
-          <span>${m.home_team?.name}</span>
-          <span class="vs">vs</span>
-          <span>${m.away_team?.name}</span>
-          <img src="${m.away_team?.flag_url}" alt="" class="match-flag">
+  [1, 2, 3].forEach(matchday => {
+    const matchdayMatches = matchesByMatchday[matchday];
+    if (matchdayMatches.length === 0) return;
+    
+    html += `<div class="matchday-section">`;
+    html += `<h4>Matchday ${matchday}</h4>`;
+    
+    matchdayMatches.forEach(m => {
+      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const date = new Date(m.match_time).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      
+      html += `
+        <div class="match-item">
+          <span class="match-time">${date} ${time}</span>
+          <div class="match-teams-row">
+            <img src="${m.home_team?.flag_url}" alt="" class="match-flag">
+            <span>${m.home_team?.name}</span>
+            <span class="vs">vs</span>
+            <span>${m.away_team?.name}</span>
+            <img src="${m.away_team?.flag_url}" alt="" class="match-flag">
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    });
+    
+    html += '</div>';
   });
-  html += '</div>';
   
   html += '</div>';
   container.innerHTML = html;
 }
 
+// Legacy function - kept for compatibility
 function switchMatchDay(dayIndex) {
-  currentMatchDay = dayIndex;
-  loadDashboard();
+  // No longer needed with new flow
 }
 
 // Load dashboard on page load

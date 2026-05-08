@@ -1,4 +1,5 @@
-// Vercel Function: Get Matches
+// Vercel Function: Get Matches - v2
+// Updated to include matchday filtering
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
@@ -20,7 +21,7 @@ module.exports = async (req, res) => {
       process.env.SUPABASE_SECRET
     );
 
-    const { status, round_id, limit = 50 } = req.query;
+    const { status, round_id, matchday, limit = 50 } = req.query;
 
     let query = supabase
       .from('matches')
@@ -39,6 +40,10 @@ module.exports = async (req, res) => {
 
     if (round_id) {
       query = query.eq('round_id', round_id);
+    }
+
+    if (matchday) {
+      query = query.eq('matchday', parseInt(matchday));
     }
 
     const { data: matches, error } = await query;

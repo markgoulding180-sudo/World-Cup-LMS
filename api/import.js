@@ -1,4 +1,5 @@
-// Vercel Function: Import (Teams, Matches, Reset, WorldCup) - v2
+// Vercel Function: Import (Teams, Matches, Reset, WorldCup) - v3
+// Updated for structured 9-pick group stage (3 per matchday)
 const { createClient } = require('@supabase/supabase-js');
 
 const WORLD_CUP_DATA_URL = 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json';
@@ -55,15 +56,14 @@ const WORLD_CUP_TEAMS = [
   { name: 'Panama', group_name: 'L', code: 'PAN', flag_url: 'https://flagcdn.com/w80/pa.png' }
 ];
 
+// Updated rounds: Group Stage is now one round with 9 picks (3 per matchday)
 const ROUNDS = [
-  { name: 'Group Stage - Matchday 1', round_number: 1, picks_required: 3 },
-  { name: 'Group Stage - Matchday 2', round_number: 2, picks_required: 3 },
-  { name: 'Group Stage - Matchday 3', round_number: 3, picks_required: 3 },
-  { name: 'Round of 32', round_number: 4, picks_required: 1 },
-  { name: 'Round of 16', round_number: 5, picks_required: 1 },
-  { name: 'Quarter Finals', round_number: 6, picks_required: 1 },
-  { name: 'Semi Finals', round_number: 7, picks_required: 1 },
-  { name: 'Final', round_number: 8, picks_required: 1 }
+  { name: 'Group Stage', round_number: 1, picks_required: 9 },
+  { name: 'Round of 32', round_number: 2, picks_required: 1 },
+  { name: 'Round of 16', round_number: 3, picks_required: 1 },
+  { name: 'Quarter Finals', round_number: 4, picks_required: 1 },
+  { name: 'Semi Finals', round_number: 5, picks_required: 1 },
+  { name: 'Final', round_number: 6, picks_required: 1 }
 ];
 
 module.exports = async (req, res) => {
@@ -125,31 +125,28 @@ module.exports = async (req, res) => {
       const roundMap = new Map(rounds?.map(r => [r.round_number, r.id]));
 
       function getRoundNumber(roundName) {
-        // Group stage matchdays 1-3 map to LMS rounds 1-3
-        if (roundName.includes('Matchday 1')) return 1;
-        if (roundName.includes('Matchday 2')) return 2;
-        if (roundName.includes('Matchday 3')) return 3;
-        if (roundName.includes('Matchday 4')) return 3;
-        if (roundName.includes('Matchday 5')) return 3;
-        if (roundName.includes('Matchday 6')) return 3;
-        if (roundName.includes('Matchday 7')) return 3;
-        if (roundName.includes('Matchday 8')) return 3;
-        if (roundName.includes('Matchday 9')) return 3;
-        if (roundName.includes('Matchday 10')) return 3;
-        if (roundName.includes('Matchday 11')) return 3;
-        if (roundName.includes('Matchday 12')) return 3;
-        if (roundName.includes('Matchday 13')) return 3;
-        if (roundName.includes('Matchday 14')) return 3;
-        if (roundName.includes('Matchday 15')) return 3;
-        if (roundName.includes('Matchday 16')) return 3;
-        if (roundName.includes('Matchday 17')) return 3;
+        // Group stage all maps to round 1 (Group Stage)
+        if (roundName.includes('Matchday')) return 1;
         // Knockout rounds
-        if (roundName.includes('Round of 32')) return 4;
-        if (roundName.includes('Round of 16')) return 5;
-        if (roundName.includes('Quarter')) return 6;
-        if (roundName.includes('Semi')) return 7;
-        if (roundName.includes('Final') && !roundName.includes('third')) return 8;
+        if (roundName.includes('Round of 32')) return 2;
+        if (roundName.includes('Round of 16')) return 3;
+        if (roundName.includes('Quarter')) return 4;
+        if (roundName.includes('Semi')) return 5;
+        if (roundName.includes('Final') && !roundName.includes('third')) return 6;
         return 1;
+      }
+
+      function getMatchday(roundName) {
+        // Extract matchday number from group stage matches
+        const match = roundName.match(/Matchday\s*(\d+)/i);
+        if (match) {
+          const matchday = parseInt(match[1]);
+          // Map matchdays 1-6 to 1, 7-12 to 2, 13+ to 3 (for 48-team format)
+          if (matchday <= 6) return 1;
+          if (matchday <= 12) return 2;
+          return 3;
+        }
+        return null; // Knockout matches have no matchday
       }
 
       const matches = [];
@@ -189,6 +186,7 @@ module.exports = async (req, res) => {
 
         matches.push({
           round_id: roundId,
+          matchday: getMatchday(match.round),
           home_team_id: homeTeamId,
           away_team_id: awayTeamId,
           match_time: matchTime.toISOString(),

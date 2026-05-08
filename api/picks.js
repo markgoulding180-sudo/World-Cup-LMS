@@ -1,4 +1,5 @@
-// Vercel Function: Handle Picks (User + Admin)
+// Vercel Function: Handle Picks (User + Admin) - v2
+// Updated for structured 9-pick group stage with matchday tracking
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
@@ -18,7 +19,7 @@ module.exports = async (req, res) => {
   // GET - Fetch picks (user's own or all for admin)
   if (req.method === 'GET') {
     try {
-      const { admin } = req.query;
+      const { admin, tournament_id } = req.query;
       
       // Admin request - return all picks
       if (admin === 'true') {
@@ -61,10 +62,16 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
-      const { data: picks, error } = await supabase
+      let query = supabase
         .from('picks')
-        .select('*, teams:team_id(name, flag_url)')
+        .select('*, teams:team_id(name, flag_url, code)')
         .eq('user_id', user.id);
+
+      if (tournament_id) {
+        query = query.eq('tournament_id', tournament_id);
+      }
+
+      const { data: picks, error } = await query;
 
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -77,7 +84,7 @@ module.exports = async (req, res) => {
     }
   }
 
-  // POST - Submit pick
+  // POST - Submit pick(s)
   if (req.method === 'POST') {
     try {
       const authHeader = req.headers.authorization;
@@ -92,12 +99,17 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
-      const { team_id, round_id, tournament_id } = req.body;
+      const { team_id, round_id, tournament_id, matchday } = req.body;
 
-      // Get picks_required for this round
+      // Validate matchday for group stage
+      if (!matchday || matchday < 1 || matchday > 3) {
+        return res.status(400).json({ error: 'Valid matchday (1-3) required' });
+      }
+
+      // Get round info
       const { data: round, error: roundError } = await supabase
         .from('rounds')
-        .select('picks_required')
+        .select('picks_required, round_number')
         .eq('id', round_id)
         .single();
 
@@ -105,39 +117,46 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: 'Failed to get round settings' });
       }
 
-      const picksRequired = round?.picks_required || 1;
-
-      // Count existing picks this round for this player
-      const { data: existingRoundPicks, error: countError } = await supabase
+      // Count existing picks for this matchday
+      const { data: existingMatchdayPicks, error: countError } = await supabase
         .from('picks')
-        .select('id')
+        .select('id, team_id')
         .eq('user_id', user.id)
         .eq('round_id', round_id)
-        .eq('tournament_id', tournament_id);
+        .eq('tournament_id', tournament_id)
+        .eq('matchday', matchday);
 
-      if (existingRoundPicks && existingRoundPicks.length >= picksRequired) {
+      if (existingMatchdayPicks && existingMatchdayPicks.length >= 3) {
         return res.status(400).json({ 
-          error: `You can only make ${picksRequired} pick(s) this round` 
+          error: `You have already made 3 picks for Matchday ${matchday}` 
         });
       }
 
-      // Check team has not been used in any previous round
+      // Check if team already picked in this matchday
+      const teamAlreadyPickedThisMatchday = existingMatchdayPicks?.some(p => p.team_id === team_id);
+      if (teamAlreadyPickedThisMatchday) {
+        return res.status(400).json({ 
+          error: 'You have already picked this team for this matchday' 
+        });
+      }
+
+      // Check team has not been used in ANY previous matchday of this round
       const { data: previousPicks, error: prevError } = await supabase
         .from('picks')
-        .select('team_id')
+        .select('team_id, matchday')
         .eq('user_id', user.id)
-        .eq('tournament_id', tournament_id)
-        .neq('round_id', round_id);
+        .eq('round_id', round_id)
+        .eq('tournament_id', tournament_id);
 
       const usedTeamIds = previousPicks?.map(p => p.team_id) || [];
 
       if (usedTeamIds.includes(team_id)) {
         return res.status(400).json({ 
-          error: 'You have already used this team in a previous round' 
+          error: 'You have already used this team in a previous matchday. Each team can only be used once across all matchdays.' 
         });
       }
 
-      // Insert pick
+      // Insert pick with matchday
       const { data, error } = await supabase
         .from('picks')
         .insert({
@@ -145,6 +164,7 @@ module.exports = async (req, res) => {
           team_id,
           round_id,
           tournament_id,
+          matchday,
           result: 'pending'
         })
         .select();
@@ -153,9 +173,23 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: error.message });
       }
 
+      // Check if matchday is complete (3 picks made)
+      const { data: matchdayPicks } = await supabase
+        .from('picks')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('round_id', round_id)
+        .eq('tournament_id', tournament_id)
+        .eq('matchday', matchday);
+
+      const isMatchdayComplete = matchdayPicks && matchdayPicks.length >= 3;
+
       return res.status(200).json({
         success: true,
-        pick: data[0]
+        pick: data[0],
+        matchdayComplete: isMatchdayComplete,
+        picksInMatchday: matchdayPicks?.length || 1,
+        nextMatchday: isMatchdayComplete && matchday < 3 ? matchday + 1 : null
       });
 
     } catch (error) {

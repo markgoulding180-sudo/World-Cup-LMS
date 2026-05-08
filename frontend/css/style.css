@@ -972,3 +972,350 @@ body {
 a {
   color: var(--accent-gold);
 }
+
+/* ============================================
+   MATCHDAY PICK FLOW - Structured 3-Step UI
+   ============================================ */
+
+.matchday-flow {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.matchday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.matchday-header h3 {
+  color: var(--accent-gold);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.matchday-progress {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.picks-count {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.picks-total {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.matchday-progress-bar {
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold), #ffed4a);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.matchday-instruction {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+}
+
+.matchday-instruction strong {
+  color: var(--accent-gold);
+}
+
+/* Matchday Match Cards */
+.matchday-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.matchday-match-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.matchday-match-card:hover {
+  border-color: var(--accent-gold);
+}
+
+.match-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.match-date {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.match-group {
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.matchday-match-card .match-teams {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.matchday-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+  position: relative;
+}
+
+.matchday-team:hover:not(.picked) {
+  border-color: var(--accent-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.15);
+}
+
+.matchday-team.picked {
+  border-color: var(--accent-green);
+  background: rgba(34, 197, 94, 0.1);
+  cursor: default;
+}
+
+.team-flag-small {
+  width: 40px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.team-name-short {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.pick-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--accent-green);
+  color: var(--bg-primary);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+/* Upcoming Matchdays Status */
+.upcoming-matchdays {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.upcoming-matchdays h4 {
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.matchday-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.matchday-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-card);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--border-color);
+}
+
+.matchday-status.active {
+  border-left-color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.matchday-status.complete {
+  border-left-color: var(--accent-green);
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--border-color);
+}
+
+.matchday-status.active .status-dot {
+  background: var(--accent-gold);
+  box-shadow: 0 0 8px var(--accent-gold);
+}
+
+.matchday-status.complete .status-dot {
+  background: var(--accent-green);
+}
+
+.status-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.status-count {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* All Picks Complete State */
+.all-picks-complete {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: var(--bg-card);
+  border: 2px solid var(--accent-green);
+  border-radius: 1rem;
+}
+
+.all-picks-complete i {
+  font-size: 4rem;
+  color: var(--accent-green);
+  margin-bottom: 1rem;
+}
+
+.all-picks-complete h3 {
+  color: var(--accent-green);
+  margin-bottom: 0.5rem;
+}
+
+.all-picks-complete p {
+  color: var(--text-secondary);
+}
+
+/* Not Entered Message */
+.not-entered-message {
+  text-align: center;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border-radius: 1rem;
+}
+
+.not-entered-message p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Matchday Picks Section in Current Picks */
+.matchday-picks-section {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.matchday-picks-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.matchday-picks-section h4 {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pick-count {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.no-picks {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+}
+
+/* Matchday Section in Round Matches */
+.matchday-section {
+  margin-bottom: 1.5rem;
+}
+
+.matchday-section:last-child {
+  margin-bottom: 0;
+}
+
+.matchday-section h4 {
+  color: var(--accent-gold);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .matchday-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  
+  .matchday-match-card .match-teams {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .matchday-team {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .team-flag-small {
+    width: 32px;
+    height: 22px;
+  }
+}
