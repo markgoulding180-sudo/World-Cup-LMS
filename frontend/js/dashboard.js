@@ -114,7 +114,7 @@ function displayMatchdayPickFlow() {
       <div class="not-entered-message">
         <p>You need to enter the tournament before making picks.</p>
         <button class="btn btn-primary" onclick="enterTournament()">
-          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
         </button>
       </div>
     `;
@@ -387,8 +387,8 @@ function updateStatusCard(data) {
         <i class="fas fa-check-circle"></i>
         <h3>Still In It!</h3>
         <div class="lives-display">${heartsDisplay}</div>
-        <p>${data.lives_remaining || 0} of ${data.max_lives || 3} lives remaining</p>
-        <p>Current Round: ${data.current_round}</p>
+        <p>${data.lives_remaining || 0} of ${data.max_lives || 9} picks remaining</p>
+        <p>Current Matchday: ${data.current_matchday || 1}</p>
       </div>
     `;
   } else {
@@ -398,7 +398,7 @@ function updateStatusCard(data) {
         <h3>Not Entered</h3>
         <p>You need to enter the tournament to play</p>
         <button class="btn btn-primary" onclick="enterTournament()" style="margin-top: 1rem;">
-          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
         </button>
       </div>
     `;
@@ -408,7 +408,7 @@ function updateStatusCard(data) {
 async function enterTournament() {
   const token = localStorage.getItem('wc_lms_token');
   
-  if (!confirm('Enter the World Cup 2026 Last Man Standing tournament?\n\nEntry fee: £20\nPrize pool: Winner takes all!')) {
+  if (!confirm('Enter the World Cup 2026 Last Man Standing tournament?\n\nEntry fee: £30\nMax 100 players\nPrize pool: Winner takes all!')) {
     return;
   }
   
