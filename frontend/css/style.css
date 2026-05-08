@@ -1635,7 +1635,12 @@ a {
   border: 2px solid var(--border-color);
   border-radius: 0.35rem;
   background: var(--bg-primary);
+  color: var(--text-primary);
   box-sizing: border-box;
+}
+
+.admin-card-input::placeholder {
+  color: var(--text-secondary);
 }
 
 .admin-card-result {
