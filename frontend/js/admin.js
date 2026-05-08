@@ -88,13 +88,6 @@ async function loadMatchesForResults() {
     if (matches.length === 0) {
       resultContainer.innerHTML = '<p class="text-secondary">No matches found.</p>';
     } else {
-      // Add filter input
-      html += `
-        <div class="match-filter">
-          <input type="text" id="match-filter-input" placeholder="Filter by team name..." onkeyup="filterMatches()">
-          <button class="btn btn-secondary btn-sm" onclick="clearFilter()">Clear</button>
-        </div>
-      `;
       // Group by matchday
       const byMatchday = { 1: [], 2: [], 3: [] };
       matches.forEach(m => {
@@ -104,6 +97,14 @@ async function loadMatchesForResults() {
       });
       
       let html = '<div class="matches-for-entry">';
+      
+      // Add filter input
+      html += `
+        <div class="match-filter">
+          <input type="text" id="match-filter-input" placeholder="Filter by team name..." onkeyup="filterMatches()">
+          <button class="btn btn-secondary btn-sm" onclick="clearFilter()">Clear</button>
+        </div>
+      `;
       
       [1, 2, 3].forEach(md => {
         const mdMatches = byMatchday[md];
