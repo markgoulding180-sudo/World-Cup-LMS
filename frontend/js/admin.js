@@ -120,33 +120,39 @@ async function loadMatchesForResults() {
           
           html += `
             <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}">
-              <div class="match-admin-line1">
-                <span class="match-admin-when">${dateStr} @ ${timeStr}</span>
+              <div class="match-admin-when">${dateStr} @ ${timeStr}</div>
+              
+              <div class="match-admin-inputs-layout">
+                <!-- Team A -->
+                <div class="match-admin-input-col">
+                  <div class="match-admin-team-row">
+                    <img src="${match.home_team?.flag_url}" alt="" class="match-admin-flag">
+                    <span class="match-admin-name">${match.home_team?.name}</span>
+                  </div>
+                  ${!isFinished ? 
+                    `<input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="admin-score-input">` :
+                    `<div class="admin-result-display">${match.home_score}</div>`
+                  }
+                </div>
+                
+                <!-- Middle -->
+                <div class="match-admin-middle">
+                  <span class="match-admin-vs">v</span>
+                  ${!isFinished ? `<button class="btn btn-save" onclick="submitResult('${match.id}')">Save</button>` : ''}
+                </div>
+                
+                <!-- Team B -->
+                <div class="match-admin-input-col">
+                  <div class="match-admin-team-row">
+                    <img src="${match.away_team?.flag_url}" alt="" class="match-admin-flag">
+                    <span class="match-admin-name">${match.away_team?.name}</span>
+                  </div>
+                  ${!isFinished ? 
+                    `<input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="admin-score-input">` :
+                    `<div class="admin-result-display">${match.away_score}</div>`
+                  }
+                </div>
               </div>
-              <div class="match-admin-line2">
-                <div class="match-admin-side">
-                  <img src="${match.home_team?.flag_url}" alt="" class="match-admin-flag">
-                  <span class="match-admin-name">${match.home_team?.name}</span>
-                </div>
-                <span class="match-admin-vs">v</span>
-                <div class="match-admin-side">
-                  <img src="${match.away_team?.flag_url}" alt="" class="match-admin-flag">
-                  <span class="match-admin-name">${match.away_team?.name}</span>
-                </div>
-              </div>
-              ${!isFinished ? `
-                <div class="match-admin-line3">
-                  <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="admin-score-input">
-                  <button class="btn btn-save" onclick="submitResult('${match.id}')">Save</button>
-                  <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="admin-score-input">
-                </div>
-              ` : `
-                <div class="match-admin-result">
-                  <span class="admin-result-box">${match.home_score}</span>
-                  <span class="admin-result-sep">-</span>
-                  <span class="admin-result-box">${match.away_score}</span>
-                </div>
-              `}
             </div>
           `;
         });
