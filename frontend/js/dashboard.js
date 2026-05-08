@@ -448,23 +448,23 @@ function updateStatusCard(data) {
       </div>
     `;
   } else if (data.status === 'active') {
-    const livesRemaining = data.lives_remaining || 5;
+    const livesRemaining = data.lives_remaining !== undefined ? data.lives_remaining : 5;
     const maxLives = data.max_lives || 5;
-    const livesLost = maxLives - livesRemaining;
     
     // Create 5 life circles - green for remaining, red for lost
-    const livesDisplay = Array.from({ length: maxLives }, (_, i) => {
+    const livesDisplay = Array.from({ length: 5 }, (_, i) => {
       const isActive = i < livesRemaining;
-      return `<div class="life-circle ${isActive ? 'active' : 'lost'}"><i class="fas fa-check"></i></div>`;
+      return `<div class="life-circle ${isActive ? 'active' : 'lost'}"><i class="fas ${isActive ? 'fa-check' : 'fa-times'}"></i></div>`;
     }).join('');
     
     statusDiv.innerHTML = `
       <div class="active-status">
         <h2 class="user-name">${data.display_name || data.username || 'Player'}</h2>
+        <p class="instruction-text">Pick teams to win. If your team loses or draws, you lose a life. All lives lost = eliminated.</p>
         <div class="lives-row">
           ${livesDisplay}
         </div>
-        <p class="lives-text">${livesRemaining} of ${maxLives} lives remaining</p>
+        <p class="lives-text">${livesRemaining} of 5 lives remaining</p>
         <p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>
       </div>
     `;
