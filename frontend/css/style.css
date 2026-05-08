@@ -1675,6 +1675,66 @@ a {
   padding: 0.5rem;
 }
 
+/* Mobile Admin Match Layout */
+@media (max-width: 640px) {
+  .match-entry-row {
+    padding: 0.75rem;
+  }
+  
+  .match-admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  .match-admin-teams {
+    gap: 0.5rem;
+  }
+  
+  .match-admin-team {
+    min-width: 0;
+    padding: 0.5rem;
+  }
+  
+  .match-admin-flag {
+    width: 36px;
+    height: 24px;
+  }
+  
+  .match-admin-teamname {
+    font-size: 0.8rem;
+  }
+  
+  .match-admin-score {
+    font-size: 1rem;
+  }
+  
+  .match-admin-vs {
+    font-size: 0.75rem;
+  }
+  
+  .match-admin-inputs {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .match-admin-inputs .score-input {
+    width: 50px;
+    font-size: 1rem;
+    padding: 0.4rem;
+  }
+  
+  .input-separator {
+    font-size: 1rem;
+  }
+  
+  .match-admin-inputs .btn {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}
+
 /* Match Filter */
 .match-filter {
   display: flex;
