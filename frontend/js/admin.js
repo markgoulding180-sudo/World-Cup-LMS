@@ -122,34 +122,34 @@ async function loadMatchesForResults() {
             <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}">
               <div class="match-admin-when">${dateStr} @ ${timeStr}</div>
               
-              <div class="match-admin-inputs-layout">
-                <!-- Team A -->
-                <div class="match-admin-input-col">
-                  <div class="match-admin-team-row">
-                    <img src="${match.home_team?.flag_url}" alt="" class="match-admin-flag">
-                    <span class="match-admin-name">${match.home_team?.name}</span>
+              <div class="match-admin-cards">
+                <!-- Team A Card -->
+                <div class="admin-team-card">
+                  <div class="admin-team-header">
+                    <img src="${match.home_team?.flag_url}" alt="" class="admin-card-flag">
+                    <span class="admin-card-name">${match.home_team?.name}</span>
                   </div>
                   ${!isFinished ? 
-                    `<input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="admin-score-input">` :
-                    `<div class="admin-result-display">${match.home_score}</div>`
+                    `<input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="admin-card-input">` :
+                    `<div class="admin-card-result">${match.home_score}</div>`
                   }
                 </div>
                 
-                <!-- Middle -->
-                <div class="match-admin-middle">
-                  <span class="match-admin-vs">v</span>
-                  ${!isFinished ? `<button class="btn btn-save" onclick="submitResult('${match.id}')">Save</button>` : ''}
+                <!-- VS & Save Card -->
+                <div class="admin-vs-card">
+                  <span class="admin-vs-text">v</span>
+                  ${!isFinished ? `<button class="btn admin-save-btn" onclick="submitResult('${match.id}')">Save</button>` : '<span class="admin-finished-text">FT</span>'}
                 </div>
                 
-                <!-- Team B -->
-                <div class="match-admin-input-col">
-                  <div class="match-admin-team-row">
-                    <img src="${match.away_team?.flag_url}" alt="" class="match-admin-flag">
-                    <span class="match-admin-name">${match.away_team?.name}</span>
+                <!-- Team B Card -->
+                <div class="admin-team-card">
+                  <div class="admin-team-header">
+                    <img src="${match.away_team?.flag_url}" alt="" class="admin-card-flag">
+                    <span class="admin-card-name">${match.away_team?.name}</span>
                   </div>
                   ${!isFinished ? 
-                    `<input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="admin-score-input">` :
-                    `<div class="admin-result-display">${match.away_score}</div>`
+                    `<input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="admin-card-input">` :
+                    `<div class="admin-card-result">${match.away_score}</div>`
                   }
                 </div>
               </div>
