@@ -121,31 +121,34 @@ async function loadMatchesForResults() {
           
           html += `
             <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}">
-              <div class="match-admin-header">
+              <div class="match-admin-top">
                 <span class="match-admin-datetime">${dateStr} @ ${timeStr}</span>
                 <span class="match-admin-group">Group ${groupName}</span>
               </div>
-              <div class="match-admin-teams">
-                <div class="match-admin-team">
+              <div class="match-admin-teams-row">
+                <div class="match-admin-team-info">
                   <img src="${match.home_team?.flag_url}" alt="" class="match-admin-flag">
                   <span class="match-admin-teamname">${match.home_team?.name}</span>
-                  ${isFinished ? `<span class="match-admin-score">${match.home_score}</span>` : ''}
                 </div>
                 <span class="match-admin-vs">VS</span>
-                <div class="match-admin-team">
+                <div class="match-admin-team-info">
                   <img src="${match.away_team?.flag_url}" alt="" class="match-admin-flag">
                   <span class="match-admin-teamname">${match.away_team?.name}</span>
-                  ${isFinished ? `<span class="match-admin-score">${match.away_score}</span>` : ''}
                 </div>
               </div>
               ${!isFinished ? `
-                <div class="match-admin-inputs">
+                <div class="match-admin-scores">
                   <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="score-input">
-                  <span class="input-separator">-</span>
-                  <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
                   <button class="btn btn-primary btn-sm" onclick="submitResult('${match.id}')">Save</button>
+                  <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
                 </div>
-              ` : '<div class="match-admin-saved"><i class="fas fa-check-circle"></i> Saved</div>'}
+              ` : `
+                <div class="match-admin-final-score">
+                  <span class="final-score-box">${match.home_score}</span>
+                  <span class="final-score-separator">-</span>
+                  <span class="final-score-box">${match.away_score}</span>
+                </div>
+              `}
             </div>
           `;
         });

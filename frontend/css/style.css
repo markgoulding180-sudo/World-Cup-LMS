@@ -1556,7 +1556,7 @@ a {
   text-align: center;
 }
 
-/* Admin Match Entry Styles - Clean Layout */
+/* Admin Match Entry - Compact Layout */
 .matchday-header-admin {
   color: var(--accent-gold);
   font-size: 1.1rem;
@@ -1568,8 +1568,8 @@ a {
 .match-entry-row {
   background: var(--bg-card);
   border-radius: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
   border: 1px solid var(--border-color);
 }
 
@@ -1578,160 +1578,153 @@ a {
   background: var(--bg-secondary);
 }
 
-.match-admin-header {
+.match-admin-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.875rem;
-}
-
-.match-admin-datetime {
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
   color: var(--text-secondary);
-  font-weight: 500;
 }
 
 .match-admin-group {
   color: var(--accent-gold);
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
 }
 
-.match-admin-teams {
+.match-admin-teams-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
-.match-admin-team {
+.match-admin-team-info {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
-  min-width: 120px;
+  min-width: 0;
 }
 
 .match-admin-flag {
-  width: 48px;
-  height: 32px;
-  border-radius: 4px;
+  width: 32px;
+  height: 22px;
+  border-radius: 3px;
   object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  flex-shrink: 0;
 }
 
 .match-admin-teamname {
   font-weight: 600;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.match-admin-score {
-  font-weight: 700;
-  color: var(--accent-gold);
-  font-size: 1.25rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .match-admin-vs {
   font-weight: 700;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
-.match-admin-inputs {
+.match-admin-scores {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.match-admin-scores .score-input {
+  width: 55px;
+  text-align: center;
+  padding: 0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.match-admin-scores .btn {
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.match-admin-final-score {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
 }
 
-.match-admin-inputs .score-input {
-  width: 60px;
-  text-align: center;
-  padding: 0.5rem;
-  font-size: 1.1rem;
+.final-score-box {
+  background: var(--bg-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--accent-gold);
+  min-width: 45px;
+  text-align: center;
 }
 
-.input-separator {
+.final-score-separator {
   font-weight: 700;
   color: var(--text-secondary);
-  font-size: 1.25rem;
-}
-
-.match-admin-saved {
-  text-align: center;
-  color: var(--accent-green);
-  font-weight: 600;
-  padding: 0.5rem;
 }
 
 /* Mobile Admin Match Layout */
 @media (max-width: 640px) {
   .match-entry-row {
-    padding: 0.75rem;
-  }
-  
-  .match-admin-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-  }
-  
-  .match-admin-teams {
-    gap: 0.5rem;
-  }
-  
-  .match-admin-team {
-    min-width: 0;
     padding: 0.5rem;
   }
   
+  .match-admin-top {
+    font-size: 0.7rem;
+  }
+  
+  .match-admin-teams-row {
+    gap: 0.25rem;
+  }
+  
+  .match-admin-team-info {
+    gap: 0.35rem;
+  }
+  
   .match-admin-flag {
-    width: 36px;
-    height: 24px;
+    width: 28px;
+    height: 20px;
   }
   
   .match-admin-teamname {
     font-size: 0.8rem;
   }
   
-  .match-admin-score {
-    font-size: 1rem;
-  }
-  
   .match-admin-vs {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
   
-  .match-admin-inputs {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .match-admin-scores {
+    gap: 0.35rem;
   }
   
-  .match-admin-inputs .score-input {
-    width: 50px;
+  .match-admin-scores .score-input {
+    width: 45px;
+    font-size: 0.9rem;
+    padding: 0.35rem;
+  }
+  
+  .match-admin-scores .btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .final-score-box {
+    padding: 0.4rem 0.75rem;
     font-size: 1rem;
-    padding: 0.4rem;
-  }
-  
-  .input-separator {
-    font-size: 1rem;
-  }
-  
-  .match-admin-inputs .btn {
-    width: 100%;
-    margin-top: 0.5rem;
+    min-width: 35px;
   }
 }
 
