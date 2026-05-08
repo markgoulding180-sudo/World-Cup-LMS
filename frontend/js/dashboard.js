@@ -1,6 +1,5 @@
-// Dashboard page JavaScript - v2: Structured 3-Step Matchday Pick Flow
+// Dashboard page JavaScript - v3: Multi-select pick flow (pick 3, then submit)
 
-// Current matchday state (1, 2, or 3 for group stage)
 let currentMatchday = 1;
 let allMatches = [];
 let allTeams = [];
@@ -8,12 +7,12 @@ let userPicks = [];
 let roundPicks = [];
 let currentRound = null;
 let tournamentId = null;
+let selectedTeams = []; // Track selected teams for current matchday
 
 async function loadDashboard() {
   const token = localStorage.getItem('wc_lms_token');
   
   try {
-    // Load player status
     const statusResponse = await fetch('/api/entries', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -24,21 +23,18 @@ async function loadDashboard() {
       updateStatusCard(statusData);
     }
     
-    // Get current round info
     const roundsResponse = await fetch('/api/rounds');
     if (roundsResponse.ok) {
       const roundsData = await roundsResponse.json();
       currentRound = roundsData.rounds?.find(r => r.status === 'open') || roundsData.rounds?.[0];
     }
     
-    // Get tournament
     const tourneyResponse = await fetch('/api/tournaments');
     if (tourneyResponse.ok) {
       const tourneyData = await tourneyResponse.json();
       tournamentId = tourneyData.tournaments?.[0]?.id;
     }
     
-    // Load user's current picks for this round
     const picksResponse = await fetch('/api/picks', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -46,14 +42,11 @@ async function loadDashboard() {
     if (picksResponse.ok) {
       const picksData = await picksResponse.json();
       userPicks = picksData.picks || [];
-      // Filter picks to current round only
       roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
     }
     
-    // Determine current matchday based on picks made
     determineCurrentMatchday();
     
-    // Load all teams and matches
     const teamsResponse = await fetch('/api/teams');
     const matchesResponse = await fetch('/api/matches?limit=100');
     
@@ -64,7 +57,6 @@ async function loadDashboard() {
       allTeams = teamsData.teams || [];
       allMatches = matchesData.matches || [];
       
-      // Display the structured pick flow
       displayMatchdayPickFlow();
       displayCurrentPicks(roundPicks);
       displayRoundMatches(allMatches, currentRound);
@@ -77,7 +69,6 @@ async function loadDashboard() {
 }
 
 function determineCurrentMatchday() {
-  // Count picks per matchday
   const matchdayCounts = { 1: 0, 2: 0, 3: 0 };
   roundPicks.forEach(pick => {
     if (pick.matchday && matchdayCounts[pick.matchday] !== undefined) {
@@ -85,7 +76,6 @@ function determineCurrentMatchday() {
     }
   });
   
-  // Determine which matchday we're on
   if (matchdayCounts[1] < 3) {
     currentMatchday = 1;
   } else if (matchdayCounts[2] < 3) {
@@ -93,8 +83,11 @@ function determineCurrentMatchday() {
   } else if (matchdayCounts[3] < 3) {
     currentMatchday = 3;
   } else {
-    currentMatchday = 4; // All matchdays complete
+    currentMatchday = 4;
   }
+  
+  // Reset selected teams when switching matchdays
+  selectedTeams = [];
 }
 
 function displayMatchdayPickFlow() {
@@ -105,7 +98,6 @@ function displayMatchdayPickFlow() {
     return;
   }
   
-  // Check if user has entered tournament
   const statusDiv = document.getElementById('player-status');
   const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
   
@@ -121,7 +113,6 @@ function displayMatchdayPickFlow() {
     return;
   }
   
-  // Check if all matchdays are complete
   if (currentMatchday > 3) {
     container.innerHTML = `
       <div class="all-picks-complete">
@@ -134,7 +125,6 @@ function displayMatchdayPickFlow() {
     return;
   }
   
-  // Get matches for current matchday
   const matchdayMatches = allMatches.filter(m => 
     m.round_id === currentRound.id && m.matchday === currentMatchday
   );
@@ -144,30 +134,27 @@ function displayMatchdayPickFlow() {
     return;
   }
   
-  // Get teams playing in this matchday
   const matchdayTeamIds = new Set();
   matchdayMatches.forEach(m => {
     matchdayTeamIds.add(m.home_team_id);
     matchdayTeamIds.add(m.away_team_id);
   });
   
-  // Filter to available teams (not picked in any matchday of this round)
   const usedTeamIds = new Set(roundPicks.map(p => p.team_id));
   const availableMatchdayTeams = allTeams.filter(t => 
     matchdayTeamIds.has(t.id) && !usedTeamIds.has(t.id)
   );
   
-  // Count picks made for current matchday
   const picksInCurrentMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+  const remainingPicks = 3 - picksInCurrentMatchday;
   
-  // Build the matchday pick UI
   let html = `
     <div class="matchday-flow">
       <div class="matchday-header">
         <h3>Matchday ${currentMatchday} of 3</h3>
         <div class="matchday-progress">
           <span class="picks-count">${picksInCurrentMatchday}</span>
-          <span class="picks-total">/ 3 picks</span>
+          <span class="picks-total">/ 3 picks selected</span>
         </div>
       </div>
       
@@ -176,12 +163,22 @@ function displayMatchdayPickFlow() {
       </div>
       
       <p class="matchday-instruction">
-        Select <strong>${3 - picksInCurrentMatchday}</strong> more team${3 - picksInCurrentMatchday !== 1 ? 's' : ''} to win their matches.
+        Select <strong>${remainingPicks}</strong> teams below, then click Submit.
         <br><small>Each team can only be used once across all matchdays.</small>
       </p>
+      
+      <div class="selected-teams-preview" id="selected-preview" style="display: none;">
+        <h4>Your Selections:</h4>
+        <div id="selected-teams-list"></div>
+        <button class="btn btn-primary btn-lg" onclick="submitMatchdayPicks()">
+          <i class="fas fa-check"></i> Submit Matchday ${currentMatchday} Picks
+        </button>
+        <button class="btn btn-secondary" onclick="clearSelections()">
+          <i class="fas fa-times"></i> Clear
+        </button>
+      </div>
   `;
   
-  // Show matches for this matchday
   html += '<div class="matchday-matches">';
   matchdayMatches.forEach(m => {
     const matchDate = new Date(m.match_time);
@@ -193,6 +190,8 @@ function displayMatchdayPickFlow() {
     
     const homePicked = roundPicks.some(p => p.team_id === m.home_team_id);
     const awayPicked = roundPicks.some(p => p.team_id === m.away_team_id);
+    const homeSelected = selectedTeams.includes(m.home_team_id);
+    const awaySelected = selectedTeams.includes(m.away_team_id);
     
     html += `
       <div class="matchday-match-card">
@@ -201,18 +200,20 @@ function displayMatchdayPickFlow() {
           <span class="match-group">Group ${homeTeam?.group_name || '?'}</span>
         </div>
         <div class="match-teams">
-          <div class="matchday-team ${homePicked ? 'picked' : ''}" 
-               onclick="${homePicked ? '' : `selectMatchdayTeam('${m.home_team_id}', ${currentMatchday})`}">
+          <div class="matchday-team ${homePicked ? 'picked' : ''} ${homeSelected ? 'selected' : ''}" 
+               onclick="${homePicked ? '' : `toggleTeamSelection('${m.home_team_id}')`}">
             <img src="${homeTeam?.flag_url || ''}" alt="" class="team-flag-small">
             <span class="team-name-short">${homeTeam?.name || 'TBD'}</span>
             ${homePicked ? '<i class="fas fa-check pick-indicator"></i>' : ''}
+            ${homeSelected ? '<i class="fas fa-check-circle select-indicator"></i>' : ''}
           </div>
           <span class="vs">vs</span>
-          <div class="matchday-team ${awayPicked ? 'picked' : ''}"
-               onclick="${awayPicked ? '' : `selectMatchdayTeam('${m.away_team_id}', ${currentMatchday})`}">
+          <div class="matchday-team ${awayPicked ? 'picked' : ''} ${awaySelected ? 'selected' : ''}"
+               onclick="${awayPicked ? '' : `toggleTeamSelection('${m.away_team_id}')`}">
             <img src="${awayTeam?.flag_url || ''}" alt="" class="team-flag-small">
             <span class="team-name-short">${awayTeam?.name || 'TBD'}</span>
             ${awayPicked ? '<i class="fas fa-check pick-indicator"></i>' : ''}
+            ${awaySelected ? '<i class="fas fa-check-circle select-indicator"></i>' : ''}
           </div>
         </div>
       </div>
@@ -220,7 +221,6 @@ function displayMatchdayPickFlow() {
   });
   html += '</div>';
   
-  // Show upcoming matchdays status
   html += `
     <div class="upcoming-matchdays">
       <h4>Your Progress</h4>
@@ -244,67 +244,127 @@ function displayMatchdayPickFlow() {
     </div>
   `;
   
-  html += '</div>'; // Close matchday-flow
-  
+  html += '</div>';
   container.innerHTML = html;
+  
+  updateSelectedPreview();
 }
 
-async function selectMatchdayTeam(teamId, matchday) {
-  const token = localStorage.getItem('wc_lms_token');
+function toggleTeamSelection(teamId) {
+  const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+  const maxSelectable = 3 - picksInMatchday;
   
-  // Check if already at pick limit for this matchday
-  const picksInMatchday = roundPicks.filter(p => p.matchday === matchday).length;
-  if (picksInMatchday >= 3) {
-    alert(`You have already made 3 picks for Matchday ${matchday}!`);
+  const index = selectedTeams.indexOf(teamId);
+  
+  if (index > -1) {
+    // Deselect
+    selectedTeams.splice(index, 1);
+  } else {
+    // Select (if under limit)
+    if (selectedTeams.length < maxSelectable) {
+      selectedTeams.push(teamId);
+    } else {
+      alert(`You can only select ${maxSelectable} team${maxSelectable !== 1 ? 's' : ''} for Matchday ${currentMatchday}`);
+      return;
+    }
+  }
+  
+  displayMatchdayPickFlow();
+}
+
+function updateSelectedPreview() {
+  const previewDiv = document.getElementById('selected-preview');
+  const listDiv = document.getElementById('selected-teams-list');
+  
+  if (!previewDiv || !listDiv) return;
+  
+  if (selectedTeams.length === 0) {
+    previewDiv.style.display = 'none';
     return;
   }
   
-  // Get team name for confirmation
-  const team = allTeams.find(t => t.id === teamId);
-  if (!team) return;
+  previewDiv.style.display = 'block';
   
-  if (!confirm(`Pick ${team.name} to win their Matchday ${matchday} match?\n\n(${picksInMatchday + 1} of 3 picks for this matchday)`)) {
+  const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+  const needed = 3 - picksInMatchday;
+  
+  let html = '<div class="selected-teams-grid">';
+  selectedTeams.forEach(teamId => {
+    const team = allTeams.find(t => t.id === teamId);
+    html += `
+      <div class="selected-team-item">
+        <img src="${team?.flag_url}" alt="" class="selected-flag">
+        <span>${team?.name}</span>
+      </div>
+    `;
+  });
+  html += '</div>';
+  
+  if (selectedTeams.length < needed) {
+    html += `<p class="selection-hint">Select ${needed - selectedTeams.length} more team${needed - selectedTeams.length !== 1 ? 's' : ''}</p>`;
+  }
+  
+  listDiv.innerHTML = html;
+}
+
+function clearSelections() {
+  selectedTeams = [];
+  displayMatchdayPickFlow();
+}
+
+async function submitMatchdayPicks() {
+  const token = localStorage.getItem('wc_lms_token');
+  
+  const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+  const needed = 3 - picksInMatchday;
+  
+  if (selectedTeams.length < needed) {
+    alert(`Please select ${needed} team${needed !== 1 ? 's' : ''} for Matchday ${currentMatchday}`);
+    return;
+  }
+  
+  const teamNames = selectedTeams.map(id => allTeams.find(t => t.id === id)?.name).join(', ');
+  
+  if (!confirm(`Submit these picks for Matchday ${currentMatchday}?\n\n${teamNames}`)) {
     return;
   }
   
   try {
-    const response = await fetch('/api/picks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ 
-        team_id: teamId,
-        round_id: currentRound.id,
-        tournament_id: tournamentId,
-        matchday: matchday
+    // Submit all picks
+    const promises = selectedTeams.map(teamId => 
+      fetch('/api/picks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          team_id: teamId,
+          round_id: currentRound.id,
+          tournament_id: tournamentId,
+          matchday: currentMatchday
+        })
       })
-    });
+    );
     
-    const data = await response.json();
+    const responses = await Promise.all(promises);
+    const allOk = responses.every(r => r.ok);
     
-    if (response.ok) {
-      // Check if matchday is now complete
-      if (data.matchdayComplete) {
-        if (data.nextMatchday) {
-          alert(`✓ Matchday ${matchday} complete!\n\nMoving to Matchday ${data.nextMatchday}...`);
-        } else {
-          alert(`✓ All picks submitted! Good luck!`);
-        }
+    if (allOk) {
+      selectedTeams = []; // Clear selections
+      
+      if (currentMatchday < 3) {
+        alert(`✓ Matchday ${currentMatchday} complete!\n\nMoving to Matchday ${currentMatchday + 1}...`);
       } else {
-        // Show progress toast or update
-        const remaining = 3 - data.picksInMatchday;
-        console.log(`${remaining} pick${remaining !== 1 ? 's' : ''} remaining for Matchday ${matchday}`);
+        alert(`✓ All picks submitted! Good luck!`);
       }
       
-      // Reload dashboard to show updated state
       loadDashboard();
     } else {
-      alert(data.error || 'Failed to make pick');
+      alert('Some picks failed. Please try again.');
     }
   } catch (error) {
-    alert('Error making pick: ' + error.message);
+    alert('Error submitting picks: ' + error.message);
   }
 }
 
@@ -324,7 +384,6 @@ function displayCurrentPicks(picks) {
     return;
   }
   
-  // Group picks by matchday
   const picksByMatchday = { 1: [], 2: [], 3: [] };
   picks.forEach(pick => {
     if (pick.matchday && picksByMatchday[pick.matchday]) {
@@ -377,8 +436,7 @@ function updateStatusCard(data) {
       </div>
     `;
   } else if (data.status === 'active') {
-    // Build hearts display
-    const heartsDisplay = Array.from({ length: data.max_lives || 3 }, (_, i) =>
+    const picksDisplay = Array.from({ length: data.max_lives || 9 }, (_, i) =>
       `<span class="life-heart ${i < (data.lives_remaining || 0) ? 'active' : 'lost'}">♥</span>`
     ).join('');
     
@@ -386,9 +444,9 @@ function updateStatusCard(data) {
       <div class="active">
         <i class="fas fa-check-circle"></i>
         <h3>Still In It!</h3>
-        <div class="lives-display">${heartsDisplay}</div>
+        <div class="lives-display">${picksDisplay}</div>
         <p>${data.lives_remaining || 0} of ${data.max_lives || 9} picks remaining</p>
-        <p>Current Matchday: ${data.current_matchday || 1}</p>
+        <p>Current Matchday: ${data.current_matchday || currentMatchday}</p>
       </div>
     `;
   } else {
@@ -413,7 +471,6 @@ async function enterTournament() {
   }
   
   try {
-    // Get the first tournament
     const tourneyResponse = await fetch('/api/tournaments');
     const tourneyData = await tourneyResponse.json();
     
@@ -449,7 +506,6 @@ function displayRoundMatches(matches, currentRound) {
   const container = document.getElementById('round-matches');
   if (!container || !currentRound) return;
   
-  // Filter matches to current round
   const roundMatches = matches?.filter(m => m.round_id === currentRound.id) || [];
   
   if (roundMatches.length === 0) {
@@ -457,7 +513,6 @@ function displayRoundMatches(matches, currentRound) {
     return;
   }
   
-  // Group matches by matchday
   const matchesByMatchday = { 1: [], 2: [], 3: [] };
   roundMatches.forEach(m => {
     if (m.matchday && matchesByMatchday[m.matchday]) {
@@ -500,10 +555,4 @@ function displayRoundMatches(matches, currentRound) {
   container.innerHTML = html;
 }
 
-// Legacy function - kept for compatibility
-function switchMatchDay(dayIndex) {
-  // No longer needed with new flow
-}
-
-// Load dashboard on page load
 document.addEventListener('DOMContentLoaded', loadDashboard);

@@ -1319,3 +1319,80 @@ a {
     height: 22px;
   }
 }
+
+/* Multi-Select Pick Styles */
+.selected-teams-preview {
+  background: var(--bg-card);
+  border: 2px solid var(--accent-gold);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.selected-teams-preview h4 {
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.selected-teams-grid {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.selected-team-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  min-width: 100px;
+}
+
+.selected-flag {
+  width: 48px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.selection-hint {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0.5rem 0;
+}
+
+.matchday-team.selected {
+  border-color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.select-indicator {
+  color: var(--accent-gold);
+  margin-left: 0.5rem;
+}
+
+.matchday-team {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.matchday-team:hover:not(.picked):not(.selected) {
+  background: var(--bg-secondary);
+  transform: translateY(-2px);
+}
+
+.matchday-team.picked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-lg {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+}
