@@ -59,6 +59,7 @@ async function loadDashboard() {
       
       displayMatchdayPickFlow();
       displayCurrentPicks(roundPicks);
+      displayRoundMatches(allMatches, currentRound);
     }
     
   } catch (error) {
@@ -513,6 +514,69 @@ async function enterTournament() {
   }
 }
 
-// displayRoundMatches function removed - matches now shown in picker only
+function displayRoundMatches(matches, currentRound) {
+  const container = document.getElementById('round-matches');
+  if (!container || !currentRound) return;
+  
+  const roundMatches = matches?.filter(m => m.round_id === currentRound.id) || [];
+  
+  if (roundMatches.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No matches scheduled.</p>';
+    return;
+  }
+  
+  // Group by matchday
+  const matchesByMatchday = { 1: [], 2: [], 3: [] };
+  roundMatches.forEach(m => {
+    if (m.matchday && matchesByMatchday[m.matchday]) {
+      matchesByMatchday[m.matchday].push(m);
+    }
+  });
+  
+  let html = '<div class="matches-list-compact">';
+  
+  [1, 2, 3].forEach(matchday => {
+    const matchdayMatches = matchesByMatchday[matchday];
+    if (matchdayMatches.length === 0) return;
+    
+    html += `<div class="matchday-compact">`;
+    html += `<h5>Matchday ${matchday}</h5>`;
+    
+    matchdayMatches.forEach(m => {
+      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const date = new Date(m.match_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      
+      html += `
+        <div class="match-compact-item">
+          <span class="match-compact-time">${date} ${time}</span>
+          <div class="match-compact-teams">
+            <img src="${m.home_team?.flag_url}" alt="" class="match-compact-flag">
+            <span class="${m.home_team_score !== null ? 'has-score' : ''}">${m.home_team?.name}</span>
+            ${m.home_team_score !== null ? `<span class="match-score">${m.home_team_score}</span>` : ''}
+            <span class="vs">vs</span>
+            <span class="${m.away_team_score !== null ? 'has-score' : ''}">${m.away_team?.name}</span>
+            ${m.away_team_score !== null ? `<span class="match-score">${m.away_team_score}</span>` : ''}
+            <img src="${m.away_team?.flag_url}" alt="" class="match-compact-flag">
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function switchTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  
+  // Show selected tab
+  document.getElementById(`tab-content-${tabName}`).style.display = 'block';
+  document.getElementById(`tab-${tabName}`).classList.add('active');
+}
 
 document.addEventListener('DOMContentLoaded', loadDashboard);

@@ -34,8 +34,16 @@
     </div>
 
     <div class="pick-section" id="current-pick-section">
-      <h2>Your Pick</h2>
-      <div id="current-pick">Loading...</div>
+      <div class="section-tabs">
+        <button class="tab-btn active" onclick="switchTab('picks')" id="tab-picks">Your Picks</button>
+        <button class="tab-btn" onclick="switchTab('matches')" id="tab-matches">Matches</button>
+      </div>
+      <div id="tab-content-picks" class="tab-content active">
+        <div id="current-pick">Loading...</div>
+      </div>
+      <div id="tab-content-matches" class="tab-content" style="display: none;">
+        <div id="round-matches">Loading matches...</div>
+      </div>
     </div>
 
     <div class="pick-section" id="pick-section">
