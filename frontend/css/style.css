@@ -1556,176 +1556,118 @@ a {
   text-align: center;
 }
 
-/* Admin Match Entry - Compact Layout */
+/* Admin Match Entry - Simple 3 Line Layout */
 .matchday-header-admin {
   color: var(--accent-gold);
-  font-size: 1.1rem;
-  margin: 1.5rem 0 0.75rem 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid var(--border-color);
+  font-size: 1rem;
+  margin: 1rem 0 0.5rem 0;
 }
 
 .match-entry-row {
   background: var(--bg-card);
-  border-radius: 0.75rem;
-  padding: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
   margin-bottom: 0.5rem;
-  border: 1px solid var(--border-color);
 }
 
 .match-entry-row.finished {
-  opacity: 0.7;
-  background: var(--bg-secondary);
+  opacity: 0.6;
 }
 
-.match-admin-top {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  margin-bottom: 0.5rem;
+/* Line 1: Date/Time */
+.match-admin-line1 {
+  font-size: 0.7rem;
   color: var(--text-secondary);
+  margin-bottom: 0.25rem;
 }
 
-.match-admin-group {
-  color: var(--accent-gold);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.match-admin-teams-row {
+/* Line 2: Teams */
+.match-admin-line2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  gap: 0.25rem;
 }
 
-.match-admin-team-info {
+.match-admin-side {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   min-width: 0;
 }
 
+.match-admin-side:last-child {
+  justify-content: flex-end;
+}
+
 .match-admin-flag {
-  width: 32px;
-  height: 22px;
-  border-radius: 3px;
-  object-fit: cover;
+  width: 24px;
+  height: 16px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
-.match-admin-teamname {
+.match-admin-name {
+  font-size: 0.8rem;
   font-weight: 600;
-  font-size: 0.875rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 .match-admin-vs {
-  font-weight: 700;
+  font-size: 0.7rem;
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
-.match-admin-scores {
+/* Line 3: Scores */
+.match-admin-line3 {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
 }
 
-.match-admin-scores .score-input {
-  width: 55px;
+.admin-score-input {
+  width: 45px;
+  padding: 0.3rem;
   text-align: center;
-  padding: 0.4rem;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
-.match-admin-scores .btn {
-  padding: 0.4rem 1rem;
-  font-size: 0.875rem;
-  white-space: nowrap;
+.btn-save {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
 }
 
-.match-admin-final-score {
+/* Finished match result */
+.match-admin-result {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
-.final-score-box {
+.admin-result-box {
   background: var(--bg-secondary);
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 0.25rem;
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1rem;
   color: var(--accent-gold);
-  min-width: 45px;
+  min-width: 35px;
   text-align: center;
 }
 
-.final-score-separator {
-  font-weight: 700;
+.admin-result-sep {
   color: var(--text-secondary);
-}
-
-/* Mobile Admin Match Layout */
-@media (max-width: 640px) {
-  .match-entry-row {
-    padding: 0.5rem;
-  }
-  
-  .match-admin-top {
-    font-size: 0.7rem;
-  }
-  
-  .match-admin-teams-row {
-    gap: 0.25rem;
-  }
-  
-  .match-admin-team-info {
-    gap: 0.35rem;
-  }
-  
-  .match-admin-flag {
-    width: 28px;
-    height: 20px;
-  }
-  
-  .match-admin-teamname {
-    font-size: 0.8rem;
-  }
-  
-  .match-admin-vs {
-    font-size: 0.7rem;
-  }
-  
-  .match-admin-scores {
-    gap: 0.35rem;
-  }
-  
-  .match-admin-scores .score-input {
-    width: 45px;
-    font-size: 0.9rem;
-    padding: 0.35rem;
-  }
-  
-  .match-admin-scores .btn {
-    padding: 0.35rem 0.75rem;
-    font-size: 0.8rem;
-  }
-  
-  .final-score-box {
-    padding: 0.4rem 0.75rem;
-    font-size: 1rem;
-    min-width: 35px;
-  }
+  font-weight: 700;
 }
 
 /* Match Filter */
