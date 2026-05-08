@@ -9,28 +9,56 @@ async function loadDashboard() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
+    let statusData = {};
     if (statusResponse.ok) {
-      const statusData = await statusResponse.json();
+      statusData = await statusResponse.json();
       updateStatusCard(statusData);
     }
     
-    // Load user's current picks
+    // Get current round info
+    const roundsResponse = await fetch('/api/rounds');
+    let currentRound = null;
+    let picksRequired = 3;
+    if (roundsResponse.ok) {
+      const roundsData = await roundsResponse.json();
+      currentRound = roundsData.rounds?.find(r => r.status === 'open') || roundsData.rounds?.[0];
+      picksRequired = currentRound?.picks_required || 3;
+    }
+    
+    // Load user's current picks for this round
     const picksResponse = await fetch('/api/picks', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
     let userPicks = [];
+    let roundPicks = [];
     if (picksResponse.ok) {
       const picksData = await picksResponse.json();
       userPicks = picksData.picks || [];
+      // Filter picks to current round only
+      roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
     }
     
-    // Load available teams
-    const teamsResponse = await fetch('/api/teams');
-    if (teamsResponse.ok) {
-      const teamsData = await teamsResponse.json();
-      displayAvailableTeams(teamsData.teams, userPicks);
-      displayCurrentPick(userPicks);
+    // Load teams playing in current round
+    if (currentRound) {
+      const matchesResponse = await fetch(`/api/matches?round_id=${currentRound.id}&limit=50`);
+      if (matchesResponse.ok) {
+        const matchesData = await matchesResponse.json();
+        const playingTeamIds = new Set();
+        matchesData.matches?.forEach(m => {
+          playingTeamIds.add(m.home_team_id);
+          playingTeamIds.add(m.away_team_id);
+        });
+        
+        // Load all teams but filter to playing teams
+        const teamsResponse = await fetch('/api/teams');
+        if (teamsResponse.ok) {
+          const teamsData = await teamsResponse.json();
+          const playingTeams = teamsData.teams?.filter(t => playingTeamIds.has(t.id)) || [];
+          displayAvailableTeams(playingTeams, userPicks, roundPicks.length, picksRequired);
+          displayCurrentPicks(roundPicks, picksRequired);
+        }
+      }
     }
     
   } catch (error) {
@@ -39,26 +67,36 @@ async function loadDashboard() {
   }
 }
 
-function displayCurrentPick(picks) {
+function displayCurrentPicks(picks, picksRequired) {
   const container = document.getElementById('current-pick');
   if (!container) return;
   
-  if (picks.length === 0) {
-    container.innerHTML = '<p class="text-secondary">You haven\'t made a pick yet for this round.</p>';
+  const picksMade = picks.length;
+  
+  if (picksMade === 0) {
+    container.innerHTML = `
+      <div class="current-pick-card">
+        <h3>Your Picks This Round</h3>
+        <p class="text-secondary">No picks yet. You need to make ${picksRequired} pick(s).</p>
+        <p>Picks: 0 / ${picksRequired}</p>
+      </div>
+    `;
     return;
   }
   
-  const latestPick = picks[0];
+  let picksHtml = picks.map(pick => `
+    <div class="pick-item-small">
+      <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
+      <span>${pick.teams?.name}</span>
+      <span class="pick-status-badge ${pick.result}">${pick.result}</span>
+    </div>
+  `).join('');
+  
   container.innerHTML = `
     <div class="current-pick-card">
-      <h3>Your Current Pick</h3>
-      <div class="pick-display">
-        <img src="${latestPick.teams?.flag_url}" alt="" class="pick-flag-large">
-        <div class="pick-info">
-          <strong>${latestPick.teams?.name}</strong>
-          <span class="pick-status ${latestPick.result}">${latestPick.result}</span>
-        </div>
-      </div>
+      <h3>Your Picks This Round</h3>
+      <p>Picks: ${picksMade} / ${picksRequired}</p>
+      <div class="picks-list-small">${picksHtml}</div>
     </div>
   `;
 }
@@ -145,21 +183,39 @@ async function enterTournament() {
 
 let allTeams = [];
 let currentGroup = 'ALL';
+let currentPicksCount = 0;
+let maxPicksAllowed = 3;
 
-function displayAvailableTeams(teams) {
+function displayAvailableTeams(teams, allUserPicks, picksMade, picksRequired) {
   const container = document.getElementById('available-teams');
   
+  currentPicksCount = picksMade;
+  maxPicksAllowed = picksRequired;
+  
   if (!teams || teams.length === 0) {
-    container.innerHTML = '<p>No teams available</p>';
+    container.innerHTML = '<p>No teams available for this round</p>';
     return;
   }
   
-  allTeams = teams;
+  // Filter out teams already picked in previous rounds
+  const usedTeamIds = new Set(allUserPicks.map(p => p.team_id));
+  const availableTeams = teams.filter(t => !usedTeamIds.has(t.id));
+  
+  allTeams = availableTeams;
+  
+  // Show picks progress
+  let html = `<div class="picks-progress">Picks: ${picksMade} / ${picksRequired}</div>`;
+  
+  if (picksMade >= picksRequired) {
+    html += '<div class="picks-complete">✓ All picks submitted for this round!</div>';
+    container.innerHTML = html;
+    return;
+  }
   
   // Get unique groups
-  const groups = [...new Set(teams.map(t => t.group_name))].sort();
+  const groups = [...new Set(availableTeams.map(t => t.group_name))].sort();
   
-  let html = '<div class="group-filter">';
+  html += '<div class="group-filter">';
   html += `<button class="group-btn ${currentGroup === 'ALL' ? 'active' : ''}" onclick="filterTeams('ALL')">All Groups</button>`;
   groups.forEach(group => {
     html += `<button class="group-btn ${currentGroup === group ? 'active' : ''}" onclick="filterTeams('${group}')">Group ${group}</button>`;
@@ -167,7 +223,7 @@ function displayAvailableTeams(teams) {
   html += '</div>';
   
   html += '<div class="teams-grid" id="teams-grid">';
-  html += renderTeamCards(teams);
+  html += renderTeamCards(availableTeams);
   html += '</div>';
   
   container.innerHTML = html;
@@ -213,7 +269,13 @@ function filterTeams(group) {
 async function selectTeam(teamId) {
   const token = localStorage.getItem('wc_lms_token');
   
-  if (!confirm('Select this team for the current round?')) return;
+  // Check if already at pick limit
+  if (currentPicksCount >= maxPicksAllowed) {
+    alert(`You have already made ${maxPicksAllowed} pick(s) for this round!`);
+    return;
+  }
+  
+  if (!confirm(`Select this team for the current round? (${currentPicksCount + 1} of ${maxPicksAllowed})`)) return;
   
   try {
     // Check if user is entered in tournament first

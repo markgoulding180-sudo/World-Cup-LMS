@@ -56,14 +56,14 @@ const WORLD_CUP_TEAMS = [
 ];
 
 const ROUNDS = [
-  { name: 'Group Stage - Matchday 1', round_number: 1 },
-  { name: 'Group Stage - Matchday 2', round_number: 2 },
-  { name: 'Group Stage - Matchday 3', round_number: 3 },
-  { name: 'Round of 32', round_number: 4 },
-  { name: 'Round of 16', round_number: 5 },
-  { name: 'Quarter Finals', round_number: 6 },
-  { name: 'Semi Finals', round_number: 7 },
-  { name: 'Final', round_number: 8 }
+  { name: 'Group Stage - Matchday 1', round_number: 1, picks_required: 3 },
+  { name: 'Group Stage - Matchday 2', round_number: 2, picks_required: 3 },
+  { name: 'Group Stage - Matchday 3', round_number: 3, picks_required: 3 },
+  { name: 'Round of 32', round_number: 4, picks_required: 1 },
+  { name: 'Round of 16', round_number: 5, picks_required: 1 },
+  { name: 'Quarter Finals', round_number: 6, picks_required: 1 },
+  { name: 'Semi Finals', round_number: 7, picks_required: 1 },
+  { name: 'Final', round_number: 8, picks_required: 1 }
 ];
 
 module.exports = async (req, res) => {
