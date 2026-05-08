@@ -125,7 +125,25 @@ module.exports = async (req, res) => {
       const roundMap = new Map(rounds?.map(r => [r.round_number, r.id]));
 
       function getRoundNumber(roundName) {
-        if (roundName.includes('Matchday')) return 3;
+        // Group stage matchdays 1-3 map to LMS rounds 1-3
+        if (roundName.includes('Matchday 1')) return 1;
+        if (roundName.includes('Matchday 2')) return 2;
+        if (roundName.includes('Matchday 3')) return 3;
+        if (roundName.includes('Matchday 4')) return 3;
+        if (roundName.includes('Matchday 5')) return 3;
+        if (roundName.includes('Matchday 6')) return 3;
+        if (roundName.includes('Matchday 7')) return 3;
+        if (roundName.includes('Matchday 8')) return 3;
+        if (roundName.includes('Matchday 9')) return 3;
+        if (roundName.includes('Matchday 10')) return 3;
+        if (roundName.includes('Matchday 11')) return 3;
+        if (roundName.includes('Matchday 12')) return 3;
+        if (roundName.includes('Matchday 13')) return 3;
+        if (roundName.includes('Matchday 14')) return 3;
+        if (roundName.includes('Matchday 15')) return 3;
+        if (roundName.includes('Matchday 16')) return 3;
+        if (roundName.includes('Matchday 17')) return 3;
+        // Knockout rounds
         if (roundName.includes('Round of 32')) return 4;
         if (roundName.includes('Round of 16')) return 5;
         if (roundName.includes('Quarter')) return 6;
