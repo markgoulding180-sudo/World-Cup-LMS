@@ -1457,6 +1457,7 @@ a {
   align-items: center;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
 }
 
 .match-compact-item:last-child {

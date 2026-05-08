@@ -548,7 +548,6 @@ function displayRoundMatches(matches, currentRound) {
       
       html += `
         <div class="match-compact-item">
-          <span class="match-compact-time">${date} ${time}</span>
           <div class="match-compact-teams">
             <img src="${m.home_team?.flag_url}" alt="" class="match-compact-flag">
             <span class="${m.home_team_score !== null ? 'has-score' : ''}">${m.home_team?.name}</span>
@@ -558,6 +557,7 @@ function displayRoundMatches(matches, currentRound) {
             ${m.away_team_score !== null ? `<span class="match-score">${m.away_team_score}</span>` : ''}
             <img src="${m.away_team?.flag_url}" alt="" class="match-compact-flag">
           </div>
+          <span class="match-compact-time">${date} ${time}</span>
         </div>
       `;
     });
