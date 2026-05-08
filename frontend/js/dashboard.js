@@ -75,10 +75,17 @@ function updateStatusCard(data) {
       </div>
     `;
   } else if (data.status === 'active') {
+    // Build hearts display
+    const heartsDisplay = Array.from({ length: data.max_lives || 3 }, (_, i) =>
+      `<span class="life-heart ${i < (data.lives_remaining || 0) ? 'active' : 'lost'}">♥</span>`
+    ).join('');
+    
     statusDiv.innerHTML = `
       <div class="active">
         <i class="fas fa-check-circle"></i>
-        <h3>Still Standing!</h3>
+        <h3>Still In It!</h3>
+        <div class="lives-display">${heartsDisplay}</div>
+        <p>${data.lives_remaining || 0} of ${data.max_lives || 3} lives remaining</p>
         <p>Current Round: ${data.current_round}</p>
       </div>
     `;

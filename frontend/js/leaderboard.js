@@ -36,12 +36,18 @@ function displayActivePlayers(leaderboard) {
   let html = '<div class="leaderboard-list">';
   
   activePlayers.forEach((player, index) => {
+    // Build hearts for lives
+    const heartsDisplay = Array.from({ length: player.max_lives || 3 }, (_, i) =>
+      `<span class="life-heart-small ${i < (player.lives_remaining || 0) ? 'active' : 'lost'}">♥</span>`
+    ).join('');
+    
     html += `
       <div class="leaderboard-item active">
         <div class="position">${player.position}</div>
         <div class="player-info">
           <strong>${player.display_name}</strong>
           <span class="username">@${player.username}</span>
+          <div class="lives-display-small">${heartsDisplay}</div>
         </div>
         <div class="current-pick">
           ${player.current_pick ? `
@@ -49,7 +55,7 @@ function displayActivePlayers(leaderboard) {
             <span>${player.current_pick.team}</span>
           ` : '<span class="no-pick">No pick</span>'}
         </div>
-        <span class="status-badge active">Still Standing</span>
+        <span class="status-badge active">${player.lives_remaining || 0} lives</span>
       </div>
     `;
   });
