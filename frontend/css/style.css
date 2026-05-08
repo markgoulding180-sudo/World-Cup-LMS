@@ -1397,38 +1397,54 @@ a {
   font-size: 1.1rem;
 }
 
-/* Team Cards List Layout */
-.team-cards-list {
+/* Match Picker List Layout */
+.match-picker-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   margin: 1.5rem 0;
 }
 
-.group-section {
+.match-picker-card {
   background: var(--bg-secondary);
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   padding: 1rem;
+  border: 1px solid var(--border-color);
 }
 
-.group-header {
-  color: var(--accent-gold);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.match-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
 }
 
-.group-teams {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
+.match-picker-date {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
-.team-card {
+.match-picker-group {
+  font-size: 0.75rem;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.match-picker-teams {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.match-picker-team {
+  flex: 1;
+  max-width: 160px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1442,58 +1458,74 @@ a {
   position: relative;
 }
 
-.team-card:hover:not(.picked) {
+.match-picker-team:hover:not(.picked) {
   border-color: var(--accent-gold);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
 }
 
-.team-card.selected {
+.match-picker-team.selected {
   border-color: var(--accent-gold);
-  background: rgba(255, 215, 0, 0.1);
+  background: rgba(255, 215, 0, 0.15);
 }
 
-.team-card.picked {
+.match-picker-team.picked {
   opacity: 0.4;
   cursor: not-allowed;
   background: var(--bg-secondary);
 }
 
-.team-card-flag {
-  width: 56px;
-  height: 40px;
+.match-picker-flag {
+  width: 64px;
+  height: 44px;
   border-radius: 4px;
   object-fit: cover;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
-.team-card-name {
-  font-size: 0.875rem;
-  font-weight: 500;
+.match-picker-team-name {
+  font-size: 0.9rem;
+  font-weight: 600;
   text-align: center;
   color: var(--text-primary);
 }
 
-.team-card-status {
+.match-picker-vs {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.match-picker-status {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  font-size: 1rem;
+  font-size: 1.1rem;
   color: var(--accent-green);
 }
 
-.team-card-status.selected {
+.match-picker-status.selected {
   color: var(--accent-gold);
 }
 
 /* Responsive */
 @media (max-width: 640px) {
-  .group-teams {
-    grid-template-columns: repeat(2, 1fr);
+  .match-picker-teams {
+    gap: 0.5rem;
   }
   
-  .team-card-flag {
+  .match-picker-team {
+    padding: 0.75rem;
+    max-width: 140px;
+  }
+  
+  .match-picker-flag {
     width: 48px;
     height: 32px;
+  }
+  
+  .match-picker-team-name {
+    font-size: 0.8rem;
   }
 }

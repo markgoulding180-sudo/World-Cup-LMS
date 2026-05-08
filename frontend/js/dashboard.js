@@ -179,40 +179,47 @@ function displayMatchdayPickFlow() {
       </div>
   `;
   
-  // Build team cards list (clean, no match details)
-  html += '<div class="team-cards-list">';
+  // Build match-based picker with team cards
+  html += '<div class="match-picker-list">';
   
-  // Group teams by group for organization
-  const teamsByGroup = {};
-  availableMatchdayTeams.forEach(team => {
-    if (!teamsByGroup[team.group_name]) teamsByGroup[team.group_name] = [];
-    teamsByGroup[team.group_name].push(team);
-  });
-  
-  // Sort groups alphabetically
-  const sortedGroups = Object.keys(teamsByGroup).sort();
-  
-  sortedGroups.forEach(group => {
-    html += `<div class="group-section">`;
-    html += `<h5 class="group-header">Group ${group}</h5>`;
-    html += `<div class="group-teams">`;
+  matchdayMatches.forEach(m => {
+    const matchDate = new Date(m.match_time);
+    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     
-    teamsByGroup[group].forEach(team => {
-      const isSelected = selectedTeams.includes(team.id);
-      const isPicked = roundPicks.some(p => p.team_id === team.id);
-      
-      html += `
-        <div class="team-card ${isPicked ? 'picked' : ''} ${isSelected ? 'selected' : ''}" 
-             onclick="${isPicked ? '' : `toggleTeamSelection('${team.id}')`}">
-          <img src="${team.flag_url || ''}" alt="${team.name}" class="team-card-flag">
-          <span class="team-card-name">${team.name}</span>
-          ${isPicked ? '<i class="fas fa-check team-card-status"></i>' : ''}
-          ${isSelected ? '<i class="fas fa-check-circle team-card-status selected"></i>' : ''}
+    const homeTeam = allTeams.find(t => t.id === m.home_team_id);
+    const awayTeam = allTeams.find(t => t.id === m.away_team_id);
+    
+    const homePicked = roundPicks.some(p => p.team_id === m.home_team_id);
+    const awayPicked = roundPicks.some(p => p.team_id === m.away_team_id);
+    const homeSelected = selectedTeams.includes(m.home_team_id);
+    const awaySelected = selectedTeams.includes(m.away_team_id);
+    
+    html += `
+      <div class="match-picker-card">
+        <div class="match-picker-header">
+          <span class="match-picker-date">${dateStr} @ ${timeStr}</span>
+          <span class="match-picker-group">Group ${homeTeam?.group_name || '?'}</span>
         </div>
-      `;
-    });
-    
-    html += `</div></div>`;
+        <div class="match-picker-teams">
+          <div class="match-picker-team ${homePicked ? 'picked' : ''} ${homeSelected ? 'selected' : ''}" 
+               onclick="${homePicked ? '' : `toggleTeamSelection('${m.home_team_id}')`}">
+            <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="match-picker-flag">
+            <span class="match-picker-team-name">${homeTeam?.name || 'TBD'}</span>
+            ${homePicked ? '<i class="fas fa-check match-picker-status"></i>' : ''}
+            ${homeSelected ? '<i class="fas fa-check-circle match-picker-status selected"></i>' : ''}
+          </div>
+          <span class="match-picker-vs">VS</span>
+          <div class="match-picker-team ${awayPicked ? 'picked' : ''} ${awaySelected ? 'selected' : ''}"
+               onclick="${awayPicked ? '' : `toggleTeamSelection('${m.away_team_id}')`}">
+            <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="match-picker-flag">
+            <span class="match-picker-team-name">${awayTeam?.name || 'TBD'}</span>
+            ${awayPicked ? '<i class="fas fa-check match-picker-status"></i>' : ''}
+            ${awaySelected ? '<i class="fas fa-check-circle match-picker-status selected"></i>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
   });
   
   html += '</div>';
