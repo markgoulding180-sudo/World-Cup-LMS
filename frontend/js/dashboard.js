@@ -39,26 +39,14 @@ async function loadDashboard() {
       roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
     }
     
-    // Load teams playing in current round
-    if (currentRound) {
-      const matchesResponse = await fetch(`/api/matches?round_id=${currentRound.id}&limit=50`);
-      if (matchesResponse.ok) {
-        const matchesData = await matchesResponse.json();
-        const playingTeamIds = new Set();
-        matchesData.matches?.forEach(m => {
-          playingTeamIds.add(m.home_team_id);
-          playingTeamIds.add(m.away_team_id);
-        });
-        
-        // Load all teams but filter to playing teams
-        const teamsResponse = await fetch('/api/teams');
-        if (teamsResponse.ok) {
-          const teamsData = await teamsResponse.json();
-          const playingTeams = teamsData.teams?.filter(t => playingTeamIds.has(t.id)) || [];
-          displayAvailableTeams(playingTeams, userPicks, roundPicks.length, picksRequired);
-          displayCurrentPicks(roundPicks, picksRequired);
-        }
-      }
+    // Load all teams for group stage rounds
+    // In group stage, all 48 teams play across the 3 matchdays
+    // Players pick from all available teams
+    const teamsResponse = await fetch('/api/teams');
+    if (teamsResponse.ok) {
+      const teamsData = await teamsResponse.json();
+      displayAvailableTeams(teamsData.teams, userPicks, roundPicks.length, picksRequired);
+      displayCurrentPicks(roundPicks, picksRequired);
     }
     
   } catch (error) {
