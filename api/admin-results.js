@@ -96,28 +96,46 @@ module.exports = async (req, res) => {
       ? [match.home_team_id, match.away_team_id]
       : [result === 'H' ? match.away_team_id : match.home_team_id];
 
+    let livesDeducted = 0;
+
     for (const losingTeamId of losingTeamIds) {
-      const { data: losingPicks } = await supabase
+      const { data: losingPicks, error: picksError } = await supabase
         .from('picks')
         .select('user_id, rounds:round_id(round_number)')
         .eq('result', 'loss')
         .eq('team_id', losingTeamId)
         .eq('round_id', match.round_id);
 
+      console.log(`Processing losing picks for team ${losingTeamId}:`, { 
+        count: losingPicks?.length, 
+        error: picksError?.message,
+        round_id: match.round_id 
+      });
+
       for (const pick of losingPicks || []) {
         // Get current lives for this player
-        const { data: entry } = await supabase
+        const { data: entry, error: entryError } = await supabase
           .from('tournament_entries')
-          .select('lives_remaining')
+          .select('lives_remaining, tournament_id')
           .eq('user_id', pick.user_id)
-          .eq('tournament_id', match.tournament_id)
           .single();
 
-        const currentLives = entry?.lives_remaining || 1;
+        console.log(`Entry for user ${pick.user_id}:`, { 
+          entry, 
+          error: entryError?.message,
+          match_tournament_id: match.tournament_id 
+        });
+
+        if (!entry) continue;
+
+        const currentLives = entry.lives_remaining ?? 5;
         const newLives = Math.max(0, currentLives - 1);
+        livesDeducted++;
+
+        console.log(`Deducting life: ${currentLives} -> ${newLives} for user ${pick.user_id}`);
 
         // Update lives, only eliminate if lives hit zero
-        await supabase
+        const { error: updateError } = await supabase
           .from('tournament_entries')
           .update({
             lives_remaining: newLives,
@@ -128,13 +146,18 @@ module.exports = async (req, res) => {
             } : {})
           })
           .eq('user_id', pick.user_id)
-          .eq('tournament_id', match.tournament_id);
+          .eq('tournament_id', entry.tournament_id);
+
+        if (updateError) {
+          console.error(`Failed to update lives for user ${pick.user_id}:`, updateError);
+        }
       }
     }
 
     return res.status(200).json({
       success: true,
       message: 'Match result updated',
+      livesDeducted,
       match: {
         home: match.home_team?.name,
         away: match.away_team?.name,
