@@ -59,7 +59,6 @@ async function loadDashboard() {
       
       displayMatchdayPickFlow();
       displayCurrentPicks(roundPicks);
-      displayRoundMatches(allMatches, currentRound);
     }
     
   } catch (error) {
@@ -505,57 +504,6 @@ async function enterTournament() {
   }
 }
 
-function displayRoundMatches(matches, currentRound) {
-  const container = document.getElementById('round-matches');
-  if (!container || !currentRound) return;
-  
-  const roundMatches = matches?.filter(m => m.round_id === currentRound.id) || [];
-  
-  if (roundMatches.length === 0) {
-    container.innerHTML = '<p class="text-secondary">No matches scheduled for this round yet.</p>';
-    return;
-  }
-  
-  const matchesByMatchday = { 1: [], 2: [], 3: [] };
-  roundMatches.forEach(m => {
-    if (m.matchday && matchesByMatchday[m.matchday]) {
-      matchesByMatchday[m.matchday].push(m);
-    }
-  });
-  
-  let html = '<div class="round-matches-list">';
-  html += `<h3>${currentRound.name} - All Matches</h3>`;
-  
-  [1, 2, 3].forEach(matchday => {
-    const matchdayMatches = matchesByMatchday[matchday];
-    if (matchdayMatches.length === 0) return;
-    
-    html += `<div class="matchday-section">`;
-    html += `<h4>Matchday ${matchday}</h4>`;
-    
-    matchdayMatches.forEach(m => {
-      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      const date = new Date(m.match_time).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-      
-      html += `
-        <div class="match-item">
-          <span class="match-time">${date} ${time}</span>
-          <div class="match-teams-row">
-            <img src="${m.home_team?.flag_url}" alt="" class="match-flag">
-            <span>${m.home_team?.name}</span>
-            <span class="vs">vs</span>
-            <span>${m.away_team?.name}</span>
-            <img src="${m.away_team?.flag_url}" alt="" class="match-flag">
-          </div>
-        </div>
-      `;
-    });
-    
-    html += '</div>';
-  });
-  
-  html += '</div>';
-  container.innerHTML = html;
-}
+// displayRoundMatches function removed - matches now shown in picker only
 
 document.addEventListener('DOMContentLoaded', loadDashboard);
