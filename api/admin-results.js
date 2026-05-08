@@ -53,6 +53,9 @@ module.exports = async (req, res) => {
     const winningTeamId = result === 'H' ? match.home_team_id : 
                          result === 'A' ? match.away_team_id : null;
 
+    // Only update picks for THIS match's round
+    const matchRoundId = match.round_id;
+
     // If draw, eliminate all picks for this match's teams
     // If win/loss, eliminate picks for losing team
     if (result === 'D') {
@@ -61,12 +64,14 @@ module.exports = async (req, res) => {
         .from('picks')
         .update({ result: 'loss' })
         .eq('team_id', match.home_team_id)
+        .eq('round_id', matchRoundId)
         .eq('result', 'pending');
       
       await supabase
         .from('picks')
         .update({ result: 'loss' })
         .eq('team_id', match.away_team_id)
+        .eq('round_id', matchRoundId)
         .eq('result', 'pending');
     } else {
       // Win/Loss - winning team pickers advance, losing team pickers eliminated
@@ -74,6 +79,7 @@ module.exports = async (req, res) => {
         .from('picks')
         .update({ result: 'win' })
         .eq('team_id', winningTeamId)
+        .eq('round_id', matchRoundId)
         .eq('result', 'pending');
       
       const losingTeamId = result === 'H' ? match.away_team_id : match.home_team_id;
@@ -81,6 +87,7 @@ module.exports = async (req, res) => {
         .from('picks')
         .update({ result: 'loss' })
         .eq('team_id', losingTeamId)
+        .eq('round_id', matchRoundId)
         .eq('result', 'pending');
     }
 
@@ -94,7 +101,8 @@ module.exports = async (req, res) => {
         .from('picks')
         .select('user_id, rounds:round_id(round_number)')
         .eq('result', 'loss')
-        .eq('team_id', losingTeamId);
+        .eq('team_id', losingTeamId)
+        .eq('round_id', match.round_id);
 
       for (const pick of losingPicks || []) {
         // Get current lives for this player
