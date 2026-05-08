@@ -553,15 +553,17 @@ function displayRoundMatches(matches, currentRound) {
       const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       const date = new Date(m.match_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       
+      const hasScore = m.home_score !== null && m.home_score !== undefined;
+      
       html += `
         <div class="match-compact-item">
           <div class="match-compact-teams">
             <img src="${m.home_team?.flag_url}" alt="" class="match-compact-flag">
-            <span class="${m.home_team_score !== null ? 'has-score' : ''}">${m.home_team?.name}</span>
-            ${m.home_team_score !== null ? `<span class="match-score">${m.home_team_score}</span>` : ''}
+            <span>${m.home_team?.name}</span>
+            ${hasScore ? `<span class="match-score">${m.home_score}</span>` : ''}
             <span class="vs">vs</span>
-            <span class="${m.away_team_score !== null ? 'has-score' : ''}">${m.away_team?.name}</span>
-            ${m.away_team_score !== null ? `<span class="match-score">${m.away_team_score}</span>` : ''}
+            ${hasScore ? `<span class="match-score">${m.away_score}</span>` : ''}
+            <span>${m.away_team?.name}</span>
             <img src="${m.away_team?.flag_url}" alt="" class="match-compact-flag">
           </div>
           <span class="match-compact-time">${date} ${time}</span>
