@@ -1434,6 +1434,61 @@ a {
   to { opacity: 1; }
 }
 
+/* Status Card Redesign */
+.active-status {
+  text-align: center;
+  padding: 1rem;
+}
+
+.user-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.lives-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.life-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.life-circle.active {
+  background: var(--accent-green);
+  color: white;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.life-circle.lost {
+  background: var(--accent-red);
+  color: white;
+  opacity: 0.5;
+}
+
+.lives-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.matchday-text {
+  color: var(--accent-gold);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
 /* Compact Matches List */
 .matches-list-compact {
   display: flex;

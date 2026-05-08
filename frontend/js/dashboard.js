@@ -448,17 +448,24 @@ function updateStatusCard(data) {
       </div>
     `;
   } else if (data.status === 'active') {
-    const picksDisplay = Array.from({ length: data.max_lives || 9 }, (_, i) =>
-      `<span class="life-heart ${i < (data.lives_remaining || 0) ? 'active' : 'lost'}">♥</span>`
-    ).join('');
+    const livesRemaining = data.lives_remaining || 5;
+    const maxLives = data.max_lives || 5;
+    const livesLost = maxLives - livesRemaining;
+    
+    // Create 5 life circles - green for remaining, red for lost
+    const livesDisplay = Array.from({ length: maxLives }, (_, i) => {
+      const isActive = i < livesRemaining;
+      return `<div class="life-circle ${isActive ? 'active' : 'lost'}"><i class="fas fa-check"></i></div>`;
+    }).join('');
     
     statusDiv.innerHTML = `
-      <div class="active">
-        <i class="fas fa-check-circle"></i>
-        <h3>Still In It!</h3>
-        <div class="lives-display">${picksDisplay}</div>
-        <p>${data.lives_remaining || 0} of ${data.max_lives || 9} picks remaining</p>
-        <p>Current Matchday: ${data.current_matchday || currentMatchday}</p>
+      <div class="active-status">
+        <h2 class="user-name">${data.display_name || data.username || 'Player'}</h2>
+        <div class="lives-row">
+          ${livesDisplay}
+        </div>
+        <p class="lives-text">${livesRemaining} of ${maxLives} lives remaining</p>
+        <p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>
       </div>
     `;
   } else {
