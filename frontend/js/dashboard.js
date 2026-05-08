@@ -418,15 +418,27 @@ function displayCurrentPicks(picks) {
       html += '<p class="no-picks">No picks yet</p>';
     } else {
       html += '<div class="picks-list-small">';
-      html += matchdayPicks.map(pick => `
-        <div class="pick-item-small">
-          <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
-          <div class="pick-details">
-            <span class="pick-team-name">${pick.teams?.name}</span>
+      html += matchdayPicks.map(pick => {
+        // Find the match for this pick
+        const match = allMatches.find(m => 
+          (m.home_team_id === pick.team_id || m.away_team_id === pick.team_id) && 
+          m.matchday === matchday
+        );
+        const matchDate = match ? new Date(match.match_time) : null;
+        const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+        const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        return `
+          <div class="pick-item-small">
+            <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
+            <div class="pick-details">
+              <span class="pick-team-name">${pick.teams?.name}</span>
+              <span class="pick-match-time">${dateStr} @ ${timeStr}</span>
+            </div>
+            <span class="pick-status-badge ${pick.result}">${pick.result}</span>
           </div>
-          <span class="pick-status-badge ${pick.result}">${pick.result}</span>
-        </div>
-      `).join('');
+        `;
+      }).join('');
       html += '</div>';
     }
     html += '</div>';

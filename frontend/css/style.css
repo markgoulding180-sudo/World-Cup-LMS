@@ -603,9 +603,11 @@ body {
   color: var(--text-primary);
 }
 
-.pick-match-day {
+.pick-match-time {
   font-size: 0.75rem;
-  color: var(--accent-gold);
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 0.25rem;
 }
 
 .pick-status-badge {
