@@ -17,6 +17,13 @@ async function loadDashboard() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
+    // Handle auth errors
+    if (statusResponse.status === 401) {
+      localStorage.removeItem('wc_lms_token');
+      window.location.href = '/login.html';
+      return;
+    }
+    
     let statusData = {};
     if (statusResponse.ok) {
       statusData = await statusResponse.json();
