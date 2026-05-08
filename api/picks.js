@@ -94,6 +94,49 @@ module.exports = async (req, res) => {
 
       const { team_id, round_id, tournament_id } = req.body;
 
+      // Get picks_required for this round
+      const { data: round, error: roundError } = await supabase
+        .from('rounds')
+        .select('picks_required')
+        .eq('id', round_id)
+        .single();
+
+      if (roundError) {
+        return res.status(500).json({ error: 'Failed to get round settings' });
+      }
+
+      const picksRequired = round?.picks_required || 1;
+
+      // Count existing picks this round for this player
+      const { data: existingRoundPicks, error: countError } = await supabase
+        .from('picks')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('round_id', round_id)
+        .eq('tournament_id', tournament_id);
+
+      if (existingRoundPicks && existingRoundPicks.length >= picksRequired) {
+        return res.status(400).json({ 
+          error: `You can only make ${picksRequired} pick(s) this round` 
+        });
+      }
+
+      // Check team has not been used in any previous round
+      const { data: previousPicks, error: prevError } = await supabase
+        .from('picks')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .eq('tournament_id', tournament_id)
+        .neq('round_id', round_id);
+
+      const usedTeamIds = previousPicks?.map(p => p.team_id) || [];
+
+      if (usedTeamIds.includes(team_id)) {
+        return res.status(400).json({ 
+          error: 'You have already used this team in a previous round' 
+        });
+      }
+
       // Insert pick
       const { data, error } = await supabase
         .from('picks')

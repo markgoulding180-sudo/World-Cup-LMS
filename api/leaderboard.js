@@ -57,6 +57,8 @@ module.exports = async (req, res) => {
         username: entry.users?.username || 'Unknown',
         display_name: entry.users?.display_name || 'Unknown',
         status: entry.status,
+        lives_remaining: entry.lives_remaining,
+        max_lives: entry.max_lives,
         eliminated_round: entry.eliminated_round,
         entered_at: entry.entered_at,
         current_pick: latestPick ? {
@@ -67,12 +69,13 @@ module.exports = async (req, res) => {
       };
     });
 
-    // Sort: active first (by entry date), then eliminated (by elimination round desc)
+    // Sort: active players by lives remaining (desc), then eliminated by elimination round
     const sortedLeaderboard = leaderboard?.sort((a, b) => {
       if (a.status === 'active' && b.status !== 'active') return -1;
       if (a.status !== 'active' && b.status === 'active') return 1;
       if (a.status === 'active' && b.status === 'active') {
-        return new Date(a.entered_at) - new Date(b.entered_at);
+        // Active players sorted by lives remaining (desc) as tiebreaker
+        return (b.lives_remaining || 0) - (a.lives_remaining || 0);
       }
       return (b.eliminated_round || 0) - (a.eliminated_round || 0);
     });

@@ -84,22 +84,44 @@ module.exports = async (req, res) => {
         .eq('result', 'pending');
     }
 
-    // Update tournament entries for eliminated players
-    const { data: losingPicks } = await supabase
-      .from('picks')
-      .select('user_id, rounds:round_id(round_number)')
-      .eq('result', 'loss')
-      .eq('team_id', result === 'D' ? match.home_team_id : (result === 'H' ? match.away_team_id : match.home_team_id));
+    // Process losing players — decrement life, eliminate if zero
+    const losingTeamIds = result === 'D' 
+      ? [match.home_team_id, match.away_team_id]
+      : [result === 'H' ? match.away_team_id : match.home_team_id];
 
-    for (const pick of losingPicks || []) {
-      await supabase
-        .from('tournament_entries')
-        .update({
-          status: 'eliminated',
-          eliminated_round: pick.rounds?.round_number,
-          eliminated_at: new Date().toISOString()
-        })
-        .eq('user_id', pick.user_id);
+    for (const losingTeamId of losingTeamIds) {
+      const { data: losingPicks } = await supabase
+        .from('picks')
+        .select('user_id, rounds:round_id(round_number)')
+        .eq('result', 'loss')
+        .eq('team_id', losingTeamId);
+
+      for (const pick of losingPicks || []) {
+        // Get current lives for this player
+        const { data: entry } = await supabase
+          .from('tournament_entries')
+          .select('lives_remaining')
+          .eq('user_id', pick.user_id)
+          .eq('tournament_id', match.tournament_id)
+          .single();
+
+        const currentLives = entry?.lives_remaining || 1;
+        const newLives = Math.max(0, currentLives - 1);
+
+        // Update lives, only eliminate if lives hit zero
+        await supabase
+          .from('tournament_entries')
+          .update({
+            lives_remaining: newLives,
+            ...(newLives === 0 ? {
+              status: 'eliminated',
+              eliminated_round: pick.rounds?.round_number,
+              eliminated_at: new Date().toISOString()
+            } : {})
+          })
+          .eq('user_id', pick.user_id)
+          .eq('tournament_id', match.tournament_id);
+      }
     }
 
     return res.status(200).json({

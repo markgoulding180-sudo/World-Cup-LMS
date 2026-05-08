@@ -55,7 +55,9 @@ module.exports = async (req, res) => {
         status: entry?.status || 'not_entered',
         entry: entry || null,
         current_round: clock?.current_round || 1,
-        eliminated_round: entry?.eliminated_round || null
+        eliminated_round: entry?.eliminated_round || null,
+        lives_remaining: entry?.lives_remaining || 0,
+        max_lives: entry?.max_lives || 3
       });
 
     } catch (error) {
@@ -80,12 +82,27 @@ module.exports = async (req, res) => {
 
       const { tournament_id } = req.body;
 
+      // Get tournament lives setting
+      const { data: tournament, error: tourneyError } = await supabase
+        .from('tournaments')
+        .select('lives')
+        .eq('id', tournament_id)
+        .single();
+
+      if (tourneyError) {
+        return res.status(500).json({ error: 'Failed to get tournament settings' });
+      }
+
+      const lives = tournament?.lives || 3;
+
       const { data, error } = await supabase
         .from('tournament_entries')
         .insert({
           user_id: user.id,
           tournament_id,
-          status: 'active'
+          status: 'active',
+          lives_remaining: lives,
+          max_lives: lives
         })
         .select();
 
