@@ -223,6 +223,41 @@ async function loadAllPicks() {
   }
 }
 
+async function updateResultsFromFixturedownload() {
+  const statusDiv = document.getElementById('update-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Fetching results from fixturedownload...</p>';
+  
+  try {
+    const token = localStorage.getItem('wc_lms_token');
+    const response = await fetch('/api/update-results', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);">
+          <i class="fas fa-check-circle"></i> Results updated!
+        </p>
+        <p>Matches updated: ${data.matchesUpdated || 0}</p>
+        <p>Picks processed: ${data.picksProcessed || 0}</p>
+        <p>Lives deducted: ${data.livesDeducted || 0}</p>
+        <p>Players eliminated: ${data.playersEliminated || 0}</p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
 async function importWorldCupData() {
   const statusDiv = document.getElementById('import-status');
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Importing...</p>';

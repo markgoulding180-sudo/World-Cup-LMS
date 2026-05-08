@@ -44,6 +44,13 @@ module.exports = async (req, res) => {
       
       const entry = entries && entries.length > 0 ? entries[0] : null;
 
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('users')
+        .select('username, display_name')
+        .eq('id', user.id)
+        .single();
+
       // Get current round from master clock
       const { data: clock } = await supabase
         .from('master_clock')
@@ -51,13 +58,19 @@ module.exports = async (req, res) => {
         .eq('id', 'current')
         .single();
 
+      // Use tournament lives setting if entry exists
+      let maxLives = entry?.max_lives || 5;
+      let livesRemaining = entry?.lives_remaining ?? maxLives;
+
       return res.status(200).json({
         status: entry?.status || 'not_entered',
         entry: entry || null,
+        username: profile?.username || user.email?.split('@')[0] || 'Player',
+        display_name: profile?.display_name || profile?.username || user.email?.split('@')[0] || 'Player',
         current_round: clock?.current_round || 1,
         eliminated_round: entry?.eliminated_round || null,
-        lives_remaining: entry?.lives_remaining || 0,
-        max_lives: entry?.max_lives || 3
+        lives_remaining: livesRemaining,
+        max_lives: maxLives
       });
 
     } catch (error) {
