@@ -88,6 +88,13 @@ async function loadMatchesForResults() {
     if (matches.length === 0) {
       resultContainer.innerHTML = '<p class="text-secondary">No matches found.</p>';
     } else {
+      // Add filter input
+      html += `
+        <div class="match-filter">
+          <input type="text" id="match-filter-input" placeholder="Filter by team name..." onkeyup="filterMatches()">
+          <button class="btn btn-secondary btn-sm" onclick="clearFilter()">Clear</button>
+        </div>
+      `;
       // Group by matchday
       const byMatchday = { 1: [], 2: [], 3: [] };
       matches.forEach(m => {
@@ -286,6 +293,40 @@ async function updateResultsFromFixturedownload() {
   } catch (error) {
     statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
   }
+}
+
+function filterMatches() {
+  const filterText = document.getElementById('match-filter-input').value.toLowerCase();
+  const rows = document.querySelectorAll('.match-entry-row');
+  
+  rows.forEach(row => {
+    const teamNames = row.textContent.toLowerCase();
+    if (teamNames.includes(filterText)) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+  
+  // Also hide/show matchday headers based on visible matches
+  const headers = document.querySelectorAll('.matchday-header-admin');
+  headers.forEach(header => {
+    let nextEl = header.nextElementSibling;
+    let hasVisible = false;
+    while (nextEl && !nextEl.classList.contains('matchday-header-admin')) {
+      if (nextEl.classList.contains('match-entry-row') && nextEl.style.display !== 'none') {
+        hasVisible = true;
+        break;
+      }
+      nextEl = nextEl.nextElementSibling;
+    }
+    header.style.display = hasVisible ? '' : 'none';
+  });
+}
+
+function clearFilter() {
+  document.getElementById('match-filter-input').value = '';
+  filterMatches();
 }
 
 async function importWorldCupData() {

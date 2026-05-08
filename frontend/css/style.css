@@ -1596,6 +1596,32 @@ a {
   gap: 0.5rem;
 }
 
+/* Match Filter */
+.match-filter {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.match-filter input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.match-filter input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+}
+
+.match-filter input::placeholder {
+  color: var(--text-secondary);
+}
+
 /* Match Picker List Layout */
 .match-picker-list {
   display: flex;
