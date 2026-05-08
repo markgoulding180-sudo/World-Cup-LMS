@@ -586,9 +586,26 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem;
+  padding: 0.75rem;
   background: var(--bg-secondary);
   border-radius: 0.5rem;
+}
+
+.pick-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.25rem;
+}
+
+.pick-team-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pick-match-day {
+  font-size: 0.75rem;
+  color: var(--accent-gold);
 }
 
 .pick-status-badge {
@@ -613,6 +630,85 @@ body {
 .pick-status-badge.loss {
   background: var(--accent-red);
   color: white;
+}
+
+/* Team card match info */
+.team-match {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.team-date {
+  font-size: 0.8rem;
+  color: var(--accent-gold);
+  text-align: center;
+  font-weight: 600;
+  background: rgba(255, 215, 0, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* Round matches display */
+.round-matches-list {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.round-matches-list h3 {
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.match-day {
+  margin-bottom: 1.5rem;
+}
+
+.match-day h4 {
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.match-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.match-time {
+  font-weight: 600;
+  color: var(--accent-gold);
+  min-width: 50px;
+}
+
+.match-teams-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.match-teams-row .vs {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.match-flag {
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 0.125rem;
 }
 
 /* Current Pick Display */

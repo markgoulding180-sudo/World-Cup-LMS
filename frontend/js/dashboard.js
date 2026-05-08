@@ -43,10 +43,14 @@ async function loadDashboard() {
     // In group stage, all 48 teams play across the 3 matchdays
     // Players pick from all available teams
     const teamsResponse = await fetch('/api/teams');
+    const matchesResponse = await fetch('/api/matches?limit=100');
+    
     if (teamsResponse.ok) {
       const teamsData = await teamsResponse.json();
-      displayAvailableTeams(teamsData.teams, userPicks, roundPicks.length, picksRequired);
-      displayCurrentPicks(roundPicks, picksRequired);
+      const matchesData = matchesResponse.ok ? await matchesResponse.json() : { matches: [] };
+      displayAvailableTeams(teamsData.teams, userPicks, roundPicks.length, picksRequired, matchesData.matches);
+      displayCurrentPicks(roundPicks, picksRequired, matchesData.matches);
+      displayRoundMatches(matchesData.matches, currentRound);
     }
     
   } catch (error) {
@@ -55,11 +59,21 @@ async function loadDashboard() {
   }
 }
 
-function displayCurrentPicks(picks, picksRequired) {
+function displayCurrentPicks(picks, picksRequired, matches) {
   const container = document.getElementById('current-pick');
   if (!container) return;
   
   const picksMade = picks.length;
+  
+  // Create match map for lookup
+  const matchMap = new Map();
+  matches?.forEach(m => {
+    const matchDate = new Date(m.match_time);
+    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    matchMap.set(m.home_team_id, { opponent: m.away_team?.name, date: dateStr, time: timeStr });
+    matchMap.set(m.away_team_id, { opponent: m.home_team?.name, date: dateStr, time: timeStr });
+  });
   
   if (picksMade === 0) {
     container.innerHTML = `
@@ -72,13 +86,22 @@ function displayCurrentPicks(picks, picksRequired) {
     return;
   }
   
-  let picksHtml = picks.map(pick => `
+  let picksHtml = picks.map(pick => {
+    const matchInfo = matchMap.get(pick.team_id);
+    const matchDetails = matchInfo ? 
+      `<span class="pick-match-day">📅 ${matchInfo.date} @ ${matchInfo.time} vs ${matchInfo.opponent}</span>` : 
+      '<span class="pick-match-day">📅 Match TBC</span>';
+    
+    return `
     <div class="pick-item-small">
       <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
-      <span>${pick.teams?.name}</span>
+      <div class="pick-details">
+        <span class="pick-team-name">${pick.teams?.name}</span>
+        ${matchDetails}
+      </div>
       <span class="pick-status-badge ${pick.result}">${pick.result}</span>
     </div>
-  `).join('');
+  `}).join('');
   
   container.innerHTML = `
     <div class="current-pick-card">
@@ -174,7 +197,7 @@ let currentGroup = 'ALL';
 let currentPicksCount = 0;
 let maxPicksAllowed = 3;
 
-function displayAvailableTeams(teams, allUserPicks, picksMade, picksRequired) {
+function displayAvailableTeams(teams, allUserPicks, picksMade, picksRequired, matches) {
   const container = document.getElementById('available-teams');
   
   currentPicksCount = picksMade;
@@ -185,9 +208,25 @@ function displayAvailableTeams(teams, allUserPicks, picksMade, picksRequired) {
     return;
   }
   
+  // Create a map of team_id to match info
+  const teamMatchMap = new Map();
+  matches?.forEach(m => {
+    const matchDate = new Date(m.match_time);
+    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    
+    teamMatchMap.set(m.home_team_id, { opponent: m.away_team?.name, date: dateStr, time: timeStr });
+    teamMatchMap.set(m.away_team_id, { opponent: m.home_team?.name, date: dateStr, time: timeStr });
+  });
+  
   // Filter out teams already picked in previous rounds
   const usedTeamIds = new Set(allUserPicks.map(p => p.team_id));
   const availableTeams = teams.filter(t => !usedTeamIds.has(t.id));
+  
+  // Add match info to teams
+  availableTeams.forEach(team => {
+    team.matchInfo = teamMatchMap.get(team.id);
+  });
   
   allTeams = availableTeams;
   
@@ -228,11 +267,17 @@ function renderTeamCards(teams) {
   
   return filteredTeams.map(team => {
     const eliminatedClass = team.eliminated ? 'eliminated' : '';
+    const matchInfo = team.matchInfo ? `
+      <span class="team-match">vs ${team.matchInfo.opponent}</span>
+      <span class="team-date">${team.matchInfo.date} ${team.matchInfo.time}</span>
+    ` : '<span class="team-match">Match TBC</span>';
+    
     return `
       <div class="team-card ${eliminatedClass}" onclick="${team.eliminated ? '' : `selectTeam('${team.id}')`}">
         <img src="${team.flag_url || 'https://flagcdn.com/w80/xx.png'}" alt="${team.name}" class="team-flag" onerror="this.src='https://flagcdn.com/w80/xx.png'">
         <span class="team-name">${team.name}</span>
         <span class="team-group">Group ${team.group_name}</span>
+        ${matchInfo}
       </div>
     `;
   }).join('');
@@ -327,6 +372,54 @@ async function selectTeam(teamId) {
   } catch (error) {
     alert('Error selecting team: ' + error.message);
   }
+}
+
+function displayRoundMatches(matches, currentRound) {
+  const container = document.getElementById('round-matches');
+  if (!container || !currentRound) return;
+  
+  // Filter matches to current round
+  const roundMatches = matches?.filter(m => m.round_id === currentRound.id) || [];
+  
+  if (roundMatches.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No matches scheduled for this round yet.</p>';
+    return;
+  }
+  
+  // Group matches by date
+  const matchesByDate = {};
+  roundMatches.forEach(m => {
+    const date = new Date(m.match_time);
+    const dateKey = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (!matchesByDate[dateKey]) matchesByDate[dateKey] = [];
+    matchesByDate[dateKey].push(m);
+  });
+  
+  let html = '<div class="round-matches-list">';
+  html += `<h3>${currentRound.name} - Match Schedule</h3>`;
+  
+  Object.entries(matchesByDate).forEach(([date, dayMatches]) => {
+    html += `<div class="match-day"><h4>${date}</h4>`;
+    dayMatches.forEach(m => {
+      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      html += `
+        <div class="match-item">
+          <span class="match-time">${time}</span>
+          <div class="match-teams-row">
+            <img src="${m.home_team?.flag_url}" alt="" class="match-flag">
+            <span>${m.home_team?.name}</span>
+            <span class="vs">vs</span>
+            <span>${m.away_team?.name}</span>
+            <img src="${m.away_team?.flag_url}" alt="" class="match-flag">
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 // Load dashboard on page load
