@@ -665,11 +665,45 @@ body {
   margin-bottom: 1rem;
 }
 
-.match-day {
-  margin-bottom: 1.5rem;
+.day-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
 }
 
-.match-day h4 {
+.day-tab {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.day-tab:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.day-tab.active {
+  background: var(--accent-gold);
+  color: var(--bg-primary);
+  border-color: var(--accent-gold);
+}
+
+.match-day-content {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.match-day-content h4 {
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.5rem;

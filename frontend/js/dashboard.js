@@ -374,6 +374,8 @@ async function selectTeam(teamId) {
   }
 }
 
+let currentMatchDay = 0;
+
 function displayRoundMatches(matches, currentRound) {
   const container = document.getElementById('round-matches');
   if (!container || !currentRound) return;
@@ -388,38 +390,62 @@ function displayRoundMatches(matches, currentRound) {
   
   // Group matches by date
   const matchesByDate = {};
+  const dateKeys = [];
   roundMatches.forEach(m => {
     const date = new Date(m.match_time);
-    const dateKey = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-    if (!matchesByDate[dateKey]) matchesByDate[dateKey] = [];
-    matchesByDate[dateKey].push(m);
+    const dateKey = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const fullDateKey = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (!matchesByDate[dateKey]) {
+      matchesByDate[dateKey] = { fullDate: fullDateKey, matches: [] };
+      dateKeys.push(dateKey);
+    }
+    matchesByDate[dateKey].matches.push(m);
   });
+  
+  // Reset to first day if out of range
+  if (currentMatchDay >= dateKeys.length) currentMatchDay = 0;
   
   let html = '<div class="round-matches-list">';
   html += `<h3>${currentRound.name} - Match Schedule</h3>`;
   
-  Object.entries(matchesByDate).forEach(([date, dayMatches]) => {
-    html += `<div class="match-day"><h4>${date}</h4>`;
-    dayMatches.forEach(m => {
-      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      html += `
-        <div class="match-item">
-          <span class="match-time">${time}</span>
-          <div class="match-teams-row">
-            <img src="${m.home_team?.flag_url}" alt="" class="match-flag">
-            <span>${m.home_team?.name}</span>
-            <span class="vs">vs</span>
-            <span>${m.away_team?.name}</span>
-            <img src="${m.away_team?.flag_url}" alt="" class="match-flag">
-          </div>
-        </div>
-      `;
-    });
-    html += '</div>';
+  // Day tabs
+  html += '<div class="day-tabs">';
+  dateKeys.forEach((dateKey, index) => {
+    const isActive = index === currentMatchDay ? 'active' : '';
+    html += `<button class="day-tab ${isActive}" onclick="switchMatchDay(${index})">${dateKey}</button>`;
   });
+  html += '</div>';
+  
+  // Show matches for selected day
+  const selectedDay = dateKeys[currentMatchDay];
+  const dayData = matchesByDate[selectedDay];
+  
+  html += `<div class="match-day-content">`;
+  html += `<h4>${dayData.fullDate}</h4>`;
+  dayData.matches.forEach(m => {
+    const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    html += `
+      <div class="match-item">
+        <span class="match-time">${time}</span>
+        <div class="match-teams-row">
+          <img src="${m.home_team?.flag_url}" alt="" class="match-flag">
+          <span>${m.home_team?.name}</span>
+          <span class="vs">vs</span>
+          <span>${m.away_team?.name}</span>
+          <img src="${m.away_team?.flag_url}" alt="" class="match-flag">
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
   
   html += '</div>';
   container.innerHTML = html;
+}
+
+function switchMatchDay(dayIndex) {
+  currentMatchDay = dayIndex;
+  loadDashboard();
 }
 
 // Load dashboard on page load
