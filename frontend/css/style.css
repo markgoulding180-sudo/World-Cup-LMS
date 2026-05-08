@@ -1556,26 +1556,21 @@ a {
   text-align: center;
 }
 
-/* Admin Match Entry Styles */
+/* Admin Match Entry Styles - Clean Layout */
 .matchday-header-admin {
   color: var(--accent-gold);
-  font-size: 1rem;
+  font-size: 1.1rem;
   margin: 1.5rem 0 0.75rem 0;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
 }
 
-.match-info-admin {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-}
-
-.match-group-admin {
-  color: var(--accent-gold);
-  text-transform: uppercase;
+.match-entry-row {
+  background: var(--bg-card);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border-color);
 }
 
 .match-entry-row.finished {
@@ -1583,19 +1578,101 @@ a {
   background: var(--bg-secondary);
 }
 
-.score-display {
-  font-weight: 700;
-  color: var(--accent-gold);
-  margin-left: 0.5rem;
-  font-size: 1.1rem;
+.match-admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.875rem;
 }
 
-.result-saved {
-  color: var(--accent-green);
-  font-size: 0.875rem;
+.match-admin-datetime {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.match-admin-group {
+  color: var(--accent-gold);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.match-admin-teams {
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.match-admin-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  min-width: 120px;
+}
+
+.match-admin-flag {
+  width: 48px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.match-admin-teamname {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.match-admin-score {
+  font-weight: 700;
+  color: var(--accent-gold);
+  font-size: 1.25rem;
+}
+
+.match-admin-vs {
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.match-admin-inputs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.match-admin-inputs .score-input {
+  width: 60px;
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.input-separator {
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+}
+
+.match-admin-saved {
+  text-align: center;
+  color: var(--accent-green);
+  font-weight: 600;
+  padding: 0.5rem;
 }
 
 /* Match Filter */
