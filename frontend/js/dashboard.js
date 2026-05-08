@@ -305,12 +305,12 @@ function updateSelectedPreview() {
   if (selectedTeams.length < needed) {
     html += `<p class="selection-hint">Select ${needed - selectedTeams.length} more team${needed - selectedTeams.length !== 1 ? 's' : ''}</p>`;
   } else {
-    // All 3 selected - scroll to Your Picks section
-    html += `<p class="selection-hint" style="color: var(--accent-green);"><i class="fas fa-check"></i> All 3 teams selected!</p>`;
+    // All 3 selected - scroll to Make Your Pick section to show submit button
+    html += `<p class="selection-hint" style="color: var(--accent-green);"><i class="fas fa-check"></i> All 3 teams selected! Click Submit below.</p>`;
     setTimeout(() => {
-      const yourPicksSection = document.getElementById('current-pick-section');
-      if (yourPicksSection) {
-        yourPicksSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const pickSection = document.getElementById('pick-section');
+      if (pickSection) {
+        pickSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 300);
   }
