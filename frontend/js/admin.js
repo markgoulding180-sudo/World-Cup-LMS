@@ -76,7 +76,7 @@ async function loadMatchesForResults() {
   const resultContainer = document.getElementById('result-entry');
   
   try {
-    const response = await fetch('/api/matches?status=upcoming&limit=20');
+    const response = await fetch('/api/matches?limit=100');
     const data = await response.json();
     
     if (!response.ok) {
@@ -86,32 +86,62 @@ async function loadMatchesForResults() {
     const matches = data.matches || [];
     
     if (matches.length === 0) {
-      resultContainer.innerHTML = '<p class="text-secondary">No upcoming matches to enter results for.</p>';
+      resultContainer.innerHTML = '<p class="text-secondary">No matches found.</p>';
     } else {
-      let html = '<div class="matches-for-entry">';
-      matches.forEach(match => {
-        html += `
-          <div class="match-entry-row">
-            <div class="match-teams">
-              <div class="team">
-                <img src="${match.home_team?.flag_url}" alt="" class="team-flag-small">
-                <span>${match.home_team?.name}</span>
-              </div>
-              <span class="vs">vs</span>
-              <div class="team">
-                <img src="${match.away_team?.flag_url}" alt="" class="team-flag-small">
-                <span>${match.away_team?.name}</span>
-              </div>
-            </div>
-            <div class="score-inputs">
-              <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="score-input">
-              <span>-</span>
-              <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
-              <button class="btn btn-primary btn-sm" onclick="submitResult('${match.id}')">Save</button>
-            </div>
-          </div>
-        `;
+      // Group by matchday
+      const byMatchday = { 1: [], 2: [], 3: [] };
+      matches.forEach(m => {
+        if (m.matchday && byMatchday[m.matchday]) {
+          byMatchday[m.matchday].push(m);
+        }
       });
+      
+      let html = '<div class="matches-for-entry">';
+      
+      [1, 2, 3].forEach(md => {
+        const mdMatches = byMatchday[md];
+        if (mdMatches.length === 0) return;
+        
+        html += `<h4 class="matchday-header-admin">Matchday ${md}</h4>`;
+        
+        mdMatches.forEach(match => {
+          const matchDate = new Date(match.match_time);
+          const dateStr = matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          const isFinished = match.status === 'finished';
+          
+          html += `
+            <div class="match-entry-row ${isFinished ? 'finished' : ''}">
+              <div class="match-info-admin">
+                <span class="match-date-admin">${dateStr} ${timeStr}</span>
+                <span class="match-group-admin">Group ${match.home_team?.group_name || '?'}</span>
+              </div>
+              <div class="match-teams">
+                <div class="team">
+                  <img src="${match.home_team?.flag_url}" alt="" class="team-flag-small">
+                  <span>${match.home_team?.name}</span>
+                  ${isFinished ? `<span class="score-display">${match.home_score}</span>` : ''}
+                </div>
+                <span class="vs">vs</span>
+                <div class="team">
+                  <img src="${match.away_team?.flag_url}" alt="" class="team-flag-small">
+                  <span>${match.away_team?.name}</span>
+                  ${isFinished ? `<span class="score-display">${match.away_score}</span>` : ''}
+                </div>
+              </div>
+              ${!isFinished ? `
+                <div class="score-inputs">
+                  <input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="score-input">
+                  <span>-</span>
+                  <input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="score-input">
+                  <button class="btn btn-primary btn-sm" onclick="submitResult('${match.id}')">Save</button>
+                </div>
+              ` : '<span class="result-saved"><i class="fas fa-check"></i> Result Saved</span>'}
+            </div>
+          `;
+        });
+      });
+      
       html += '</div>';
       resultContainer.innerHTML = html;
     }
