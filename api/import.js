@@ -1,5 +1,5 @@
-// Vercel Function: Import from fixturedownload.com - v4
-// Uses fixturedownload API and maps flags from master_teams
+// Vercel Function: Import from fixturedownload.com - v5
+// Uses fixturedownload API and maps to existing teams table
 const { createClient } = require('@supabase/supabase-js');
 
 const FIXTURE_URL = 'https://fixturedownload.com/feed/json/fifa-world-cup-2026';
@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SECRET
   );
 
-  // SETUP - Import teams and matches from fixturedownload
+  // SETUP - Import rounds and matches from fixturedownload
   if (action === 'setup') {
     try {
       // 1. Fetch from fixturedownload
@@ -55,76 +55,68 @@ module.exports = async (req, res) => {
       // Filter group stage only (RoundNumber 1-3)
       const groupStage = fixtures.filter(f => f.RoundNumber >= 1 && f.RoundNumber <= 3);
       
-      // 2. Get flags from master_teams
-      const { data: masterTeams } = await supabase.from('master_teams').select('name, flag_url, code');
-      const flagMap = new Map(masterTeams?.map(t => [t.name, { flag_url: t.flag_url, code: t.code }]));
-      
-      // 3. Extract teams with flags
-      const teamsMap = new Map();
-      groupStage.forEach(match => {
-        const homeName = TEAM_MAPPINGS[match.HomeTeam] || match.HomeTeam;
-        const awayName = TEAM_MAPPINGS[match.AwayTeam] || match.AwayTeam;
-        const group = match.Group?.replace('Group ', '') || '';
-        
-        if (!teamsMap.has(homeName)) {
-          const flags = flagMap.get(homeName) || {};
-          teamsMap.set(homeName, { 
-            name: homeName, 
-            group_name: group, 
-            flag_url: flags.flag_url || `https://flagcdn.com/w80/${homeName.substring(0,2).toLowerCase()}.png`,
-            code: flags.code || homeName.substring(0,3).toUpperCase()
-          });
-        }
-        if (!teamsMap.has(awayName)) {
-          const flags = flagMap.get(awayName) || {};
-          teamsMap.set(awayName, { 
-            name: awayName, 
-            group_name: group,
-            flag_url: flags.flag_url || `https://flagcdn.com/w80/${awayName.substring(0,2).toLowerCase()}.png`,
-            code: flags.code || awayName.substring(0,3).toUpperCase()
-          });
-        }
-      });
-      
-      const teams = Array.from(teamsMap.values());
-      
-      // 4. Insert teams
-      const { data: insertedTeams, error: teamError } = await supabase
+      // 2. Get existing teams from teams table
+      const { data: existingTeams, error: teamsError } = await supabase
         .from('teams')
-        .insert(teams)
-        .select();
+        .select('id, name, code, flag_url, group_name');
       
-      if (teamError) throw teamError;
+      if (teamsError) throw teamsError;
       
-      // 5. Create team lookup
-      const teamLookup = new Map(insertedTeams?.map(t => [t.name, t.id]));
+      // Create team lookup by name
+      const teamLookup = new Map(existingTeams?.map(t => [t.name, t.id]));
       
-      // 6. Create rounds
+      // Also create lookup by code for fallback matching
+      const teamLookupByCode = new Map(existingTeams?.map(t => [t.code, t.id]));
+      
+      // 3. Create rounds (if not exist)
       const { data: existingRounds } = await supabase.from('rounds').select('round_number');
       const existingRoundNumbers = new Set(existingRounds?.map(r => r.round_number) || []);
       const newRounds = ROUNDS.filter(r => !existingRoundNumbers.has(r.round_number));
       
       if (newRounds.length > 0) {
-        await supabase.from('rounds').insert(newRounds);
+        const { error: roundsError } = await supabase.from('rounds').insert(newRounds);
+        if (roundsError) throw roundsError;
       }
       
       const { data: rounds } = await supabase.from('rounds').select('id, round_number');
       const roundLookup = new Map(rounds?.map(r => [r.round_number, r.id]));
       
-      // 7. Create matches
-      const matches = groupStage.map(match => {
+      // 4. Create matches
+      const matches = [];
+      const missingTeams = [];
+      
+      for (const match of groupStage) {
         const homeName = TEAM_MAPPINGS[match.HomeTeam] || match.HomeTeam;
         const awayName = TEAM_MAPPINGS[match.AwayTeam] || match.AwayTeam;
         
-        return {
+        const homeTeamId = teamLookup.get(homeName);
+        const awayTeamId = teamLookup.get(awayName);
+        
+        if (!homeTeamId) {
+          missingTeams.push(homeName);
+          continue;
+        }
+        if (!awayTeamId) {
+          missingTeams.push(awayName);
+          continue;
+        }
+        
+        matches.push({
           round_id: roundLookup.get(1), // All group stage in round 1
           matchday: match.RoundNumber, // 1, 2, or 3
-          home_team_id: teamLookup.get(homeName),
-          away_team_id: teamLookup.get(awayName),
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId,
           match_time: match.DateUtc,
           status: 'upcoming'
-        };
-      });
+        });
+      }
+      
+      if (matches.length === 0) {
+        return res.status(400).json({ 
+          error: 'No matches could be created', 
+          missingTeams: [...new Set(missingTeams)] 
+        });
+      }
       
       const { data: insertedMatches, error: matchError } = await supabase
         .from('matches')
@@ -136,13 +128,14 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Import complete from fixturedownload',
-        teamsInserted: insertedTeams?.length || 0,
-        matchesInserted: insertedMatches?.length || 0
+        teamsFound: existingTeams?.length || 0,
+        matchesInserted: insertedMatches?.length || 0,
+        missingTeams: missingTeams.length > 0 ? [...new Set(missingTeams)] : null
       });
       
     } catch (error) {
       console.error('Import error:', error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: error.message, stack: error.stack });
     }
   }
 

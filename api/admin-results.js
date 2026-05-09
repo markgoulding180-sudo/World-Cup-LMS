@@ -99,32 +99,20 @@ module.exports = async (req, res) => {
     let livesDeducted = 0;
 
     for (const losingTeamId of losingTeamIds) {
-      const { data: losingPicks, error: picksError } = await supabase
+      const { data: losingPicks } = await supabase
         .from('picks')
         .select('user_id, rounds:round_id(round_number)')
         .eq('result', 'loss')
         .eq('team_id', losingTeamId)
         .eq('round_id', match.round_id);
 
-      console.log(`Processing losing picks for team ${losingTeamId}:`, { 
-        count: losingPicks?.length, 
-        error: picksError?.message,
-        round_id: match.round_id 
-      });
-
       for (const pick of losingPicks || []) {
         // Get current lives for this player
-        const { data: entry, error: entryError } = await supabase
+        const { data: entry } = await supabase
           .from('tournament_entries')
           .select('lives_remaining, tournament_id')
           .eq('user_id', pick.user_id)
           .single();
-
-        console.log(`Entry for user ${pick.user_id}:`, { 
-          entry, 
-          error: entryError?.message,
-          match_tournament_id: match.tournament_id 
-        });
 
         if (!entry) continue;
 
@@ -132,10 +120,8 @@ module.exports = async (req, res) => {
         const newLives = Math.max(0, currentLives - 1);
         livesDeducted++;
 
-        console.log(`Deducting life: ${currentLives} -> ${newLives} for user ${pick.user_id}`);
-
         // Update lives, only eliminate if lives hit zero
-        const { error: updateError } = await supabase
+        await supabase
           .from('tournament_entries')
           .update({
             lives_remaining: newLives,
@@ -147,10 +133,6 @@ module.exports = async (req, res) => {
           })
           .eq('user_id', pick.user_id)
           .eq('tournament_id', entry.tournament_id);
-
-        if (updateError) {
-          console.error(`Failed to update lives for user ${pick.user_id}:`, updateError);
-        }
       }
     }
 
