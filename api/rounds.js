@@ -15,6 +15,18 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SECRET
   );
 
+  // Body parser for POST requests
+  if (req.method === 'POST' && !req.body) {
+    await new Promise((resolve) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => {
+        try { req.body = JSON.parse(data); } catch { req.body = {}; }
+        resolve();
+      });
+    });
+  }
+
   // GET - List rounds
   if (req.method === 'GET') {
     try {
@@ -23,9 +35,7 @@ module.exports = async (req, res) => {
         .select('*')
         .order('round_number', { ascending: true });
 
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
+      if (error) return res.status(500).json({ error: error.message });
 
       return res.status(200).json({ rounds: rounds || [] });
 
@@ -37,8 +47,7 @@ module.exports = async (req, res) => {
   // POST - Open/close round
   if (req.method === 'POST') {
     try {
-      const { action, round_id } = req.body;
-
+      const { action, round_id } = req.body || {};
       const newStatus = action === 'open' ? 'open' : 'closed';
 
       const { data, error } = await supabase
@@ -47,14 +56,9 @@ module.exports = async (req, res) => {
         .eq('id', round_id)
         .select();
 
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
+      if (error) return res.status(500).json({ error: error.message });
 
-      return res.status(200).json({
-        success: true,
-        round: data[0]
-      });
+      return res.status(200).json({ success: true, round: data[0] });
 
     } catch (error) {
       return res.status(500).json({ error: error.message });
