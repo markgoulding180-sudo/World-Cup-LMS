@@ -14,7 +14,20 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { action, ...data } = req.body;
+  // Body parser
+  if (!req.body) {
+    await new Promise((resolve) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => {
+        try { req.body = JSON.parse(data); } catch { req.body = {}; }
+        resolve();
+      });
+    });
+  }
+
+  const { action, ...data } = req.body || {};
+
   const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET
@@ -24,7 +37,7 @@ module.exports = async (req, res) => {
   if (action === 'login') {
     try {
       const { email, password } = data;
-      
+
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -49,7 +62,7 @@ module.exports = async (req, res) => {
   if (action === 'register') {
     try {
       const { email, password, username, display_name } = data;
-      
+
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -60,18 +73,18 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: authError.message });
       }
 
-      // Create user profile
+      // Create user profile (trigger may also do this, so use upsert to avoid conflict)
       const { error: profileError } = await supabase
         .from('users')
-        .insert({
+        .upsert({
           id: authData.user.id,
-          username,
-          display_name,
+          username: username?.slice(0, 20),
+          display_name: display_name?.slice(0, 20),
           email
-        });
+        }, { onConflict: 'id' });
 
       if (profileError) {
-        return res.status(500).json({ error: 'Failed to create profile' });
+        return res.status(500).json({ error: 'Failed to create profile: ' + profileError.message });
       }
 
       return res.status(200).json({
