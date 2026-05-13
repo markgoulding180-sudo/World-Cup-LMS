@@ -15,6 +15,18 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SECRET
   );
 
+  // Body parser for POST requests
+  if (req.method === 'POST' && !req.body) {
+    await new Promise((resolve) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => {
+        try { req.body = JSON.parse(data); } catch { req.body = {}; }
+        resolve();
+      });
+    });
+  }
+
   // GET - List tournaments
   if (req.method === 'GET') {
     try {
@@ -23,11 +35,9 @@ module.exports = async (req, res) => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
+      if (error) return res.status(500).json({ error: error.message });
 
-      return res.status(200).json({ 
+      return res.status(200).json({
         tournaments: tournaments || [],
         count: tournaments?.length || 0
       });
@@ -41,22 +51,15 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     try {
       const authHeader = req.headers.authorization;
-      if (!authHeader) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
+      if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
 
       const token = authHeader.replace('Bearer ', '');
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
-      if (authError || !user) {
-        return res.status(401).json({ error: 'Invalid token' });
-      }
+      const { name, entry_fee, prize_pool, max_players, lives = 3 } = req.body || {};
 
-      const { name, entry_fee, prize_pool, max_players, lives = 3 } = req.body;
-
-      if (!name) {
-        return res.status(400).json({ error: 'Tournament name is required' });
-      }
+      if (!name) return res.status(400).json({ error: 'Tournament name is required' });
 
       const { data, error } = await supabase
         .from('tournaments')
@@ -71,14 +74,9 @@ module.exports = async (req, res) => {
         .select()
         .single();
 
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
+      if (error) return res.status(500).json({ error: error.message });
 
-      return res.status(200).json({
-        success: true,
-        tournament: data
-      });
+      return res.status(200).json({ success: true, tournament: data });
 
     } catch (error) {
       return res.status(500).json({ error: error.message });
