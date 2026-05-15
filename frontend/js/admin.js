@@ -519,10 +519,13 @@ async function simulateTournament() {
         <p style="color: var(--accent-green);">
           <i class="fas fa-check-circle"></i> Simulation complete!
         </p>
-        <p>Users created: ${data.usersCreated}</p>
-        <p>Tournament entries: ${data.entriesCreated}</p>
-        <p>Total picks: ${data.totalPicks}</p>
-        <p><strong>Next:</strong> Enter match results to test elimination tracking.</strong></p>
+        <p>Users created: ${data.usersCreated} (actual in DB: ${data.actualUsers || '?'})</p>
+        <p>Tournament entries: ${data.entriesCreated} (actual in DB: ${data.actualEntries || '?'})</p>
+        <p>Total picks: ${data.totalPicks} (actual in DB: ${data.actualPicks || '?'})</p>
+        ${data.errors?.userErrors ? `<p style="color: orange;">User insert errors: ${data.errors.userErrors}</p>` : ''}
+        ${data.errors?.entryErrors ? `<p style="color: orange;">Entry insert errors: ${data.errors.entryErrors}</p>` : ''}
+        ${data.errors?.pickErrors ? `<p style="color: orange;">Pick insert errors: ${data.errors.pickErrors}</p>` : ''}
+        <p><strong>Next:</strong> Enter match results to test elimination tracking.</p>
       `;
       loadAdminData();
     } else {
