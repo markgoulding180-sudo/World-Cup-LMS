@@ -500,5 +500,109 @@ module.exports = async (req, res) => {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid action. Use "reset", "setup", or "simulate".' });
+  // ─────────────────────────────────────────────────────────
+  // ACTION: simulate_knockout_picks
+  // Makes 1 pick per surviving user for a knockout round
+  // ─────────────────────────────────────────────────────────
+  if (action === 'simulate_knockout_picks') {
+    const { round_number } = req.body;
+    if (!round_number || round_number < 2 || round_number > 6) {
+      return res.status(400).json({ error: 'Valid round number (2-6) required' });
+    }
+
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
+      
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('round_id', round.id);
+      
+      const availableTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
+      const userIds = entries.map(e => e.user_id);
+      const { data: allPicks } = await supabase.from('picks').select('user_id, team_id').in('user_id', userIds);
+      
+      const userPicksMap = {};
+      allPicks?.forEach(p => {
+        if (!userPicksMap[p.user_id]) userPicksMap[p.user_id] = new Set();
+        userPicksMap[p.user_id].add(p.team_id);
+      });
+      
+      const picks = [];
+      for (const entry of entries) {
+        const usedTeams = userPicksMap[entry.user_id] || new Set();
+        const available = availableTeams.filter(t => !usedTeams.has(t));
+        if (available.length > 0) {
+          const teamId = available[Math.floor(Math.random() * available.length)];
+          picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday: null, result: 'pending' });
+        }
+      }
+      
+      const chunkSize = 50;
+      let picksMade = 0;
+      for (let i = 0; i < picks.length; i += chunkSize) {
+        const { error } = await supabase.from('picks').insert(picks.slice(i, i + chunkSize));
+        if (!error) picksMade += Math.min(chunkSize, picks.length - i);
+      }
+
+      return res.status(200).json({ success: true, picksMade, message: `Made ${picksMade} picks for Round ${round_number}.` });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // ACTION: simulate_knockout_results
+  // Enters results for a knockout round
+  // ─────────────────────────────────────────────────────────
+  if (action === 'simulate_knockout_results') {
+    const { round_number } = req.body;
+    if (!round_number || round_number < 2 || round_number > 6) {
+      return res.status(400).json({ error: 'Valid round number (2-6) required' });
+    }
+
+    try {
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
+      const { data: matches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
+      
+      let matchesUpdated = 0;
+      let eliminations = 0;
+      
+      for (const match of matches) {
+        let homeScore = Math.floor(Math.random() * 4);
+        let awayScore = Math.floor(Math.random() * 4);
+        if (homeScore === awayScore) { if (Math.random() > 0.5) homeScore++; else awayScore++; }
+        
+        const result = homeScore > awayScore ? 'H' : 'A';
+        const winningTeamId = result === 'H' ? match.home_team_id : match.away_team_id;
+        const losingTeamId = result === 'H' ? match.away_team_id : match.home_team_id;
+        
+        await supabase.from('matches').update({ home_score: homeScore, away_score: awayScore, result, status: 'finished' }).eq('id', match.id);
+        await supabase.from('picks').update({ result: 'win' }).eq('team_id', winningTeamId).eq('round_id', round.id).eq('result', 'pending');
+        await supabase.from('picks').update({ result: 'loss' }).eq('team_id', losingTeamId).eq('round_id', round.id).eq('result', 'pending');
+        matchesUpdated++;
+      }
+      
+      const { data: losingPicks } = await supabase.from('picks').select('user_id').eq('round_id', round.id).eq('result', 'loss');
+      for (const pick of losingPicks || []) {
+        const { data: entry } = await supabase.from('tournament_entries').select('lives_remaining, tournament_id').eq('user_id', pick.user_id).single();
+        if (entry && entry.lives_remaining > 0) {
+          const newLives = entry.lives_remaining - 1;
+          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: round_number } : {}) }).eq('user_id', pick.user_id).eq('tournament_id', entry.tournament_id);
+          if (newLives === 0) eliminations++;
+        }
+      }
+      
+      let winner = null;
+      if (round_number === 6) {
+        const { data: survivors } = await supabase.from('tournament_entries').select('users:user_id(display_name)').eq('status', 'active').limit(1);
+        if (survivors && survivors.length > 0) winner = survivors[0].users?.display_name || 'Unknown';
+      }
+
+      return res.status(200).json({ success: true, matchesUpdated, eliminations, winner, message: `Updated ${matchesUpdated} matches. ${eliminations} users eliminated.` });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'Invalid action.' });
 };
