@@ -237,10 +237,12 @@ module.exports = async (req, res) => {
 
   // ─────────────────────────────────────────────────────────
   // ACTION: simulate_users
-  // Creates test users via Supabase Auth API
-  // Creates 3 users quickly for testing
+  // Creates test users in batches via Supabase Auth API
+  // Each batch = 10 users, 5 batches = 50 total
   // ─────────────────────────────────────────────────────────
   if (action === 'simulate_users') {
+    const { batch = 0 } = req.body;
+    
     try {
       const { data: tournament } = await supabase.from('tournaments').select('id').single();
       if (!tournament) {
@@ -249,45 +251,51 @@ module.exports = async (req, res) => {
 
       let registered = 0;
       let entered = 0;
+      const startNum = batch * 10 + 1;
+      const endNum = startNum + 9;
       
-      // Create just 3 users for quick testing
-      for (let i = 1; i <= 3; i++) {
-        const email = `test${Date.now()}${i}@example.com`;
+      // Create 10 users per batch
+      for (let i = startNum; i <= endNum; i++) {
+        const email = `player${i}@wc2026.test`;
         const password = 'Test123456!';
         
-        // Create auth user
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true
-        });
-        
-        if (authError) {
-          console.log('Auth error for user', i, ':', authError.message);
-          continue;
-        }
-        
-        if (authData.user) {
-          registered++;
-          
-          // Create profile
-          await supabase.from('users').insert({
-            id: authData.user.id,
-            username: `test${i}`,
-            display_name: `Test Player ${i}`,
-            email
+        try {
+          // Create auth user
+          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true
           });
           
-          // Enter tournament
-          await supabase.from('tournament_entries').insert({
-            tournament_id: tournament.id,
-            user_id: authData.user.id,
-            status: 'active',
-            lives_remaining: 3,
-            max_lives: 3
-          });
+          if (authError) {
+            console.log('Auth error for user', i, ':', authError.message);
+            continue;
+          }
           
-          entered++;
+          if (authData.user) {
+            registered++;
+            
+            // Create profile
+            await supabase.from('users').insert({
+              id: authData.user.id,
+              username: `player${i}`,
+              display_name: `Player ${i}`,
+              email
+            });
+            
+            // Enter tournament
+            await supabase.from('tournament_entries').insert({
+              tournament_id: tournament.id,
+              user_id: authData.user.id,
+              status: 'active',
+              lives_remaining: 3,
+              max_lives: 3
+            });
+            
+            entered++;
+          }
+        } catch (e) {
+          console.log('Error for user', i, ':', e.message);
         }
       }
 
@@ -295,7 +303,8 @@ module.exports = async (req, res) => {
         success: true,
         registered,
         entered,
-        message: `Created ${registered} test users, entered ${entered} into tournament.`
+        batch: batch + 1,
+        message: `Batch ${batch + 1} complete. Created ${registered} users, entered ${entered} into tournament.`
       });
 
     } catch (error) {

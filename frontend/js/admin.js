@@ -491,25 +491,35 @@ async function setupTournament() {
   }
 }
 
-async function simulateUsers() {
-  const confirmed = confirm('Register 3 test users and enter them into the tournament?');
-  if (!confirmed) return;
+let currentUserBatch = 0;
 
+async function simulateUsersBatch() {
   const statusDiv = document.getElementById('simulate-users-status');
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Registering users...</p>';
+  
+  if (currentUserBatch >= 5) {
+    statusDiv.innerHTML = '<p style="color: var(--accent-green);">✅ All 50 users registered!</p>';
+    return;
+  }
+  
+  const batchNum = currentUserBatch + 1;
+  statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Registering batch ${batchNum} of 5 (10 users)...</p>`;
 
   try {
     const response = await fetch('/api/reset-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'simulate_users', admin_pin: '1234' })
+      body: JSON.stringify({ action: 'simulate_users', batch: currentUserBatch, admin_pin: '1234' })
     });
 
     const data = await response.json();
 
     if (response.ok) {
+      currentUserBatch++;
+      const remaining = 50 - (currentUserBatch * 10);
       statusDiv.innerHTML = `
-        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
+        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Batch ${batchNum} done! ${data.registered} users added.</p>
+        <p>Total: ${currentUserBatch * 10} users. ${remaining > 0 ? remaining + ' more to go.' : 'All done!'}</p>
+        ${remaining > 0 ? `<button class="btn btn-secondary" onclick="simulateUsersBatch()">Add Next 10 Users</button>` : ''}
       `;
       loadAdminData();
     } else {
