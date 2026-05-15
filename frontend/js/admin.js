@@ -397,3 +397,87 @@ async function closeRound() {
   alert(res.ok ? 'Round closed!' : `Error: ${data.error}`);
   loadAdminData();
 }
+
+async function resetAllData() {
+  // First confirmation
+  const confirm1 = confirm(
+    '⚠️ WARNING: This will delete ALL game data.\n\n' +
+    'Matches, picks, entries, rounds and tournaments will be wiped.\n' +
+    'Master team flags and auth accounts are safe.\n\n' +
+    'Are you sure?'
+  );
+  if (!confirm1) return;
+
+  // Second confirmation — must type RESET
+  const confirm2 = prompt('Type RESET to confirm:');
+  if (confirm2 !== 'RESET') {
+    alert('Reset cancelled.');
+    return;
+  }
+
+  const statusDiv = document.getElementById('reset-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Resetting all data...</p>';
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset', confirm: 'RESET', admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);">
+          <i class="fas fa-check-circle"></i> Reset complete!
+        </p>
+        <p>${data.message}</p>
+        <p><strong>Next step:</strong> Click "Setup Tournament" at the top of this page.</p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
+async function setupTournament() {
+  const confirmed = confirm(
+    'Setup the World Cup 2026 Last Man Standing tournament?\n\n' +
+    '£30 entry | 100 players max | 9 lives\n\n' +
+    'Make sure you have run a data reset first.'
+  );
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('setup-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Setting up tournament...</p>';
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'setup', admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);">
+          <i class="fas fa-check-circle"></i> Tournament ready!
+        </p>
+        <p>Teams added: ${data.teamsAdded}</p>
+        <p>${data.message}</p>
+        <p><strong>Next step:</strong> Click "Import World Cup 2026 Data" to load the match schedule.</p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}

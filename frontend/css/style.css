@@ -149,6 +149,19 @@ body {
   border: 1px solid var(--border-color);
 }
 
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+.btn-danger {
+  background: var(--accent-red);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
 .btn-lg {
   padding: 1rem 2rem;
   font-size: 1.125rem;
