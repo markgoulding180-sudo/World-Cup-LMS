@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
           prize_pool: 0,
           max_players: 100,
           current_players: 0,
-          lives: 5,
+          lives: 7,
           status: 'open'
         })
         .select()
@@ -288,8 +288,8 @@ module.exports = async (req, res) => {
               tournament_id: tournament.id,
               user_id: authData.user.id,
               status: 'active',
-              lives_remaining: 3,
-              max_lives: 3
+              lives_remaining: 7,
+              max_lives: 7
             });
             
             entered++;
