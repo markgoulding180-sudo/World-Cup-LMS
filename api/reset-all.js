@@ -12,8 +12,9 @@ const TEAM_MAPPINGS = {
   'Congo DR': 'DR Congo',
   'Cabo Verde': 'Cape Verde',
   "Côte d'Ivoire": 'Ivory Coast',
-  'Bosnia and Herzegovina': 'Bosnia & Herzegovina'
-  // Note: 'USA' mapping removed - master_teams now uses 'United States' directly
+  'Bosnia and Herzegovina': 'Bosnia & Herzegovina',
+  'USA': 'United States',
+  'United States': 'USA'  // Bidirectional mapping for flexibility
 };
 
 module.exports = async (req, res) => {
@@ -175,14 +176,26 @@ module.exports = async (req, res) => {
       const missingTeams = [];
 
       for (const match of groupStageFixtures) {
-        const homeName = TEAM_MAPPINGS[match.HomeTeam] || match.HomeTeam;
-        const awayName = TEAM_MAPPINGS[match.AwayTeam] || match.AwayTeam;
+        // Map API names to our team names (bidirectional)
+        let homeName = TEAM_MAPPINGS[match.HomeTeam] || match.HomeTeam;
+        let awayName = TEAM_MAPPINGS[match.AwayTeam] || match.AwayTeam;
+        
+        // Try to find team ID
+        let homeTeamId = teamLookup.get(homeName);
+        let awayTeamId = teamLookup.get(awayName);
+        
+        // If not found, try reverse mapping
+        if (!homeTeamId) {
+          const reverseHome = Object.entries(TEAM_MAPPINGS).find(([k, v]) => v === homeName)?.[0];
+          if (reverseHome) homeTeamId = teamLookup.get(reverseHome);
+        }
+        if (!awayTeamId) {
+          const reverseAway = Object.entries(TEAM_MAPPINGS).find(([k, v]) => v === awayName)?.[0];
+          if (reverseAway) awayTeamId = teamLookup.get(reverseAway);
+        }
 
-        const homeTeamId = teamLookup.get(homeName);
-        const awayTeamId = teamLookup.get(awayName);
-
-        if (!homeTeamId) { missingTeams.push(homeName); continue; }
-        if (!awayTeamId) { missingTeams.push(awayName); continue; }
+        if (!homeTeamId) { missingTeams.push(`${match.HomeTeam} (tried: ${homeName})`); continue; }
+        if (!awayTeamId) { missingTeams.push(`${match.AwayTeam} (tried: ${awayName})`); continue; }
 
         matches.push({
           round_id: roundLookup.get(1),
