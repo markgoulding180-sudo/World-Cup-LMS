@@ -590,6 +590,33 @@ async function simulateResults(matchday) {
   }
 }
 
+async function createKnockoutMatches() {
+  const confirmed = confirm('Create Round of 32 matches based on group stage results?\n\nThis will calculate group standings and pair teams for the knockout stage.');
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('create-knockout-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Calculating group standings and creating matches...</p>';
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_knockout_matches', admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>`;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
 async function simulateKnockoutPicks(roundNumber) {
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const confirmed = confirm(`Make picks for ${roundNames[roundNumber]}?`);

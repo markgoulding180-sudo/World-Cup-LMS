@@ -111,7 +111,15 @@
       </div>
 
       <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
-        <p><strong>Step 4:</strong> Knockout Stage Picks & Results</p>
+        <p><strong>Step 4:</strong> Create Knockout Matches (Run after MD3)</p>
+        <button class="btn btn-primary" onclick="createKnockoutMatches()" style="background: #ff6b35; margin: 0.25rem;">
+          <i class="fas fa-trophy"></i> Create R32 Matches from Groups
+        </button>
+        <div id="create-knockout-status" style="margin-top: 0.5rem;"></div>
+      </div>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 5:</strong> Knockout Stage Picks & Results</p>
         <p style="font-size: 0.8rem; color: var(--text-secondary);">Surviving users pick 1 team per round</p>
         
         <div style="margin: 0.5rem 0;">

@@ -604,5 +604,85 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ─────────────────────────────────────────────────────────
+  // ACTION: create_knockout_matches
+  // Creates Round of 32 matches based on group stage results
+  // Top 2 from each group + 8 best 3rd place teams = 32 teams
+  // ─────────────────────────────────────────────────────────
+  if (action === 'create_knockout_matches') {
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 2).single();
+      
+      // Calculate group standings
+      const { data: teams } = await supabase.from('teams').select('id, name, group_name');
+      const { data: matches } = await supabase.from('matches').select('*').eq('status', 'finished').in('matchday', [1, 2, 3]);
+      
+      // Calculate points for each team
+      const standings = {};
+      teams.forEach(t => {
+        standings[t.id] = { ...t, played: 0, points: 0, wins: 0 };
+      });
+      
+      matches.forEach(m => {
+        if (m.result === 'H') {
+          standings[m.home_team_id].points += 3;
+          standings[m.home_team_id].wins += 1;
+        } else if (m.result === 'A') {
+          standings[m.away_team_id].points += 3;
+          standings[m.away_team_id].wins += 1;
+        } else if (m.result === 'D') {
+          standings[m.home_team_id].points += 1;
+          standings[m.away_team_id].points += 1;
+        }
+        standings[m.home_team_id].played += 1;
+        standings[m.away_team_id].played += 1;
+      });
+      
+      // Group by group_name and sort by points
+      const groups = {};
+      Object.values(standings).forEach(t => {
+        if (!groups[t.group_name]) groups[t.group_name] = [];
+        groups[t.group_name].push(t);
+      });
+      
+      // Get top 2 from each group
+      const qualifiedTeams = [];
+      Object.values(groups).forEach(groupTeams => {
+        groupTeams.sort((a, b) => b.points - a.points || b.wins - a.wins);
+        qualifiedTeams.push(groupTeams[0], groupTeams[1]); // Top 2
+      });
+      
+      // Create Round of 32 matches (16 matches = 32 teams)
+      const knockoutMatches = [];
+      for (let i = 0; i < 16; i++) {
+        const team1 = qualifiedTeams[i * 2];
+        const team2 = qualifiedTeams[i * 2 + 1];
+        if (team1 && team2) {
+          knockoutMatches.push({
+            round_id: round.id,
+            home_team_id: team1.id,
+            away_team_id: team2.id,
+            match_time: new Date(Date.now() + i * 3600000).toISOString(), // Stagger by 1 hour
+            status: 'upcoming'
+          });
+        }
+      }
+      
+      // Insert matches
+      const { error } = await supabase.from('matches').insert(knockoutMatches);
+      if (error) throw error;
+      
+      return res.status(200).json({
+        success: true,
+        matchesCreated: knockoutMatches.length,
+        message: `Created ${knockoutMatches.length} Round of 32 matches based on group standings.`
+      });
+      
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
   return res.status(400).json({ error: 'Invalid action.' });
 };
