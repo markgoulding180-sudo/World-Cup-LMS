@@ -26,21 +26,46 @@
   <main class="container">
     <h1><i class="fas fa-cog"></i> Admin Panel</h1>
 
-    <!-- Setup Tournament -->
+    <!-- CARD 1: RESET -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red);">
+      <h2><i class="fas fa-trash-alt"></i> Reset All Data</h2>
+      <p>Wipes everything for a completely fresh start. Run before Setup Tournament each time you test.</p>
+      <ul>
+        <li>✅ Deletes: picks, entries, matches, rounds, tournaments, teams, users</li>
+        <li>✅ Deletes: all Supabase auth accounts (users must re-register after reset)</li>
+        <li>❌ Preserves: master_teams (flag images — never touched)</li>
+      </ul>
+      <button class="btn btn-danger" onclick="resetAllData()">
+        <i class="fas fa-trash-alt"></i> Reset All Data
+      </button>
+      <div id="reset-status" style="margin-top: 1rem;"></div>
+    </div>
+
+    <!-- CARD 2: SETUP -->
     <div class="admin-card" style="border: 2px solid var(--accent-gold);">
-      <h2><i class="fas fa-trophy"></i> Tournament Setup</h2>
-      <p>Run this after a data reset to create the tournament and prepare for match import.</p>
-      <div class="setup-details">
-        <p>✅ Creates: <strong>World Cup 2026 Last Man Standing</strong></p>
-        <p>✅ Entry fee: <strong>£30</strong> &nbsp;|&nbsp; Max players: <strong>100</strong> &nbsp;|&nbsp; Lives: <strong>9</strong></p>
-        <p>✅ Copies all 48 teams from master data (with flags)</p>
-        <p>✅ Creates all 6 rounds (Group Stage through to Final)</p>
-        <p>✅ Opens Round 1 (Group Stage) automatically</p>
-      </div>
+      <h2><i class="fas fa-trophy"></i> Setup Tournament</h2>
+      <p>Run after Reset. Does everything in one go — site is ready to play after this.</p>
+      <ul>
+        <li>✅ Creates tournament: £30 entry | 100 players max | 3 lives</li>
+        <li>✅ Copies all 48 teams from master data (with flags)</li>
+        <li>✅ Creates all 6 rounds (Group Stage through to Final)</li>
+        <li>✅ Imports full match schedule from fixturedownload.com</li>
+        <li>✅ Opens Group Stage ready for picks</li>
+      </ul>
       <button class="btn btn-primary" onclick="setupTournament()">
         <i class="fas fa-trophy"></i> Setup Tournament
       </button>
       <div id="setup-status" style="margin-top: 1rem;"></div>
+    </div>
+
+    <!-- CARD 3: MANUAL IMPORT -->
+    <div class="admin-card" style="border: 2px solid var(--accent-gold);">
+      <h2><i class="fas fa-database"></i> Manual Import</h2>
+      <p>Manually re-import fixture data from fixturedownload.com if the schedule needs refreshing.</p>
+      <button class="btn btn-primary" onclick="importWorldCupData()">
+        <i class="fas fa-download"></i> Import World Cup 2026 Data
+      </button>
+      <div id="import-status" style="margin-top: 1rem;"></div>
     </div>
     
     <div class="admin-card">
@@ -73,29 +98,6 @@
         <i class="fas fa-sync-alt"></i> Update Results from Fixturedownload
       </button>
       <div id="update-status" style="margin-top: 1rem;"></div>
-    </div>
-
-    <!-- Data Import -->
-    <div class="admin-card" style="border: 2px solid var(--accent-gold);">
-      <h2><i class="fas fa-database"></i> Data Import</h2>
-      <p>Import World Cup 2026 teams and rounds from openfootball (free open data)</p>
-      <button class="btn btn-primary" onclick="importWorldCupData()">
-        <i class="fas fa-download"></i> Import World Cup 2026 Data
-      </button>
-      <div id="import-status" style="margin-top: 1rem;"></div>
-    </div>
-
-    <!-- Reset All Data -->
-    <div class="admin-card" style="border: 2px solid var(--accent-red);">
-      <h2><i class="fas fa-trash-alt"></i> Reset All Data</h2>
-      <p><strong>⚠️ DANGER:</strong> This will delete ALL game data including matches, picks, 
-      tournament entries, rounds, tournaments and user profiles.</p>
-      <p>Master team data (flags) and auth accounts are preserved.</p>
-      <p>Use for testing resets only.</p>
-      <button class="btn btn-danger" onclick="resetAllData()">
-        <i class="fas fa-trash-alt"></i> Reset All Data
-      </button>
-      <div id="reset-status" style="margin-top: 1rem;"></div>
     </div>
   </main>
 

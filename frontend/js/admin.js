@@ -399,19 +399,24 @@ async function closeRound() {
 }
 
 async function resetAllData() {
-  // First confirmation
   const confirm1 = confirm(
-    '⚠️ WARNING: This will delete ALL game data.\n\n' +
-    'Matches, picks, entries, rounds and tournaments will be wiped.\n' +
-    'Master team flags and auth accounts are safe.\n\n' +
+    '⚠️ WARNING — This will delete EVERYTHING:\n\n' +
+    '• All picks\n' +
+    '• All tournament entries\n' +
+    '• All matches\n' +
+    '• All rounds\n' +
+    '• All tournaments\n' +
+    '• All teams\n' +
+    '• All user profiles\n' +
+    '• All auth accounts (users must re-register)\n\n' +
+    'Only master_teams (flag images) is preserved.\n\n' +
     'Are you sure?'
   );
   if (!confirm1) return;
 
-  // Second confirmation — must type RESET
   const confirm2 = prompt('Type RESET to confirm:');
   if (confirm2 !== 'RESET') {
-    alert('Reset cancelled.');
+    alert('Cancelled.');
     return;
   }
 
@@ -433,7 +438,7 @@ async function resetAllData() {
           <i class="fas fa-check-circle"></i> Reset complete!
         </p>
         <p>${data.message}</p>
-        <p><strong>Next step:</strong> Click "Setup Tournament" at the top of this page.</p>
+        <p><strong>Next:</strong> Click Setup Tournament above.</p>
       `;
       loadAdminData();
     } else {
@@ -447,13 +452,15 @@ async function resetAllData() {
 async function setupTournament() {
   const confirmed = confirm(
     'Setup the World Cup 2026 Last Man Standing tournament?\n\n' +
-    '£30 entry | 100 players max | 9 lives\n\n' +
-    'Make sure you have run a data reset first.'
+    '£30 entry | 100 players max | 3 lives\n\n' +
+    'This will create the tournament, copy all 48 teams,\n' +
+    'create 6 rounds and import the match schedule.\n\n' +
+    'Make sure you have run Reset All Data first.'
   );
   if (!confirmed) return;
 
   const statusDiv = document.getElementById('setup-status');
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Setting up tournament...</p>';
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Setting up tournament... (may take a few seconds)</p>';
 
   try {
     const response = await fetch('/api/reset-all', {
@@ -470,8 +477,10 @@ async function setupTournament() {
           <i class="fas fa-check-circle"></i> Tournament ready!
         </p>
         <p>Teams added: ${data.teamsAdded}</p>
+        <p>Matches imported: ${data.matchesImported}</p>
+        ${data.missingTeams ? `<p style="color: orange;">⚠️ Missing teams (name mismatch): ${data.missingTeams.join(', ')}</p>` : ''}
         <p>${data.message}</p>
-        <p><strong>Next step:</strong> Click "Import World Cup 2026 Data" to load the match schedule.</p>
+        <p><strong>Site is live — users can now register and enter the tournament.</strong></p>
       `;
       loadAdminData();
     } else {
