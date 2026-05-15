@@ -236,109 +236,249 @@ module.exports = async (req, res) => {
   }
 
   // ─────────────────────────────────────────────────────────
-  // ACTION: simulate
-  // Creates 100 test users with tournament entries and picks
-  // Uses batch inserts for speed (avoids Vercel timeout)
+  // ACTION: simulate_users
+  // Registers 100 users via auth API (like real registration)
+  // Then enters them into the tournament
   // ─────────────────────────────────────────────────────────
-  if (action === 'simulate') {
+  if (action === 'simulate_users') {
     try {
-      const tournament = await supabase.from('tournaments').select('id').single();
-      const round = await supabase.from('rounds').select('id').eq('round_number', 1).single();
-      
-      if (!tournament.data || !round.data) {
-        return res.status(400).json({ error: 'Tournament or Group Stage round not found. Run Setup first.' });
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      if (!tournament) {
+        return res.status(400).json({ error: 'No tournament found. Run Setup first.' });
       }
 
-      const tournamentId = tournament.data.id;
-      const roundId = round.data.id;
-      
-      // Get all teams for each matchday upfront
-      const { data: md1Teams } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', 1);
-      const { data: md2Teams } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', 2);
-      const { data: md3Teams } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', 3);
-      
-      const md1Pool = md1Teams.flatMap(m => [m.home_team_id, m.away_team_id]);
-      const md2Pool = md2Teams.flatMap(m => [m.home_team_id, m.away_team_id]);
-      const md3Pool = md3Teams.flatMap(m => [m.home_team_id, m.away_team_id]);
-      
-      // Prepare batch arrays
-      const users = [];
-      const entries = [];
-      const picks = [];
-      
-      // Generate all data in memory first
+      let registered = 0;
+      let entered = 0;
+      const errors = [];
+
       for (let i = 1; i <= 100; i++) {
-        const userId = crypto.randomUUID ? crypto.randomUUID() : `sim-${Date.now()}-${i}`;
+        const email = `player${i}@test.com`;
+        const password = `TestPass${i}!`;
         
-        users.push({
-          id: userId,
-          username: `player${i}`,
-          display_name: `Player ${i}`,
-          email: `player${i}@test.com`
-        });
-        
-        entries.push({
-          tournament_id: tournamentId,
-          user_id: userId,
-          status: 'active',
-          lives_remaining: 3,
-          max_lives: 3
-        });
-        
-        // Random picks for each matchday
-        [md1Pool, md2Pool, md3Pool].forEach((pool, idx) => {
-          const shuffled = [...pool].sort(() => 0.5 - Math.random());
-          const selected = shuffled.slice(0, 3);
-          
-          selected.forEach(teamId => {
-            picks.push({
-              tournament_id: tournamentId,
-              user_id: userId,
-              round_id: roundId,
-              team_id: teamId,
-              matchday: idx + 1,
-              result: 'pending'
-            });
+        try {
+          // Step 1: Register via Supabase Auth (like real user)
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password
           });
-        });
+          
+          if (authError) {
+            errors.push(`Player ${i} auth: ${authError.message}`);
+            continue;
+          }
+          
+          if (authData.user) {
+            registered++;
+            
+            // Step 2: Create user profile (trigger should do this, but ensure it exists)
+            await supabase.from('users').upsert({
+              id: authData.user.id,
+              username: `player${i}`,
+              display_name: `Player ${i}`,
+              email
+            });
+            
+            // Step 3: Enter tournament
+            const { error: entryError } = await supabase.from('tournament_entries').insert({
+              tournament_id: tournament.id,
+              user_id: authData.user.id,
+              status: 'active',
+              lives_remaining: 3,
+              max_lives: 3
+            });
+            
+            if (!entryError) entered++;
+          }
+        } catch (e) {
+          errors.push(`Player ${i}: ${e.message}`);
+        }
       }
-      
-      // Batch insert in chunks to avoid payload limits
-      const chunkSize = 50;
-      let userErrors = 0;
-      let entryErrors = 0;
-      let pickErrors = 0;
-      
-      for (let i = 0; i < users.length; i += chunkSize) {
-        const { error } = await supabase.from('users').insert(users.slice(i, i + chunkSize));
-        if (error) userErrors++;
-      }
-      
-      for (let i = 0; i < entries.length; i += chunkSize) {
-        const { error } = await supabase.from('tournament_entries').insert(entries.slice(i, i + chunkSize));
-        if (error) entryErrors++;
-      }
-      
-      for (let i = 0; i < picks.length; i += chunkSize) {
-        const { error } = await supabase.from('picks').insert(picks.slice(i, i + chunkSize));
-        if (error) pickErrors++;
-      }
-      
-      // Verify actual counts
-      const { count: actualUsers } = await supabase.from('users').select('*', { count: 'exact', head: true });
-      const { count: actualEntries } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true });
-      const { count: actualPicks } = await supabase.from('picks').select('*', { count: 'exact', head: true });
 
       return res.status(200).json({
         success: true,
-        usersCreated: users.length,
-        entriesCreated: entries.length,
-        totalPicks: picks.length,
-        actualUsers,
-        actualEntries,
-        actualPicks,
-        errors: { userErrors, entryErrors, pickErrors },
-        message: `Simulation complete. ${users.length} users, ${entries.length} entries, ${picks.length} picks. Actual in DB: ${actualUsers} users, ${actualEntries} entries, ${actualPicks} picks.`
+        registered,
+        entered,
+        errors: errors.length,
+        message: `Registered ${registered} users, entered ${entered} into tournament.`
+      });
+
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // ACTION: simulate_picks
+  // Makes picks for all users for a specific matchday
+  // ─────────────────────────────────────────────────────────
+  if (action === 'simulate_picks') {
+    const { matchday } = req.body;
+    if (!matchday || matchday < 1 || matchday > 3) {
+      return res.status(400).json({ error: 'Valid matchday (1-3) required' });
+    }
+
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
+      
+      // Get active users who haven't been eliminated
+      const { data: entries } = await supabase
+        .from('tournament_entries')
+        .select('user_id')
+        .eq('status', 'active')
+        .gt('lives_remaining', 0);
+      
+      // Get teams for this matchday
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('home_team_id, away_team_id')
+        .eq('matchday', matchday);
+      
+      const availableTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
+      
+      let picksMade = 0;
+      
+      for (const entry of entries) {
+        // Check how many picks this user already has for this matchday
+        const { data: existingPicks } = await supabase
+          .from('picks')
+          .select('team_id')
+          .eq('user_id', entry.user_id)
+          .eq('matchday', matchday);
+        
+        const picksNeeded = 3 - (existingPicks?.length || 0);
+        
+        if (picksNeeded > 0) {
+          // Get teams not already picked by this user in ANY matchday
+          const { data: allUserPicks } = await supabase
+            .from('picks')
+            .select('team_id')
+            .eq('user_id', entry.user_id);
+          
+          const usedTeams = new Set(allUserPicks?.map(p => p.team_id) || []);
+          const available = availableTeams.filter(t => !usedTeams.has(t));
+          
+          // Shuffle and pick
+          const shuffled = available.sort(() => 0.5 - Math.random());
+          const selected = shuffled.slice(0, picksNeeded);
+          
+          for (const teamId of selected) {
+            const { error } = await supabase.from('picks').insert({
+              tournament_id: tournament.id,
+              user_id: entry.user_id,
+              round_id: round.id,
+              team_id: teamId,
+              matchday,
+              result: 'pending'
+            });
+            if (!error) picksMade++;
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        picksMade,
+        message: `Made ${picksMade} picks for Matchday ${matchday}.`
+      });
+
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // ACTION: simulate_results
+  // Enters random results for all matches in a matchday
+  // Updates picks and handles eliminations
+  // ─────────────────────────────────────────────────────────
+  if (action === 'simulate_results') {
+    const { matchday } = req.body;
+    if (!matchday) {
+      return res.status(400).json({ error: 'Matchday required' });
+    }
+
+    try {
+      // Get all matches for this matchday
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('matchday', matchday)
+        .eq('status', 'upcoming');
+      
+      let matchesUpdated = 0;
+      let eliminations = 0;
+      
+      for (const match of matches) {
+        // Generate random score (0-3 goals each)
+        const homeScore = Math.floor(Math.random() * 4);
+        const awayScore = Math.floor(Math.random() * 4);
+        
+        // Determine result
+        let result;
+        if (homeScore > awayScore) result = 'H';
+        else if (awayScore > homeScore) result = 'A';
+        else result = 'D';
+        
+        const winningTeamId = result === 'H' ? match.home_team_id : 
+                             result === 'A' ? match.away_team_id : null;
+        const losingTeamIds = result === 'D' 
+          ? [match.home_team_id, match.away_team_id]
+          : [result === 'H' ? match.away_team_id : match.home_team_id];
+        
+        // Update match
+        await supabase.from('matches').update({
+          home_score: homeScore,
+          away_score: awayScore,
+          result,
+          status: 'finished'
+        }).eq('id', match.id);
+        
+        // Update picks
+        if (winningTeamId) {
+          await supabase.from('picks').update({ result: 'win' })
+            .eq('team_id', winningTeamId).eq('matchday', matchday).eq('result', 'pending');
+        }
+        
+        for (const losingTeamId of losingTeamIds) {
+          await supabase.from('picks').update({ result: 'loss' })
+            .eq('team_id', losingTeamId).eq('matchday', matchday).eq('result', 'pending');
+          
+          // Deduct lives for losing picks
+          const { data: losingPicks } = await supabase
+            .from('picks')
+            .select('user_id')
+            .eq('team_id', losingTeamId)
+            .eq('matchday', matchday)
+            .eq('result', 'loss');
+          
+          for (const pick of losingPicks || []) {
+            const { data: entry } = await supabase
+              .from('tournament_entries')
+              .select('lives_remaining, tournament_id')
+              .eq('user_id', pick.user_id)
+              .single();
+            
+            if (entry && entry.lives_remaining > 0) {
+              const newLives = entry.lives_remaining - 1;
+              await supabase.from('tournament_entries').update({
+                lives_remaining: newLives,
+                ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {})
+              }).eq('user_id', pick.user_id).eq('tournament_id', entry.tournament_id);
+              
+              if (newLives === 0) eliminations++;
+            }
+          }
+        }
+        
+        matchesUpdated++;
+      }
+
+      return res.status(200).json({
+        success: true,
+        matchesUpdated,
+        eliminations,
+        message: `Updated ${matchesUpdated} matches. ${eliminations} users eliminated.`
       });
 
     } catch (error) {

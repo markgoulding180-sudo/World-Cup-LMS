@@ -491,41 +491,84 @@ async function setupTournament() {
   }
 }
 
-async function simulateTournament() {
-  const confirmed = confirm(
-    'Simulate 100 test users with picks?\n\n' +
-    'This will create:\n' +
-    '• 100 test user accounts\n' +
-    '• 100 tournament entries\n' +
-    '• 900 picks (3 per matchday × 3 matchdays × 100 users)\n\n' +
-    'Use this to test match result entry and elimination tracking.'
-  );
+async function simulateUsers() {
+  const confirmed = confirm('Register 100 test users and enter them into the tournament?');
   if (!confirmed) return;
 
-  const statusDiv = document.getElementById('simulate-status');
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Simulating tournament... (this may take 30-60 seconds)</p>';
+  const statusDiv = document.getElementById('simulate-users-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Registering users...</p>';
 
   try {
     const response = await fetch('/api/reset-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'simulate', admin_pin: '1234' })
+      body: JSON.stringify({ action: 'simulate_users', admin_pin: '1234' })
     });
 
     const data = await response.json();
 
     if (response.ok) {
       statusDiv.innerHTML = `
-        <p style="color: var(--accent-green);">
-          <i class="fas fa-check-circle"></i> Simulation complete!
-        </p>
-        <p>Users created: ${data.usersCreated} (actual in DB: ${data.actualUsers || '?'})</p>
-        <p>Tournament entries: ${data.entriesCreated} (actual in DB: ${data.actualEntries || '?'})</p>
-        <p>Total picks: ${data.totalPicks} (actual in DB: ${data.actualPicks || '?'})</p>
-        ${data.errors?.userErrors ? `<p style="color: orange;">User insert errors: ${data.errors.userErrors}</p>` : ''}
-        ${data.errors?.entryErrors ? `<p style="color: orange;">Entry insert errors: ${data.errors.entryErrors}</p>` : ''}
-        ${data.errors?.pickErrors ? `<p style="color: orange;">Pick insert errors: ${data.errors.pickErrors}</p>` : ''}
-        <p><strong>Next:</strong> Enter match results to test elimination tracking.</p>
+        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
+async function simulatePicks(matchday) {
+  const confirmed = confirm(`Make Matchday ${matchday} picks for all users?`);
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('simulate-picks-status');
+  statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Making Matchday ${matchday} picks...</p>`;
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'simulate_picks', matchday, admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
+async function simulateResults(matchday) {
+  const confirmed = confirm(`Simulate random results for all Matchday ${matchday} matches?\n\nThis will update match scores and process eliminations.`);
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('simulate-results-status');
+  statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Simulating Matchday ${matchday} results...</p>`;
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'simulate_results', matchday, admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
+        ${data.eliminations > 0 ? `<p style="color: orange;">⚠️ ${data.eliminations} users eliminated!</p>` : ''}
       `;
       loadAdminData();
     } else {

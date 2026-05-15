@@ -68,19 +68,34 @@
       <div id="import-status" style="margin-top: 1rem;"></div>
     </div>
 
-    <!-- CARD 4: SIMULATE TOURNAMENT -->
+    <!-- CARD 4: SIMULATE STEP BY STEP -->
     <div class="admin-card" style="border: 2px solid var(--accent-purple);">
-      <h2><i class="fas fa-flask"></i> Simulate Tournament</h2>
-      <p>Create 100 test users with picks for all matchdays. Use this to test the full tournament workflow.</p>
-      <ul>
-        <li>✅ Creates 100 test users with tournament entries</li>
-        <li>✅ Simulates Matchday 1, 2, 3 picks (3 picks each)</li>
-        <li>✅ Ready for match result entry and elimination testing</li>
-      </ul>
-      <button class="btn btn-primary" onclick="simulateTournament()" style="background: #9333ea;">
-        <i class="fas fa-flask"></i> Simulate 100 Users & Picks
-      </button>
-      <div id="simulate-status" style="margin-top: 1rem;"></div>
+      <h2><i class="fas fa-flask"></i> Simulate Tournament (Step by Step)</h2>
+      <p>Test the full workflow by simulating users, picks, and results round by round.</p>
+      
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 1:</strong> Register 100 test users</p>
+        <button class="btn btn-primary" onclick="simulateUsers()" style="background: #9333ea;">
+          <i class="fas fa-user-plus"></i> Register 100 Users
+        </button>
+        <div id="simulate-users-status" style="margin-top: 0.5rem;"></div>
+      </div>
+      
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 2:</strong> Make Matchday 1 picks for all users</p>
+        <button class="btn btn-primary" onclick="simulatePicks(1)" style="background: #9333ea;">
+          <i class="fas fa-check-circle"></i> Make MD1 Picks
+        </button>
+        <div id="simulate-picks-status" style="margin-top: 0.5rem;"></div>
+      </div>
+      
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 3:</strong> Simulate Matchday 1 results</p>
+        <button class="btn btn-primary" onclick="simulateResults(1)" style="background: #9333ea;">
+          <i class="fas fa-futbol"></i> Simulate MD1 Results
+        </button>
+        <div id="simulate-results-status" style="margin-top: 0.5rem;"></div>
+      </div>
     </div>
     
     <div class="admin-card">
