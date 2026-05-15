@@ -305,24 +305,40 @@ module.exports = async (req, res) => {
       
       // Batch insert in chunks to avoid payload limits
       const chunkSize = 50;
+      let userErrors = 0;
+      let entryErrors = 0;
+      let pickErrors = 0;
+      
       for (let i = 0; i < users.length; i += chunkSize) {
-        await supabase.from('users').insert(users.slice(i, i + chunkSize));
+        const { error } = await supabase.from('users').insert(users.slice(i, i + chunkSize));
+        if (error) userErrors++;
       }
       
       for (let i = 0; i < entries.length; i += chunkSize) {
-        await supabase.from('tournament_entries').insert(entries.slice(i, i + chunkSize));
+        const { error } = await supabase.from('tournament_entries').insert(entries.slice(i, i + chunkSize));
+        if (error) entryErrors++;
       }
       
       for (let i = 0; i < picks.length; i += chunkSize) {
-        await supabase.from('picks').insert(picks.slice(i, i + chunkSize));
+        const { error } = await supabase.from('picks').insert(picks.slice(i, i + chunkSize));
+        if (error) pickErrors++;
       }
+      
+      // Verify actual counts
+      const { count: actualUsers } = await supabase.from('users').select('*', { count: 'exact', head: true });
+      const { count: actualEntries } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true });
+      const { count: actualPicks } = await supabase.from('picks').select('*', { count: 'exact', head: true });
 
       return res.status(200).json({
         success: true,
         usersCreated: users.length,
         entriesCreated: entries.length,
         totalPicks: picks.length,
-        message: `Simulation complete. ${users.length} users, ${entries.length} entries, ${picks.length} picks created.`
+        actualUsers,
+        actualEntries,
+        actualPicks,
+        errors: { userErrors, entryErrors, pickErrors },
+        message: `Simulation complete. ${users.length} users, ${entries.length} entries, ${picks.length} picks. Actual in DB: ${actualUsers} users, ${actualEntries} entries, ${actualPicks} picks.`
       });
 
     } catch (error) {
