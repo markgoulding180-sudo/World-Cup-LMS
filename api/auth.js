@@ -14,16 +14,23 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Body parser
-  if (!req.body) {
-    await new Promise((resolve) => {
-      let data = '';
-      req.on('data', chunk => data += chunk);
-      req.on('end', () => {
-        try { req.body = JSON.parse(data); } catch { req.body = {}; }
-        resolve();
+  // Body parser - always parse for POST requests
+  let bodyData = '';
+  if (!req.body || Object.keys(req.body).length === 0) {
+    try {
+      bodyData = await new Promise((resolve, reject) => {
+        let data = '';
+        req.on('data', chunk => data += chunk);
+        req.on('end', () => resolve(data));
+        req.on('error', reject);
       });
-    });
+      if (bodyData) {
+        req.body = JSON.parse(bodyData);
+      }
+    } catch (e) {
+      console.error('Body parse error:', e);
+      req.body = {};
+    }
   }
 
   const { action, ...data } = req.body || {};
@@ -37,6 +44,10 @@ module.exports = async (req, res) => {
   if (action === 'login') {
     try {
       const { email, password } = data;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
 
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
@@ -44,6 +55,7 @@ module.exports = async (req, res) => {
       });
 
       if (error) {
+        console.error('Login error:', error);
         return res.status(401).json({ error: error.message });
       }
 
@@ -54,6 +66,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
+      console.error('Login exception:', error);
       return res.status(500).json({ error: error.message });
     }
   }
@@ -62,6 +75,10 @@ module.exports = async (req, res) => {
   if (action === 'register') {
     try {
       const { email, password, username, display_name } = data;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
 
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -70,7 +87,12 @@ module.exports = async (req, res) => {
       });
 
       if (authError) {
+        console.error('Register auth error:', authError);
         return res.status(400).json({ error: authError.message });
+      }
+
+      if (!authData.user) {
+        return res.status(500).json({ error: 'User creation failed - no user returned' });
       }
 
       // Create user profile (trigger may also do this, so use upsert to avoid conflict)
@@ -78,12 +100,13 @@ module.exports = async (req, res) => {
         .from('users')
         .upsert({
           id: authData.user.id,
-          username: username?.slice(0, 20),
-          display_name: display_name?.slice(0, 20),
+          username: (username || email.split('@')[0])?.slice(0, 20),
+          display_name: (display_name || email.split('@')[0])?.slice(0, 20),
           email
         }, { onConflict: 'id' });
 
       if (profileError) {
+        console.error('Profile creation error:', profileError);
         return res.status(500).json({ error: 'Failed to create profile: ' + profileError.message });
       }
 
@@ -93,6 +116,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
+      console.error('Register exception:', error);
       return res.status(500).json({ error: error.message });
     }
   }
