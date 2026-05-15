@@ -237,8 +237,8 @@ module.exports = async (req, res) => {
 
   // ─────────────────────────────────────────────────────────
   // ACTION: simulate_users
-  // Creates 20 test users via direct insert (fast, for testing)
-  // Uses service role key to bypass normal auth flow
+  // Creates test users via Supabase Auth API
+  // Creates 3 users quickly for testing
   // ─────────────────────────────────────────────────────────
   if (action === 'simulate_users') {
     try {
@@ -247,40 +247,55 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'No tournament found. Run Setup first.' });
       }
 
-      const users = [];
-      const entries = [];
+      let registered = 0;
+      let entered = 0;
       
-      for (let i = 1; i <= 5; i++) {
-        const userId = '00000000-0000-0000-0000-' + String(i).padStart(12, '0');
+      // Create just 3 users for quick testing
+      for (let i = 1; i <= 3; i++) {
+        const email = `test${Date.now()}${i}@example.com`;
+        const password = 'Test123456!';
         
-        users.push({
-          id: userId,
-          username: `player${i}`,
-          display_name: `Player ${i}`,
-          email: `player${i}@test.com`
+        // Create auth user
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true
         });
         
-        entries.push({
-          tournament_id: tournament.id,
-          user_id: userId,
-          status: 'active',
-          lives_remaining: 3,
-          max_lives: 3
-        });
+        if (authError) {
+          console.log('Auth error for user', i, ':', authError.message);
+          continue;
+        }
+        
+        if (authData.user) {
+          registered++;
+          
+          // Create profile
+          await supabase.from('users').insert({
+            id: authData.user.id,
+            username: `test${i}`,
+            display_name: `Test Player ${i}`,
+            email
+          });
+          
+          // Enter tournament
+          await supabase.from('tournament_entries').insert({
+            tournament_id: tournament.id,
+            user_id: authData.user.id,
+            status: 'active',
+            lives_remaining: 3,
+            max_lives: 3
+          });
+          
+          entered++;
+        }
       }
-      
-      // Batch insert
-      const { error: userError } = await supabase.from('users').insert(users);
-      if (userError) throw userError;
-      
-      const { error: entryError } = await supabase.from('tournament_entries').insert(entries);
-      if (entryError) throw entryError;
 
       return res.status(200).json({
         success: true,
-        registered: users.length,
-        entered: entries.length,
-        message: `Created ${users.length} test users and entered them into tournament.`
+        registered,
+        entered,
+        message: `Created ${registered} test users, entered ${entered} into tournament.`
       });
 
     } catch (error) {

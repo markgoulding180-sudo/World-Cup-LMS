@@ -492,7 +492,7 @@ async function setupTournament() {
 }
 
 async function simulateUsers() {
-  const confirmed = confirm('Register 5 test users and enter them into the tournament?');
+  const confirmed = confirm('Register 3 test users and enter them into the tournament?');
   if (!confirmed) return;
 
   const statusDiv = document.getElementById('simulate-users-status');
