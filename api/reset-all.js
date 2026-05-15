@@ -238,6 +238,7 @@ module.exports = async (req, res) => {
   // ─────────────────────────────────────────────────────────
   // ACTION: simulate
   // Creates 100 test users with tournament entries and picks
+  // Uses batch inserts for speed (avoids Vercel timeout)
   // ─────────────────────────────────────────────────────────
   if (action === 'simulate') {
     try {
@@ -251,26 +252,32 @@ module.exports = async (req, res) => {
       const tournamentId = tournament.data.id;
       const roundId = round.data.id;
       
-      let usersCreated = 0;
-      let entriesCreated = 0;
-      let totalPicks = 0;
-
-      // Create 100 users with entries and picks
+      // Get all teams for each matchday upfront
+      const { data: md1Teams } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', 1);
+      const { data: md2Teams } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', 2);
+      const { data: md3Teams } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', 3);
+      
+      const md1Pool = md1Teams.flatMap(m => [m.home_team_id, m.away_team_id]);
+      const md2Pool = md2Teams.flatMap(m => [m.home_team_id, m.away_team_id]);
+      const md3Pool = md3Teams.flatMap(m => [m.home_team_id, m.away_team_id]);
+      
+      // Prepare batch arrays
+      const users = [];
+      const entries = [];
+      const picks = [];
+      
+      // Generate all data in memory first
       for (let i = 1; i <= 100; i++) {
-        const userId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${i}`;
+        const userId = crypto.randomUUID ? crypto.randomUUID() : `sim-${Date.now()}-${i}`;
         
-        // Create user
-        const { error: userError } = await supabase.from('users').insert({
+        users.push({
           id: userId,
           username: `player${i}`,
           display_name: `Player ${i}`,
           email: `player${i}@test.com`
         });
         
-        if (!userError) usersCreated++;
-        
-        // Create tournament entry
-        const { error: entryError } = await supabase.from('tournament_entries').insert({
+        entries.push({
           tournament_id: tournamentId,
           user_id: userId,
           status: 'active',
@@ -278,44 +285,44 @@ module.exports = async (req, res) => {
           max_lives: 3
         });
         
-        if (!entryError) entriesCreated++;
-        
-        // Get available teams for each matchday and make picks
-        for (let matchday = 1; matchday <= 3; matchday++) {
-          const { data: mdTeams } = await supabase
-            .from('matches')
-            .select('home_team_id, away_team_id')
-            .eq('matchday', matchday);
+        // Random picks for each matchday
+        [md1Pool, md2Pool, md3Pool].forEach((pool, idx) => {
+          const shuffled = [...pool].sort(() => 0.5 - Math.random());
+          const selected = shuffled.slice(0, 3);
           
-          const availableTeams = [];
-          mdTeams?.forEach(m => {
-            availableTeams.push(m.home_team_id, m.away_team_id);
-          });
-          
-          // Shuffle and pick 3
-          const shuffled = availableTeams.sort(() => 0.5 - Math.random());
-          const picks = shuffled.slice(0, 3);
-          
-          for (const teamId of picks) {
-            const { error: pickError } = await supabase.from('picks').insert({
+          selected.forEach(teamId => {
+            picks.push({
               tournament_id: tournamentId,
               user_id: userId,
               round_id: roundId,
               team_id: teamId,
-              matchday: matchday,
+              matchday: idx + 1,
               result: 'pending'
             });
-            if (!pickError) totalPicks++;
-          }
-        }
+          });
+        });
+      }
+      
+      // Batch insert in chunks to avoid payload limits
+      const chunkSize = 50;
+      for (let i = 0; i < users.length; i += chunkSize) {
+        await supabase.from('users').insert(users.slice(i, i + chunkSize));
+      }
+      
+      for (let i = 0; i < entries.length; i += chunkSize) {
+        await supabase.from('tournament_entries').insert(entries.slice(i, i + chunkSize));
+      }
+      
+      for (let i = 0; i < picks.length; i += chunkSize) {
+        await supabase.from('picks').insert(picks.slice(i, i + chunkSize));
       }
 
       return res.status(200).json({
         success: true,
-        usersCreated,
-        entriesCreated,
-        totalPicks,
-        message: `Simulation complete. ${usersCreated} users, ${entriesCreated} entries, ${totalPicks} picks created.`
+        usersCreated: users.length,
+        entriesCreated: entries.length,
+        totalPicks: picks.length,
+        message: `Simulation complete. ${users.length} users, ${entries.length} entries, ${picks.length} picks created.`
       });
 
     } catch (error) {
