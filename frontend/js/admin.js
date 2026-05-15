@@ -506,10 +506,10 @@ async function simulateTournament() {
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Simulating tournament... (this may take 30-60 seconds)</p>';
 
   try {
-    const response = await fetch('/api/simulate', {
+    const response = await fetch('/api/reset-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'full', admin_pin: '1234' })
+      body: JSON.stringify({ action: 'simulate', admin_pin: '1234' })
     });
 
     const data = await response.json();
