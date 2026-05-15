@@ -192,7 +192,7 @@ async function initHomePage() {
     const data = await response.json();
     
     // Update stats on page
-    document.getElementById('active-players').textContent = data.total_players || '--';
+    document.getElementById('active-players').textContent = data.stats?.total_players || '--';
   } catch (error) {
     console.error('Error loading home page stats:', error);
   }

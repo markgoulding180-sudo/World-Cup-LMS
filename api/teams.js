@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY
+      process.env.SUPABASE_SECRET  // Fixed: was SUPABASE_KEY
     );
 
     const { data: teams, error } = await supabase
@@ -22,9 +22,7 @@ module.exports = async (req, res) => {
       .order('group_name', { ascending: true })
       .order('name', { ascending: true });
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    if (error) return res.status(500).json({ error: error.message });
 
     return res.status(200).json({ teams: teams || [] });
 

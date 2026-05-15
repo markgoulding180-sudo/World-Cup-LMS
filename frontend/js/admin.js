@@ -360,7 +360,9 @@ async function importWorldCupData() {
         <p style="color: var(--accent-green);">
           <i class="fas fa-check-circle"></i> Import successful!
         </p>
-        <p>Rounds: ${data.roundsCreated}</p>
+        <p>Teams found: ${data.teamsFound}</p>
+        <p>Matches imported: ${data.matchesInserted}</p>
+        ${data.missingTeams ? `<p>Missing teams: ${data.missingTeams.join(', ')}</p>` : ''}
       `;
     } else {
       statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
@@ -371,9 +373,27 @@ async function importWorldCupData() {
 }
 
 async function openRound() {
-  alert('Round opening - implement via API');
+  const roundId = prompt('Enter Round ID to open:');
+  if (!roundId) return;
+  const res = await fetch('/api/rounds', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'open', round_id: roundId })
+  });
+  const data = await res.json();
+  alert(res.ok ? 'Round opened!' : `Error: ${data.error}`);
+  loadAdminData();
 }
 
 async function closeRound() {
-  alert('Round closing - implement via API');
+  const roundId = prompt('Enter Round ID to close:');
+  if (!roundId) return;
+  const res = await fetch('/api/rounds', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'close', round_id: roundId })
+  });
+  const data = await res.json();
+  alert(res.ok ? 'Round closed!' : `Error: ${data.error}`);
+  loadAdminData();
 }

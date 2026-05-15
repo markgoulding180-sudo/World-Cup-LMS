@@ -15,6 +15,18 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SECRET
   );
 
+  // Body parser for POST requests
+  if (req.method === 'POST' && !req.body) {
+    await new Promise((resolve) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => {
+        try { req.body = JSON.parse(data); } catch { req.body = {}; }
+        resolve();
+      });
+    });
+  }
+
   // GET - Fetch user's entry status
   if (req.method === 'GET') {
     try {
@@ -41,7 +53,7 @@ module.exports = async (req, res) => {
       if (error) {
         return res.status(500).json({ error: error.message });
       }
-      
+
       const entry = entries && entries.length > 0 ? entries[0] : null;
 
       // Get user profile
@@ -93,7 +105,11 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
-      const { tournament_id } = req.body;
+      const { tournament_id } = req.body || {};
+
+      if (!tournament_id) {
+        return res.status(400).json({ error: 'tournament_id is required' });
+      }
 
       // Get tournament lives setting
       const { data: tournament, error: tourneyError } = await supabase
@@ -102,11 +118,23 @@ module.exports = async (req, res) => {
         .eq('id', tournament_id)
         .single();
 
-      if (tourneyError) {
-        return res.status(500).json({ error: 'Failed to get tournament settings' });
+      if (tourneyError || !tournament) {
+        return res.status(500).json({ error: 'Failed to get tournament settings: ' + (tourneyError?.message || 'not found') });
       }
 
       const lives = tournament?.lives || 3;
+
+      // Check if user already entered
+      const { data: existing } = await supabase
+        .from('tournament_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('tournament_id', tournament_id)
+        .single();
+
+      if (existing) {
+        return res.status(400).json({ error: 'You have already entered this tournament' });
+      }
 
       const { data, error } = await supabase
         .from('tournament_entries')

@@ -14,13 +14,25 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Body parser
+  if (!req.body) {
+    await new Promise((resolve) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => {
+        try { req.body = JSON.parse(data); } catch { req.body = {}; }
+        resolve();
+      });
+    });
+  }
+
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SECRET
     );
 
-    const { match_id, home_score, away_score } = req.body;
+    const { match_id, home_score, away_score } = req.body || {};
 
     if (!match_id || home_score === undefined || away_score === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -35,12 +47,7 @@ module.exports = async (req, res) => {
     // Update match
     const { data: match, error: matchError } = await supabase
       .from('matches')
-      .update({
-        home_score,
-        away_score,
-        result,
-        status: 'finished'
-      })
+      .update({ home_score, away_score, result, status: 'finished' })
       .eq('id', match_id)
       .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
       .single();
@@ -49,50 +56,24 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: matchError.message });
     }
 
-    // Determine winning team
-    const winningTeamId = result === 'H' ? match.home_team_id : 
+    const winningTeamId = result === 'H' ? match.home_team_id :
                          result === 'A' ? match.away_team_id : null;
-
-    // Only update picks for THIS match's round
     const matchRoundId = match.round_id;
 
-    // If draw, eliminate all picks for this match's teams
-    // If win/loss, eliminate picks for losing team
     if (result === 'D') {
-      // Draw - both teams' pickers are eliminated
-      await supabase
-        .from('picks')
-        .update({ result: 'loss' })
-        .eq('team_id', match.home_team_id)
-        .eq('round_id', matchRoundId)
-        .eq('result', 'pending');
-      
-      await supabase
-        .from('picks')
-        .update({ result: 'loss' })
-        .eq('team_id', match.away_team_id)
-        .eq('round_id', matchRoundId)
-        .eq('result', 'pending');
+      await supabase.from('picks').update({ result: 'loss' })
+        .eq('team_id', match.home_team_id).eq('round_id', matchRoundId).eq('result', 'pending');
+      await supabase.from('picks').update({ result: 'loss' })
+        .eq('team_id', match.away_team_id).eq('round_id', matchRoundId).eq('result', 'pending');
     } else {
-      // Win/Loss - winning team pickers advance, losing team pickers eliminated
-      await supabase
-        .from('picks')
-        .update({ result: 'win' })
-        .eq('team_id', winningTeamId)
-        .eq('round_id', matchRoundId)
-        .eq('result', 'pending');
-      
+      await supabase.from('picks').update({ result: 'win' })
+        .eq('team_id', winningTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
       const losingTeamId = result === 'H' ? match.away_team_id : match.home_team_id;
-      await supabase
-        .from('picks')
-        .update({ result: 'loss' })
-        .eq('team_id', losingTeamId)
-        .eq('round_id', matchRoundId)
-        .eq('result', 'pending');
+      await supabase.from('picks').update({ result: 'loss' })
+        .eq('team_id', losingTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
     }
 
-    // Process losing players — decrement life, eliminate if zero
-    const losingTeamIds = result === 'D' 
+    const losingTeamIds = result === 'D'
       ? [match.home_team_id, match.away_team_id]
       : [result === 'H' ? match.away_team_id : match.home_team_id];
 
@@ -107,7 +88,6 @@ module.exports = async (req, res) => {
         .eq('round_id', match.round_id);
 
       for (const pick of losingPicks || []) {
-        // Get current lives for this player
         const { data: entry } = await supabase
           .from('tournament_entries')
           .select('lives_remaining, tournament_id')
@@ -120,7 +100,6 @@ module.exports = async (req, res) => {
         const newLives = Math.max(0, currentLives - 1);
         livesDeducted++;
 
-        // Update lives, only eliminate if lives hit zero
         await supabase
           .from('tournament_entries')
           .update({

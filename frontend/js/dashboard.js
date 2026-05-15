@@ -470,8 +470,8 @@ function updateStatusCard(data) {
     const livesRemaining = data.lives_remaining !== undefined ? data.lives_remaining : 5;
     const maxLives = data.max_lives || 5;
     
-    // Create 5 life circles - green for remaining, red for lost
-    const livesDisplay = Array.from({ length: 5 }, (_, i) => {
+    // Create life circles based on maxLives - green for remaining, red for lost
+    const livesDisplay = Array.from({ length: maxLives }, (_, i) => {
       const isActive = i < livesRemaining;
       return `<div class="life-circle ${isActive ? 'active' : 'lost'}"><i class="fas ${isActive ? 'fa-check' : 'fa-times'}"></i></div>`;
     }).join('');
@@ -483,7 +483,7 @@ function updateStatusCard(data) {
         <div class="lives-row">
           ${livesDisplay}
         </div>
-        <p class="lives-text">${livesRemaining} of 5 lives remaining</p>
+        <p class="lives-text">${livesRemaining} of ${maxLives} lives remaining</p>
         <p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>
       </div>
     `;
