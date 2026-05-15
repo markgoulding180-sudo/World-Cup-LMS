@@ -250,7 +250,7 @@ module.exports = async (req, res) => {
       const users = [];
       const entries = [];
       
-      for (let i = 1; i <= 20; i++) {
+      for (let i = 1; i <= 5; i++) {
         const userId = '00000000-0000-0000-0000-' + String(i).padStart(12, '0');
         
         users.push({
