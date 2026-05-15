@@ -315,6 +315,7 @@ module.exports = async (req, res) => {
   // ─────────────────────────────────────────────────────────
   // ACTION: simulate_picks
   // Makes picks for all users for a specific matchday
+  // Uses batch inserts for speed
   // ─────────────────────────────────────────────────────────
   if (action === 'simulate_picks') {
     const { matchday } = req.body;
@@ -326,7 +327,7 @@ module.exports = async (req, res) => {
       const { data: tournament } = await supabase.from('tournaments').select('id').single();
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
       
-      // Get active users who haven't been eliminated
+      // Get active users
       const { data: entries } = await supabase
         .from('tournament_entries')
         .select('user_id')
@@ -341,44 +342,48 @@ module.exports = async (req, res) => {
       
       const availableTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
       
-      let picksMade = 0;
+      // Get all existing picks for these users to avoid duplicates
+      const userIds = entries.map(e => e.user_id);
+      const { data: allPicks } = await supabase
+        .from('picks')
+        .select('user_id, team_id')
+        .in('user_id', userIds);
+      
+      const userPicksMap = {};
+      allPicks?.forEach(p => {
+        if (!userPicksMap[p.user_id]) userPicksMap[p.user_id] = new Set();
+        userPicksMap[p.user_id].add(p.team_id);
+      });
+      
+      // Prepare all picks in memory
+      const picks = [];
       
       for (const entry of entries) {
-        // Check how many picks this user already has for this matchday
-        const { data: existingPicks } = await supabase
-          .from('picks')
-          .select('team_id')
-          .eq('user_id', entry.user_id)
-          .eq('matchday', matchday);
+        const usedTeams = userPicksMap[entry.user_id] || new Set();
+        const available = availableTeams.filter(t => !usedTeams.has(t));
         
-        const picksNeeded = 3 - (existingPicks?.length || 0);
+        // Shuffle and pick 3
+        const shuffled = [...available].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 3);
         
-        if (picksNeeded > 0) {
-          // Get teams not already picked by this user in ANY matchday
-          const { data: allUserPicks } = await supabase
-            .from('picks')
-            .select('team_id')
-            .eq('user_id', entry.user_id);
-          
-          const usedTeams = new Set(allUserPicks?.map(p => p.team_id) || []);
-          const available = availableTeams.filter(t => !usedTeams.has(t));
-          
-          // Shuffle and pick
-          const shuffled = available.sort(() => 0.5 - Math.random());
-          const selected = shuffled.slice(0, picksNeeded);
-          
-          for (const teamId of selected) {
-            const { error } = await supabase.from('picks').insert({
-              tournament_id: tournament.id,
-              user_id: entry.user_id,
-              round_id: round.id,
-              team_id: teamId,
-              matchday,
-              result: 'pending'
-            });
-            if (!error) picksMade++;
-          }
+        for (const teamId of selected) {
+          picks.push({
+            tournament_id: tournament.id,
+            user_id: entry.user_id,
+            round_id: round.id,
+            team_id: teamId,
+            matchday,
+            result: 'pending'
+          });
         }
+      }
+      
+      // Batch insert in chunks
+      const chunkSize = 50;
+      let picksMade = 0;
+      for (let i = 0; i < picks.length; i += chunkSize) {
+        const { error } = await supabase.from('picks').insert(picks.slice(i, i + chunkSize));
+        if (!error) picksMade += Math.min(chunkSize, picks.length - i);
       }
 
       return res.status(200).json({
@@ -395,7 +400,7 @@ module.exports = async (req, res) => {
   // ─────────────────────────────────────────────────────────
   // ACTION: simulate_results
   // Enters random results for all matches in a matchday
-  // Updates picks and handles eliminations
+  // Uses batch updates for speed
   // ─────────────────────────────────────────────────────────
   if (action === 'simulate_results') {
     const { matchday } = req.body;
@@ -414,12 +419,11 @@ module.exports = async (req, res) => {
       let matchesUpdated = 0;
       let eliminations = 0;
       
+      // Process all matches
       for (const match of matches) {
-        // Generate random score (0-3 goals each)
         const homeScore = Math.floor(Math.random() * 4);
         const awayScore = Math.floor(Math.random() * 4);
         
-        // Determine result
         let result;
         if (homeScore > awayScore) result = 'H';
         else if (awayScore > homeScore) result = 'A';
@@ -439,7 +443,7 @@ module.exports = async (req, res) => {
           status: 'finished'
         }).eq('id', match.id);
         
-        // Update picks
+        // Update picks in batch
         if (winningTeamId) {
           await supabase.from('picks').update({ result: 'win' })
             .eq('team_id', winningTeamId).eq('matchday', matchday).eq('result', 'pending');
@@ -448,35 +452,40 @@ module.exports = async (req, res) => {
         for (const losingTeamId of losingTeamIds) {
           await supabase.from('picks').update({ result: 'loss' })
             .eq('team_id', losingTeamId).eq('matchday', matchday).eq('result', 'pending');
-          
-          // Deduct lives for losing picks
-          const { data: losingPicks } = await supabase
-            .from('picks')
-            .select('user_id')
-            .eq('team_id', losingTeamId)
-            .eq('matchday', matchday)
-            .eq('result', 'loss');
-          
-          for (const pick of losingPicks || []) {
-            const { data: entry } = await supabase
-              .from('tournament_entries')
-              .select('lives_remaining, tournament_id')
-              .eq('user_id', pick.user_id)
-              .single();
-            
-            if (entry && entry.lives_remaining > 0) {
-              const newLives = entry.lives_remaining - 1;
-              await supabase.from('tournament_entries').update({
-                lives_remaining: newLives,
-                ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {})
-              }).eq('user_id', pick.user_id).eq('tournament_id', entry.tournament_id);
-              
-              if (newLives === 0) eliminations++;
-            }
-          }
         }
         
         matchesUpdated++;
+      }
+      
+      // Now handle eliminations - get all users who lost this matchday
+      const { data: losingPicks } = await supabase
+        .from('picks')
+        .select('user_id')
+        .eq('matchday', matchday)
+        .eq('result', 'loss');
+      
+      const userLosses = {};
+      losingPicks?.forEach(p => {
+        userLosses[p.user_id] = (userLosses[p.user_id] || 0) + 1;
+      });
+      
+      // Deduct lives for each loss
+      for (const [userId, losses] of Object.entries(userLosses)) {
+        const { data: entry } = await supabase
+          .from('tournament_entries')
+          .select('lives_remaining, tournament_id')
+          .eq('user_id', userId)
+          .single();
+        
+        if (entry && entry.lives_remaining > 0) {
+          const newLives = Math.max(0, entry.lives_remaining - losses);
+          await supabase.from('tournament_entries').update({
+            lives_remaining: newLives,
+            ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {})
+          }).eq('user_id', userId).eq('tournament_id', entry.tournament_id);
+          
+          if (newLives === 0) eliminations++;
+        }
       }
 
       return res.status(200).json({
