@@ -12,8 +12,8 @@ const TEAM_MAPPINGS = {
   'Congo DR': 'DR Congo',
   'Cabo Verde': 'Cape Verde',
   "Côte d'Ivoire": 'Ivory Coast',
-  'USA': 'United States',
   'Bosnia and Herzegovina': 'Bosnia & Herzegovina'
+  // Note: 'USA' mapping removed - master_teams now uses 'United States' directly
 };
 
 module.exports = async (req, res) => {
