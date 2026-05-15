@@ -1,45 +1,29 @@
-# World Cup Last Man Standing
+#!/bin/bash
+# World Cup LMS - Database Migration Runner
+# Usage: ./run-migrations.sh
 
-## Project Brief
-A Last Man Standing prediction game for the FIFA World Cup.
+set -e
 
-## Core Concept
-- Players pick one team to win each round
-- If your team wins, you advance to next round
-- If your team loses or draws, you're eliminated
-- Last player standing wins the pot
+echo "World Cup LMS - Database Migration Runner"
+echo "=========================================="
+echo ""
 
-## Features
-- User registration and authentication
-- Team selection per round
-- Live match results
-- Elimination tracking
-- Leaderboard
-- Admin panel for managing rounds
+if [ -z "$SUPABASE_SECRET" ]; then
+    echo "❌ SUPABASE_SECRET not set!"
+    echo ""
+    echo "Please set it first:"
+    echo "   export SUPABASE_SECRET=your_service_role_key_here"
+    echo ""
+    exit 1
+fi
 
-## Tech Stack
-- Frontend: HTML5, CSS3, Vanilla JavaScript
-- Backend: Vercel Serverless Functions
-- Database: Supabase (PostgreSQL)
-- Auth: Supabase Auth
-- Hosting: Vercel
+echo "✅ SUPABASE_SECRET is set"
+echo ""
+echo "Running migrations..."
+echo ""
 
-## Pages
-1. Home/Landing
-2. Login/Register
-3. Dashboard (current round, pick team)
-4. Leaderboard
-5. Admin Panel
-6. Rules/How to Play
+cd "$(dirname "$0")/.."
+node scripts/run-migrations.js
 
-## Database Tables
-- users
-- teams
-- rounds
-- picks
-- matches
-- tournaments
-
-## Scoring
-- Win = Advance
-- Draw/Loss = Eliminated
+echo ""
+read -p "Press Enter to continue..."
