@@ -490,3 +490,45 @@ async function setupTournament() {
     statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
   }
 }
+
+async function simulateTournament() {
+  const confirmed = confirm(
+    'Simulate 100 test users with picks?\n\n' +
+    'This will create:\n' +
+    '• 100 test user accounts\n' +
+    '• 100 tournament entries\n' +
+    '• 900 picks (3 per matchday × 3 matchdays × 100 users)\n\n' +
+    'Use this to test match result entry and elimination tracking.'
+  );
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('simulate-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Simulating tournament... (this may take 30-60 seconds)</p>';
+
+  try {
+    const response = await fetch('/api/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'full', admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);">
+          <i class="fas fa-check-circle"></i> Simulation complete!
+        </p>
+        <p>Users created: ${data.usersCreated}</p>
+        <p>Tournament entries: ${data.entriesCreated}</p>
+        <p>Total picks: ${data.totalPicks}</p>
+        <p><strong>Next:</strong> Enter match results to test elimination tracking.</strong></p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}

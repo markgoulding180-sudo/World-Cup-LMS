@@ -162,6 +162,15 @@ body {
   background: #dc2626;
 }
 
+.btn-purple {
+  background: #9333ea;
+  color: white;
+}
+
+.btn-purple:hover {
+  background: #7c3aed;
+}
+
 .btn-lg {
   padding: 1rem 2rem;
   font-size: 1.125rem;

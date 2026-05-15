@@ -235,5 +235,93 @@ module.exports = async (req, res) => {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid action. Use "reset" or "setup".' });
+  // ─────────────────────────────────────────────────────────
+  // ACTION: simulate
+  // Creates 100 test users with tournament entries and picks
+  // ─────────────────────────────────────────────────────────
+  if (action === 'simulate') {
+    try {
+      const tournament = await supabase.from('tournaments').select('id').single();
+      const round = await supabase.from('rounds').select('id').eq('round_number', 1).single();
+      
+      if (!tournament.data || !round.data) {
+        return res.status(400).json({ error: 'Tournament or Group Stage round not found. Run Setup first.' });
+      }
+
+      const tournamentId = tournament.data.id;
+      const roundId = round.data.id;
+      
+      let usersCreated = 0;
+      let entriesCreated = 0;
+      let totalPicks = 0;
+
+      // Create 100 users with entries and picks
+      for (let i = 1; i <= 100; i++) {
+        const userId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${i}`;
+        
+        // Create user
+        const { error: userError } = await supabase.from('users').insert({
+          id: userId,
+          username: `player${i}`,
+          display_name: `Player ${i}`,
+          email: `player${i}@test.com`
+        });
+        
+        if (!userError) usersCreated++;
+        
+        // Create tournament entry
+        const { error: entryError } = await supabase.from('tournament_entries').insert({
+          tournament_id: tournamentId,
+          user_id: userId,
+          status: 'active',
+          lives_remaining: 3,
+          max_lives: 3
+        });
+        
+        if (!entryError) entriesCreated++;
+        
+        // Get available teams for each matchday and make picks
+        for (let matchday = 1; matchday <= 3; matchday++) {
+          const { data: mdTeams } = await supabase
+            .from('matches')
+            .select('home_team_id, away_team_id')
+            .eq('matchday', matchday);
+          
+          const availableTeams = [];
+          mdTeams?.forEach(m => {
+            availableTeams.push(m.home_team_id, m.away_team_id);
+          });
+          
+          // Shuffle and pick 3
+          const shuffled = availableTeams.sort(() => 0.5 - Math.random());
+          const picks = shuffled.slice(0, 3);
+          
+          for (const teamId of picks) {
+            const { error: pickError } = await supabase.from('picks').insert({
+              tournament_id: tournamentId,
+              user_id: userId,
+              round_id: roundId,
+              team_id: teamId,
+              matchday: matchday,
+              result: 'pending'
+            });
+            if (!pickError) totalPicks++;
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        usersCreated,
+        entriesCreated,
+        totalPicks,
+        message: `Simulation complete. ${usersCreated} users, ${entriesCreated} entries, ${totalPicks} picks created.`
+      });
+
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'Invalid action. Use "reset", "setup", or "simulate".' });
 };
