@@ -452,7 +452,7 @@ async function resetAllData() {
 async function setupTournament() {
   const confirmed = confirm(
     'Setup the World Cup 2026 Last Man Standing tournament?\n\n' +
-    '£30 entry | 100 players max | 3 lives\n\n' +
+    '£30 entry | 100 players max | 5 lives\n\n' +
     'This will create the tournament, copy all 48 teams,\n' +
     'create 6 rounds and import the match schedule.\n\n' +
     'Make sure you have run Reset All Data first.'
@@ -579,6 +579,67 @@ async function simulateResults(matchday) {
       statusDiv.innerHTML = `
         <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
         ${data.eliminations > 0 ? `<p style="color: orange;">⚠️ ${data.eliminations} users eliminated!</p>` : ''}
+        <p><strong>Next:</strong> Enter match results to test elimination tracking.</p>
+      `;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
+async function simulateKnockoutPicks(roundNumber) {
+  const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  const confirmed = confirm(`Make picks for ${roundNames[roundNumber]}?`);
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('simulate-knockout-status');
+  statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Making ${roundNames[roundNumber]} picks...</p>`;
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'simulate_knockout_picks', round_number: roundNumber, admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>`;
+      loadAdminData();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
+async function simulateKnockoutResults(roundNumber) {
+  const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  const confirmed = confirm(`Simulate results for ${roundNames[roundNumber]}?`);
+  if (!confirmed) return;
+
+  const statusDiv = document.getElementById('simulate-knockout-status');
+  statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Simulating ${roundNames[roundNumber]} results...</p>`;
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'simulate_knockout_results', round_number: roundNumber, admin_pin: '1234' })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
+        ${data.eliminations > 0 ? `<p style="color: orange;">⚠️ ${data.eliminations} users eliminated!</p>` : ''}
+        ${data.winner ? `<p style="color: var(--accent-gold);">🏆 Winner: ${data.winner}!</p>` : ''}
       `;
       loadAdminData();
     } else {

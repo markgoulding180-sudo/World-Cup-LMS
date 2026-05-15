@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
           prize_pool: 0,
           max_players: 100,
           current_players: 0,
-          lives: 3,
+          lives: 5,
           status: 'open'
         })
         .select()

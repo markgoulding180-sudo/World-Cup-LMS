@@ -109,6 +109,43 @@
         </button>
         <div id="simulate-results-status" style="margin-top: 0.5rem;"></div>
       </div>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 4:</strong> Knockout Stage Picks & Results</p>
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">Surviving users pick 1 team per round</p>
+        
+        <div style="margin: 0.5rem 0;">
+          <span style="font-size: 0.8rem;">Round of 32:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(2)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(2)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+        </div>
+        
+        <div style="margin: 0.5rem 0;">
+          <span style="font-size: 0.8rem;">Round of 16:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(3)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(3)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+        </div>
+        
+        <div style="margin: 0.5rem 0;">
+          <span style="font-size: 0.8rem;">Quarter Finals:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(4)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(4)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+        </div>
+        
+        <div style="margin: 0.5rem 0;">
+          <span style="font-size: 0.8rem;">Semi Finals:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(5)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(5)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+        </div>
+        
+        <div style="margin: 0.5rem 0;">
+          <span style="font-size: 0.8rem;">Final:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(6)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(6)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+        </div>
+        
+        <div id="simulate-knockout-status" style="margin-top: 0.5rem;"></div>
+      </div>
     </div>
     
     <div class="admin-card">
