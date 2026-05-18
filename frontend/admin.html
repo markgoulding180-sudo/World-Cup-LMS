@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - World Cup LMS</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        WC LMS Admin
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1><i class="fas fa-cog"></i> Admin Panel</h1>
+
+    <!-- CARD 1: RESET -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red);">
+      <h2><i class="fas fa-trash-alt"></i> Reset All Data</h2>
+      <p>Wipes everything for a completely fresh start including all auth accounts.</p>
+      <ul>
+        <li>✅ Deletes: picks, entries, matches, rounds, tournaments, teams, users</li>
+        <li>✅ Deletes: all Supabase auth accounts (users must re-register after reset)</li>
+        <li>❌ Preserves: master_teams (flag images — never touched)</li>
+      </ul>
+      <button class="btn btn-danger" onclick="resetAllData()">
+        <i class="fas fa-trash-alt"></i> Reset All Data
+      </button>
+      <div id="reset-status" style="margin-top: 1rem;"></div>
+    </div>
+
+    <!-- CARD 2: SETUP -->
+    <div class="admin-card" style="border: 2px solid var(--accent-gold);">
+      <h2><i class="fas fa-trophy"></i> Setup Tournament</h2>
+      <p>Run after Reset. Does everything in one go — site is ready to play after this.</p>
+      <ul>
+        <li>✅ Creates tournament: £30 entry | 100 players max | 3 lives</li>
+        <li>✅ Copies all 48 teams from master data (with flags)</li>
+        <li>✅ Creates all 6 rounds (Group Stage through to Final)</li>
+        <li>✅ Imports full match schedule from fixturedownload.com</li>
+        <li>✅ Opens Group Stage ready for picks</li>
+      </ul>
+      <button class="btn btn-primary" onclick="setupTournament()">
+        <i class="fas fa-trophy"></i> Setup Tournament
+      </button>
+      <div id="setup-status" style="margin-top: 1rem;"></div>
+    </div>
+
+    <!-- CARD 3: LIVES -->
+    <div class="admin-card" style="border: 2px solid var(--accent-green);">
+      <h2><i class="fas fa-heart"></i> Change Lives</h2>
+      <p>Change the number of lives for all active players. Use between simulations without doing a full reset.</p>
+      <p style="font-size: 0.85rem; color: var(--text-secondary);">Only updates active (non-eliminated) players.</p>
+      <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1rem 0;">
+        <label for="lives-select"><strong>Lives:</strong></label>
+        <select id="lives-select" style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 1rem; width: 80px;">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+        <button class="btn btn-primary" onclick="setLives()" style="background: var(--accent-green);">
+          <i class="fas fa-check"></i> Set Lives
+        </button>
+      </div>
+      <div id="lives-status" style="margin-top: 0.5rem;"></div>
+    </div>
+
+    <!-- CARD 4: FULL AUTO SIMULATION -->
+    <div class="admin-card" style="border: 2px solid #9333ea;">
+      <h2><i class="fas fa-bolt"></i> Full Auto Simulation</h2>
+      <p>Simulates the <strong>entire tournament</strong> in one click — Group Stage through to the Final.</p>
+      <p>⚠️ Run <strong>Reset All Data</strong> then <strong>Setup Tournament</strong> first.</p>
+      <div style="margin: 1rem 0; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <label for="sim-user-count"><strong>Users to simulate:</strong></label>
+        <select id="sim-user-count" style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+          <option value="10">10 users</option>
+          <option value="25">25 users</option>
+          <option value="50" selected>50 users</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="runFullSimulation()" style="background: #9333ea; font-size: 1rem; padding: 0.75rem 1.5rem;">
+        <i class="fas fa-bolt"></i> Run Full Simulation
+      </button>
+      <div id="full-sim-status" style="margin-top: 1rem;"></div>
+    </div>
+
+    <!-- CARD 5: MANUAL IMPORT -->
+    <div class="admin-card" style="border: 2px solid var(--accent-gold);">
+      <h2><i class="fas fa-database"></i> Manual Import</h2>
+      <p>Manually re-import fixture data from fixturedownload.com if the schedule needs refreshing.</p>
+      <button class="btn btn-primary" onclick="importWorldCupData()">
+        <i class="fas fa-download"></i> Import World Cup 2026 Data
+      </button>
+      <div id="import-status" style="margin-top: 1rem;"></div>
+    </div>
+
+    <!-- CARD 6: SIMULATE STEP BY STEP -->
+    <div class="admin-card" style="border: 2px solid var(--accent-purple);">
+      <h2><i class="fas fa-flask"></i> Simulate Tournament (Step by Step)</h2>
+      <p>Test the full workflow by simulating users, picks, and results round by round.</p>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 1:</strong> Register test users (batches of 10)</p>
+        <button class="btn btn-primary" onclick="simulateUsersBatch()" style="background: #9333ea;">
+          <i class="fas fa-user-plus"></i> Register Users (Batch 1-10)
+        </button>
+        <div id="simulate-users-status" style="margin-top: 0.5rem;"></div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">Click multiple times to add more users</p>
+      </div>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 2:</strong> Make picks for each matchday</p>
+        <button class="btn btn-primary" onclick="simulatePicks(1)" style="background: #9333ea; margin: 0.25rem;">
+          <i class="fas fa-check-circle"></i> MD1 Picks
+        </button>
+        <button class="btn btn-primary" onclick="simulatePicks(2)" style="background: #9333ea; margin: 0.25rem;">
+          <i class="fas fa-check-circle"></i> MD2 Picks
+        </button>
+        <button class="btn btn-primary" onclick="simulatePicks(3)" style="background: #9333ea; margin: 0.25rem;">
+          <i class="fas fa-check-circle"></i> MD3 Picks
+        </button>
+        <div id="simulate-picks-status" style="margin-top: 0.5rem;"></div>
+      </div>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 3:</strong> Simulate results for each matchday</p>
+        <button class="btn btn-primary" onclick="simulateResults(1)" style="background: #9333ea; margin: 0.25rem;">
+          <i class="fas fa-futbol"></i> MD1 Results
+        </button>
+        <button class="btn btn-primary" onclick="simulateResults(2)" style="background: #9333ea; margin: 0.25rem;">
+          <i class="fas fa-futbol"></i> MD2 Results
+        </button>
+        <button class="btn btn-primary" onclick="simulateResults(3)" style="background: #9333ea; margin: 0.25rem;">
+          <i class="fas fa-futbol"></i> MD3 Results
+        </button>
+        <div id="simulate-results-status" style="margin-top: 0.5rem;"></div>
+      </div>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 4:</strong> Create Round of 32 from group standings</p>
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">
+          2026 World Cup format: top 2 from each of 12 groups (24 teams) + best 8 third-placed teams = 32 total
+        </p>
+        <button class="btn btn-primary" onclick="createKnockoutMatches()" style="background: #ff6b35;">
+          <i class="fas fa-trophy"></i> Create R32 Matches from Groups
+        </button>
+        <div id="create-knockout-status" style="margin-top: 0.5rem;"></div>
+      </div>
+
+      <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+        <p><strong>Step 5:</strong> Knockout Stages — Picks → Results → Advance to next round</p>
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">After each result, click Advance to create the next round's matches from the winners.</p>
+
+        <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
+          <span style="font-size: 0.85rem; font-weight: bold;">Round of 32:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(2)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(2)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+          <button class="btn btn-primary" onclick="createNextRoundMatches(2)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to R16</button>
+        </div>
+
+        <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
+          <span style="font-size: 0.85rem; font-weight: bold;">Round of 16:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(3)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(3)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+          <button class="btn btn-primary" onclick="createNextRoundMatches(3)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to QF</button>
+        </div>
+
+        <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
+          <span style="font-size: 0.85rem; font-weight: bold;">Quarter Finals:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(4)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(4)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+          <button class="btn btn-primary" onclick="createNextRoundMatches(4)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to SF</button>
+        </div>
+
+        <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
+          <span style="font-size: 0.85rem; font-weight: bold;">Semi Finals:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(5)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(5)" style="background: #9333ea; margin: 0.25rem;">Results</button>
+          <button class="btn btn-primary" onclick="createNextRoundMatches(5)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to Final</button>
+        </div>
+
+        <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid gold;">
+          <span style="font-size: 0.85rem; font-weight: bold;">🏆 Final:</span><br>
+          <button class="btn btn-secondary" onclick="simulateKnockoutPicks(6)" style="margin: 0.25rem;">Make Picks</button>
+          <button class="btn btn-primary" onclick="simulateKnockoutResults(6)" style="background: #9333ea; margin: 0.25rem;">Results + Declare Winner</button>
+        </div>
+
+        <div id="simulate-knockout-status" style="margin-top: 0.5rem;"></div>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Round Management</h2>
+      <div id="round-status">Loading...</div>
+      <button class="btn btn-primary" onclick="openRound()">Open Round</button>
+      <button class="btn btn-secondary" onclick="closeRound()">Close Round</button>
+    </div>
+
+    <div class="admin-card">
+      <h2>Match Results</h2>
+      <div id="match-list">Loading...</div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Enter Match Result</h2>
+      <div id="result-entry">Loading matches...</div>
+    </div>
+
+    <div class="admin-card">
+      <h2>All Picks</h2>
+      <div id="all-picks">Loading...</div>
+    </div>
+
+    <!-- Auto Update Results -->
+    <div class="admin-card" style="border: 2px solid var(--accent-green);">
+      <h2><i class="fas fa-sync"></i> Auto Update Results</h2>
+      <p>Fetch latest match results from fixturedownload.com and update all picks automatically</p>
+      <button class="btn btn-primary" onclick="updateResultsFromFixturedownload()">
+        <i class="fas fa-sync-alt"></i> Update Results from Fixturedownload
+      </button>
+      <div id="update-status" style="margin-top: 1rem;"></div>
+    </div>
+  </main>
+
+  <script src="js/app.js?v=5"></script>
+  <script src="js/admin.js?v=5"></script>
+</body>
+</html>
