@@ -536,23 +536,49 @@ async function runFullSimulation() {
     '• Qualify 32 teams (top 2 per group + best 8 third-placed)\n' +
     '• Create and simulate all KO rounds through to the Final\n' +
     '• Return a full elimination summary\n\n' +
-    'This takes 30-60 seconds. Do not close this page.'
+    'Runs in two steps to avoid timeout. Do not close this page.'
   );
   if (!confirmed) return;
 
   const statusDiv = document.getElementById('full-sim-status');
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Running full simulation... please wait (30-60 seconds)</p>';
 
   try {
+    // ── Step 1: Register users in batches ──
+    const batchSize = 10;
+    const batches = Math.ceil(userCount / batchSize);
+    let totalRegistered = 0;
+
+    for (let b = 0; b < batches; b++) {
+      const start = b * batchSize + 1;
+      const end = Math.min((b + 1) * batchSize, userCount);
+      statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Registering users ${start}-${end} of ${userCount}...</p>`;
+
+      const regResponse = await fetch('/api/reset-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'simulate_users', batch: b, admin_pin: '1234' })
+      });
+
+      const regData = await regResponse.json();
+      if (!regResponse.ok) {
+        statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error registering users: ${regData.error}</p>`;
+        return;
+      }
+      totalRegistered += regData.registered || 0;
+    }
+
+    // ── Step 2: Run the full simulation (no user registration) ──
+    statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> ${totalRegistered} users registered. Running full tournament simulation... (30-60 seconds)</p>`;
+
     const response = await fetch('/api/reset-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'simulate_full', user_count: userCount, admin_pin: '1234' })
+      body: JSON.stringify({ action: 'simulate_full', user_count: 0, admin_pin: '1234' })
     });
 
     const data = await response.json();
 
-    if (response.ok) {
+    if (response.ok && data.summary) {
       const s = data.summary;
 
       const stagesHtml = s.survivorsPerStage.map(stage => `
@@ -566,7 +592,7 @@ async function runFullSimulation() {
       statusDiv.innerHTML = `
         <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem; border: 1px solid #9333ea;">
           <h3 style="color: gold; margin-bottom: 1rem;">🏆 Simulation Complete!</h3>
-          <p><strong>Users registered:</strong> ${s.usersRegistered}</p>
+          <p><strong>Users registered:</strong> ${totalRegistered}</p>
           <p><strong>Starting lives:</strong> ${s.startLives}</p>
           <p><strong>Teams in Round of 32:</strong> ${s.teamsQualifiedForR32 || 32}</p>
           <p style="color: gold; font-size: 1.1rem; margin: 0.5rem 0;"><strong>🥇 Winner: ${s.winner}</strong></p>
@@ -587,7 +613,7 @@ async function runFullSimulation() {
       `;
       loadAdminData();
     } else {
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data?.error || 'Simulation timed out. Try with fewer users.'}</p>`;
     }
   } catch (error) {
     statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
