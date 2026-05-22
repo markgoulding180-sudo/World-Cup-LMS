@@ -1,4 +1,14 @@
-// Leaderboard page JavaScript
+// Leaderboard page JavaScript - Points-based system
+
+// Points structure for reference
+const POINTS_STRUCTURE = {
+  1: 2,  // Group Stage = 2 points
+  2: 4,  // Round of 32 = 4 points
+  3: 6,  // Round of 16 = 6 points
+  4: 8,  // Quarter Finals = 8 points
+  5: 10, // Semi Finals = 10 points
+  6: 15  // Final = 15 points
+};
 
 async function loadLeaderboard() {
   try {
@@ -11,8 +21,7 @@ async function loadLeaderboard() {
     }
     
     displayStats(data.stats);
-    displayActivePlayers(data.leaderboard);
-    displayEliminatedPlayers(data.leaderboard);
+    displayLeaderboard(data.leaderboard);
     
   } catch (error) {
     console.error('Error loading leaderboard:', error);
@@ -20,73 +29,103 @@ async function loadLeaderboard() {
 }
 
 function displayStats(stats) {
-  // Could add a stats section at top
-  console.log('Stats:', stats);
+  const container = document.getElementById('leaderboard-stats');
+  if (!container) return;
+  
+  container.innerHTML = `
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-value">${stats?.total_players || 0}</div>
+        <div class="stat-label">Players</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${stats?.active_players || 0}</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${stats?.eliminated_players || 0}</div>
+        <div class="stat-label">Eliminated</div>
+      </div>
+    </div>
+  `;
 }
 
-function displayActivePlayers(leaderboard) {
-  const container = document.getElementById('active-players');
-  const activePlayers = leaderboard.filter(p => p.status === 'active');
+function displayLeaderboard(leaderboard) {
+  const container = document.getElementById('leaderboard-list');
+  if (!container) return;
   
-  if (activePlayers.length === 0) {
-    container.innerHTML = '<p class="text-secondary">No active players yet.</p>';
+  if (!leaderboard || leaderboard.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No players yet.</p>';
     return;
   }
   
-  let html = '<div class="leaderboard-list">';
+  // Sort by total_points (highest first)
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
   
-  activePlayers.forEach((player, index) => {
-    // Build hearts for lives
-    const heartsDisplay = Array.from({ length: player.max_lives || 3 }, (_, i) =>
-      `<span class="life-heart-small ${i < (player.lives_remaining || 0) ? 'active' : 'lost'}">♥</span>`
-    ).join('');
+  let html = '<div class="leaderboard-table">';
+  
+  // Header
+  html += `
+    <div class="leaderboard-header">
+      <div class="col-rank">#</div>
+      <div class="col-player">Player</div>
+      <div class="col-points">Points</div>
+      <div class="col-wins">Wins</div>
+      <div class="col-pick">Current Pick</div>
+      <div class="col-status">Status</div>
+    </div>
+  `;
+  
+  sortedLeaderboard.forEach((player, index) => {
+    const position = index + 1;
+    const isEliminated = player.status === 'eliminated';
+    const totalPoints = player.total_points || 0;
+    const wins = player.wins || 0;
+    
+    // Medal for top 3
+    let rankDisplay = `<span class="rank-number">${position}</span>`;
+    if (position === 1) rankDisplay = '<span class="rank-medal gold"><i class="fas fa-trophy"></i></span>';
+    else if (position === 2) rankDisplay = '<span class="rank-medal silver"><i class="fas fa-medal"></i></span>';
+    else if (position === 3) rankDisplay = '<span class="rank-medal bronze"><i class="fas fa-medal"></i></span>';
+    
+    // Current pick with points earned
+    let currentPickHtml = '<span class="no-pick">-</span>';
+    if (player.current_pick) {
+      const pointsEarned = player.current_pick.points_earned;
+      const pointsClass = pointsEarned > 0 ? 'points-won' : (pointsEarned === 0 ? 'points-lost' : 'points-pending');
+      const pointsText = pointsEarned > 0 ? `+${pointsEarned} pts` : (pointsEarned === 0 ? '0 pts' : 'Pending');
+      
+      currentPickHtml = `
+        <div class="current-pick-info">
+          <img src="${player.current_pick.flag || ''}" alt="" class="pick-flag-small">
+          <span class="pick-team">${player.current_pick.team}</span>
+          <span class="pick-points ${pointsClass}">${pointsText}</span>
+        </div>
+      `;
+    }
     
     html += `
-      <div class="leaderboard-item active">
-        <div class="position">${player.position}</div>
-        <div class="player-info">
-          <strong>${player.display_name}</strong>
-          <span class="username">@${player.username}</span>
-          <div class="lives-display-small">${heartsDisplay}</div>
+      <div class="leaderboard-row ${isEliminated ? 'eliminated' : ''} ${position <= 3 ? 'top-three' : ''}">
+        <div class="col-rank">${rankDisplay}</div>
+        <div class="col-player">
+          <div class="player-info">
+            <strong>${player.display_name || player.username}</strong>
+            <span class="username">@${player.username}</span>
+          </div>
         </div>
-        <div class="current-pick">
-          ${player.current_pick ? `
-            <img src="${player.current_pick.flag}" alt="" class="pick-flag-small">
-            <span>${player.current_pick.team}</span>
-          ` : '<span class="no-pick">No pick</span>'}
+        <div class="col-points">
+          <span class="points-badge">${totalPoints}</span>
         </div>
-        <span class="status-badge active">${player.lives_remaining || 0} lives</span>
-      </div>
-    `;
-  });
-  
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-function displayEliminatedPlayers(leaderboard) {
-  const container = document.getElementById('eliminated-players');
-  const eliminatedPlayers = leaderboard.filter(p => p.status === 'eliminated');
-  
-  if (eliminatedPlayers.length === 0) {
-    container.innerHTML = '<p class="text-secondary">No eliminated players yet.</p>';
-    return;
-  }
-  
-  let html = '<div class="leaderboard-list">';
-  
-  eliminatedPlayers.forEach((player, index) => {
-    html += `
-      <div class="leaderboard-item eliminated">
-        <div class="position">-</div>
-        <div class="player-info">
-          <strong>${player.display_name}</strong>
-          <span class="username">@${player.username}</span>
+        <div class="col-wins">
+          <span class="wins-badge">${wins}</span>
         </div>
-        <div class="eliminated-info">
-          <span>Eliminated Round ${player.eliminated_round}</span>
+        <div class="col-pick">${currentPickHtml}</div>
+        <div class="col-status">
+          ${isEliminated ? 
+            '<span class="status-badge eliminated"><i class="fas fa-times-circle"></i> Out</span>' :
+            '<span class="status-badge active"><i class="fas fa-check-circle"></i> In</span>'
+          }
         </div>
-        <span class="status-badge eliminated">Eliminated</span>
       </div>
     `;
   });

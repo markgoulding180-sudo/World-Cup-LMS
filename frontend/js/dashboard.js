@@ -458,36 +458,7 @@ function displayCurrentPicks(picks) {
 function updateStatusCard(data) {
   const statusDiv = document.getElementById('player-status');
   
-  if (data.status === 'eliminated') {
-    statusDiv.innerHTML = `
-      <div class="eliminated">
-        <i class="fas fa-times-circle"></i>
-        <h3>Eliminated</h3>
-        <p>You were eliminated in Round ${data.eliminated_round}</p>
-      </div>
-    `;
-  } else if (data.status === 'active') {
-    const livesRemaining = data.lives_remaining !== undefined ? data.lives_remaining : 5;
-    const maxLives = data.max_lives || 5;
-    
-    // Create life circles based on maxLives - green for remaining, red for lost
-    const livesDisplay = Array.from({ length: maxLives }, (_, i) => {
-      const isActive = i < livesRemaining;
-      return `<div class="life-circle ${isActive ? 'active' : 'lost'}"><i class="fas ${isActive ? 'fa-check' : 'fa-times'}"></i></div>`;
-    }).join('');
-    
-    statusDiv.innerHTML = `
-      <div class="active-status">
-        <h2 class="user-name">${data.display_name || data.username || 'Player'}</h2>
-        <p class="instruction-text">Pick teams to win. If your team loses or draws, you lose a life. All lives lost = eliminated.</p>
-        <div class="lives-row">
-          ${livesDisplay}
-        </div>
-        <p class="lives-text">${livesRemaining} of ${maxLives} lives remaining</p>
-        <p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>
-      </div>
-    `;
-  } else {
+  if (data.status === 'not_entered') {
     statusDiv.innerHTML = `
       <div class="not-entered">
         <i class="fas fa-info-circle"></i>
@@ -496,6 +467,39 @@ function updateStatusCard(data) {
         <button class="btn btn-primary" onclick="enterTournament()" style="margin-top: 1rem;">
           <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
         </button>
+      </div>
+    `;
+  } else {
+    // Points-based system display
+    const totalPoints = data.total_points !== undefined ? data.total_points : 0;
+    const wins = data.wins !== undefined ? data.wins : 0;
+    const rank = data.rank || '-';
+    const isEliminated = data.status === 'eliminated';
+    
+    statusDiv.innerHTML = `
+      <div class="${isEliminated ? 'eliminated' : 'active-status'}">
+        <h2 class="user-name">${data.display_name || data.username || 'Player'}</h2>
+        <p class="instruction-text">Pick teams to win and earn points. More points in later rounds!</p>
+        
+        <div class="points-stats-row">
+          <div class="points-stat">
+            <div class="points-value">${totalPoints}</div>
+            <div class="points-label">Total Points</div>
+          </div>
+          <div class="points-stat">
+            <div class="points-value">${wins}</div>
+            <div class="points-label">Correct Picks</div>
+          </div>
+          <div class="points-stat">
+            <div class="points-value">#${rank}</div>
+            <div class="points-label">Rank</div>
+          </div>
+        </div>
+        
+        ${isEliminated ? 
+          `<p class="eliminated-text"><i class="fas fa-times-circle"></i> Eliminated - No more picks allowed</p>` :
+          `<p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>`
+        }
       </div>
     `;
   }
