@@ -360,6 +360,7 @@ module.exports = async (req, res) => {
 
       const summary = { simNumber, totalUsers, survivorsPerStage: [], winner: null, finalTop5: [], teamsQualifiedForR32: 32 };
 
+      // getTop5 is expensive - only call at the end for final summary
       const getTop5 = async () => {
         const { data: entries } = await supabase.from('tournament_entries').select('*, users:user_id(display_name)').order('total_points', { ascending: false }).order('wins', { ascending: false }).order('entered_at', { ascending: true }).limit(5);
         return entries?.map(e => ({ name: e.users?.display_name, points: e.total_points, wins: e.wins })) || [];
@@ -387,6 +388,8 @@ module.exports = async (req, res) => {
       const doGroupResults = async (matchday) => {
         const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
         let pointsAwarded = 0;
+        const userPoints = {}; // Aggregate points per user for batch update
+
         for (const match of matches) {
           const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
           const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
@@ -396,14 +399,21 @@ module.exports = async (req, res) => {
           if (winId) {
             await supabase.from('picks').update({ result: 'win', points: POINTS_STRUCTURE[1] }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
             const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
+            // Aggregate points per user instead of individual RPC calls
             for (const pick of winningPicks || []) {
-              await supabase.rpc('increment_points', { user_id: pick.user_id, points: POINTS_STRUCTURE[1] });
+              userPoints[pick.user_id] = (userPoints[pick.user_id] || 0) + POINTS_STRUCTURE[1];
               pointsAwarded += POINTS_STRUCTURE[1];
             }
           }
           for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
         }
-        return { pointsAwarded, top5: await getTop5() };
+
+        // Batch update all users at once
+        for (const [userId, points] of Object.entries(userPoints)) {
+          await supabase.rpc('increment_points', { user_id: userId, points });
+        }
+
+        return { pointsAwarded };
       };
 
       const doKORound = async (roundNum) => {
@@ -426,6 +436,8 @@ module.exports = async (req, res) => {
         const { data: koMatches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
         let pointsAwarded = 0;
         const pointsForRound = POINTS_STRUCTURE[roundNum] || 2;
+        const userPoints = {}; // Aggregate points per user for batch update
+
         for (const match of koMatches) {
           let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
           if (hs === as) { hs > 0 ? as-- : hs++; }
@@ -436,12 +448,19 @@ module.exports = async (req, res) => {
           await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
           await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
           const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+          // Aggregate points per user instead of individual RPC calls
           for (const pick of winningPicks || []) {
-            await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
+            userPoints[pick.user_id] = (userPoints[pick.user_id] || 0) + pointsForRound;
             pointsAwarded += pointsForRound;
           }
         }
-        return { pointsAwarded, top5: await getTop5() };
+
+        // Batch update all users at once
+        for (const [userId, points] of Object.entries(userPoints)) {
+          await supabase.rpc('increment_points', { user_id: userId, points });
+        }
+
+        return { pointsAwarded };
       };
 
       const advanceKO = async (fromRoundNum) => {
@@ -457,15 +476,15 @@ module.exports = async (req, res) => {
       // GROUP STAGE
       await doGroupPicks(1);
       const md1Result = await doGroupResults(1);
-      summary.survivorsPerStage.push({ stage: 'Matchday 1', pointsAwarded: md1Result.pointsAwarded, top5: md1Result.top5 });
+      summary.survivorsPerStage.push({ stage: 'Matchday 1', pointsAwarded: md1Result.pointsAwarded });
 
       await doGroupPicks(2);
       const md2Result = await doGroupResults(2);
-      summary.survivorsPerStage.push({ stage: 'Matchday 2', pointsAwarded: md2Result.pointsAwarded, top5: md2Result.top5 });
+      summary.survivorsPerStage.push({ stage: 'Matchday 2', pointsAwarded: md2Result.pointsAwarded });
 
       await doGroupPicks(3);
       const md3Result = await doGroupResults(3);
-      summary.survivorsPerStage.push({ stage: 'Matchday 3', pointsAwarded: md3Result.pointsAwarded, top5: md3Result.top5 });
+      summary.survivorsPerStage.push({ stage: 'Matchday 3', pointsAwarded: md3Result.pointsAwarded });
 
       // R32
       const qualified = await get32QualifiedTeams();
@@ -479,7 +498,7 @@ module.exports = async (req, res) => {
       const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
       for (let r = 2; r <= 6; r++) {
         const result = await doKORound(r);
-        summary.survivorsPerStage.push({ stage: roundNames[r], pointsAwarded: result.pointsAwarded, top5: result.top5 });
+        summary.survivorsPerStage.push({ stage: roundNames[r], pointsAwarded: result.pointsAwarded });
         if (r < 6) await advanceKO(r);
       }
 
