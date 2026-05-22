@@ -38,6 +38,20 @@
           <label>Password</label>
           <input type="password" id="password" class="form-input" required>
         </div>
+        
+        <!-- Admin Registration -->
+        <div class="form-group admin-toggle">
+          <label class="checkbox-label">
+            <input type="checkbox" id="is-admin" onchange="toggleAdminPin()">
+            <span>Register as Admin</span>
+          </label>
+        </div>
+        <div class="form-group admin-pin" id="admin-pin-group" style="display: none;">
+          <label>Admin PIN</label>
+          <input type="password" id="admin-pin" class="form-input" placeholder="Enter admin PIN">
+          <small class="form-hint">Contact site owner for admin PIN</small>
+        </div>
+        
         <button type="submit" class="btn btn-primary btn-block">Register</button>
       </form>
       <p class="text-center mt-3">
@@ -46,6 +60,53 @@
     </div>
   </main>
 
-  <script src="js/app.js"></script>
+  <script>
+    function toggleAdminPin() {
+      const isAdmin = document.getElementById('is-admin').checked;
+      const pinGroup = document.getElementById('admin-pin-group');
+      pinGroup.style.display = isAdmin ? 'block' : 'none';
+      if (isAdmin) {
+        document.getElementById('admin-pin').focus();
+      }
+    }
+    
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const displayName = document.getElementById('display-name').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const isAdmin = document.getElementById('is-admin').checked;
+      const adminPin = document.getElementById('admin-pin').value;
+      
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'register',
+            username,
+            display_name: displayName,
+            email,
+            password,
+            is_admin: isAdmin,
+            admin_pin: adminPin
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert(data.message);
+          window.location.href = 'login.html';
+        } else {
+          alert(data.error || 'Registration failed');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    });
+  </script>
 </body>
 </html>

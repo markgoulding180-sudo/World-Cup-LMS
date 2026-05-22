@@ -4,15 +4,6 @@ const { createClient } = require('@supabase/supabase-js');
 const FIXTURE_URL = 'https://fixturedownload.com/feed/json/fifa-world-cup-2026';
 const FAKE_ID = '00000000-0000-0000-0000-000000000000';
 
-// Permanent admin user - never deleted during reset
-const PERMANENT_ADMIN = {
-  id: '11111111-1111-1111-1111-111111111111',
-  email: 'admin@worldcuplms.com',
-  password: 'Admin123!',
-  username: 'admin',
-  display_name: 'Admin'
-};
-
 const TEAM_MAPPINGS = {
   'Korea Republic': 'South Korea',
   'Czechia': 'Czech Republic',
@@ -100,62 +91,59 @@ module.exports = async (req, res) => {
   if (action === 'reset') {
     if (confirmVal !== 'RESET') return res.status(400).json({ error: 'Send confirm: "RESET"' });
     try {
-      // Delete all data EXCEPT permanent admin
-      await supabase.from('picks').delete().neq('user_id', PERMANENT_ADMIN.id);
-      await supabase.from('tournament_entries').delete().neq('user_id', PERMANENT_ADMIN.id);
+      // Get all admin user IDs first
+      const { data: adminUsers } = await supabase.from('users').select('id').eq('is_admin', true);
+      const adminIds = adminUsers?.map(u => u.id) || [];
+      
+      // Delete all picks except from admins
+      if (adminIds.length > 0) {
+        await supabase.from('picks').delete().not('user_id', 'in', `(${adminIds.join(',')})`);
+      } else {
+        await supabase.from('picks').delete().neq('id', FAKE_ID);
+      }
+      
+      // Delete all tournament entries except from admins
+      if (adminIds.length > 0) {
+        await supabase.from('tournament_entries').delete().not('user_id', 'in', `(${adminIds.join(',')})`);
+      } else {
+        await supabase.from('tournament_entries').delete().neq('id', FAKE_ID);
+      }
+      
       await supabase.from('matches').delete().neq('id', FAKE_ID);
       await supabase.from('rounds').delete().neq('id', FAKE_ID);
       await supabase.from('tournaments').delete().neq('id', FAKE_ID);
       await supabase.from('teams').delete().neq('id', FAKE_ID);
-      await supabase.from('users').delete().neq('id', PERMANENT_ADMIN.id);
+      
+      // Delete users except admins
+      if (adminIds.length > 0) {
+        await supabase.from('users').delete().not('id', 'in', `(${adminIds.join(',')})`);
+      } else {
+        await supabase.from('users').delete().neq('id', FAKE_ID);
+      }
+      
       await supabase.from('master_clock').upsert({ id: 'current', current_round: 1, current_matchday: 1, status: 'upcoming' });
       
-      // Delete auth users except permanent admin
+      // Delete auth users except admins
       const { data: { users: authUsers }, error: listError } = await supabase.auth.admin.listUsers();
       let deletedCount = 0;
       if (!listError && authUsers) { 
         for (const u of authUsers) {
-          if (u.id !== PERMANENT_ADMIN.id) {
+          if (!adminIds.includes(u.id)) {
             await supabase.auth.admin.deleteUser(u.id);
             deletedCount++;
           }
         }
       }
-      return res.status(200).json({ success: true, authAccountsDeleted: deletedCount, message: `All data cleared except admin user. ${deletedCount} auth account(s) deleted.` });
+      return res.status(200).json({ success: true, authAccountsDeleted: deletedCount, adminUsersPreserved: adminIds.length, message: `All data cleared except ${adminIds.length} admin user(s). ${deletedCount} auth account(s) deleted.` });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
   // ── SETUP ──────────────────────────────────────────────────
   if (action === 'setup') {
     try {
-      // Create permanent admin user if doesn't exist
-      let adminUser = null;
-      try {
-        const { data: existingAdmin } = await supabase.auth.admin.getUserById(PERMANENT_ADMIN.id);
-        if (existingAdmin?.user) {
-          adminUser = existingAdmin.user;
-        } else {
-          throw new Error('Admin not found');
-        }
-      } catch {
-        // Create admin user
-        const { data: newAdmin, error: adminErr } = await supabase.auth.admin.createUser({
-          id: PERMANENT_ADMIN.id,
-          email: PERMANENT_ADMIN.email,
-          password: PERMANENT_ADMIN.password,
-          email_confirm: true
-        });
-        if (!adminErr && newAdmin?.user) {
-          adminUser = newAdmin.user;
-          // Insert into users table
-          await supabase.from('users').upsert({
-            id: PERMANENT_ADMIN.id,
-            username: PERMANENT_ADMIN.username,
-            display_name: PERMANENT_ADMIN.display_name,
-            is_admin: true
-          });
-        }
-      }
+      // Count admin users
+      const { data: adminUsers } = await supabase.from('users').select('id').eq('is_admin', true);
+      const adminCount = adminUsers?.length || 0;
 
       const { data: tournament, error: tErr } = await supabase.from('tournaments').insert({ name: 'World Cup 2026 Last Man Standing', entry_fee: 30, prize_pool: 0, max_players: 100, current_players: 0, status: 'open' }).select().single();
       if (tErr) return res.status(500).json({ error: 'Failed to create tournament: ' + tErr.message });
@@ -199,8 +187,8 @@ module.exports = async (req, res) => {
         teamsAdded: masterTeams.length, 
         matchesImported: matches.length, 
         missingTeams: missingTeams.length > 0 ? [...new Set(missingTeams)] : null,
-        adminUser: adminUser ? { email: PERMANENT_ADMIN.email, password: PERMANENT_ADMIN.password } : null,
-        message: `Tournament ready. ${masterTeams.length} teams, 6 rounds, ${matches.length} group stage matches imported.` 
+        adminUsers: adminCount,
+        message: `Tournament ready. ${masterTeams.length} teams, 6 rounds, ${matches.length} group stage matches imported. ${adminCount} admin user(s) preserved.` 
       });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }

@@ -74,16 +74,30 @@ module.exports = async (req, res) => {
   // REGISTER
   if (action === 'register') {
     try {
-      const { email, password, username, display_name } = data;
+      const { email, password, username, display_name, is_admin, admin_pin } = data;
       
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
       }
 
-      // Create auth user
+      // Verify admin pin if claiming to be admin
+      let userIsAdmin = false;
+      if (is_admin) {
+        if (admin_pin !== '1234') {
+          return res.status(403).json({ error: 'Invalid admin PIN' });
+        }
+        userIsAdmin = true;
+      }
+
+      // Create auth user with admin flag in metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            is_admin: userIsAdmin
+          }
+        }
       });
 
       if (authError) {
@@ -95,14 +109,15 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: 'User creation failed - no user returned' });
       }
 
-      // Create user profile (trigger may also do this, so use upsert to avoid conflict)
+      // Create user profile with is_admin flag
       const { error: profileError } = await supabase
         .from('users')
         .upsert({
           id: authData.user.id,
           username: (username || email.split('@')[0])?.slice(0, 20),
           display_name: (display_name || email.split('@')[0])?.slice(0, 20),
-          email
+          email,
+          is_admin: userIsAdmin
         }, { onConflict: 'id' });
 
       if (profileError) {
@@ -112,7 +127,8 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: 'Registration successful'
+        message: userIsAdmin ? 'Admin registration successful' : 'Registration successful',
+        is_admin: userIsAdmin
       });
 
     } catch (error) {
