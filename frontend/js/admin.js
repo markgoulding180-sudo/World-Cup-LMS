@@ -1,4 +1,4 @@
-// Admin panel JavaScript - v6
+// Admin panel JavaScript - v7 - Points-based System
 
 const ADMIN_PIN = '1234';
 let currentUserBatch = 0;
@@ -123,7 +123,7 @@ async function submitResult(matchId) {
       body: JSON.stringify({ match_id: matchId, home_score: parseInt(homeScore), away_score: parseInt(awayScore) })
     });
     const data = await response.json();
-    if (response.ok) { alert(`Result saved!\n${data.match.home} ${data.match.score} ${data.match.away}`); loadAdminData(); }
+    if (response.ok) { alert(`Result saved!\n${data.match.home} ${data.match.score} ${data.match.away}\nPoints awarded: ${data.pointsAwarded || 0}`); loadAdminData(); }
     else alert('Error: ' + data.error);
   } catch (error) { alert('Error saving result: ' + error.message); }
 }
@@ -138,7 +138,8 @@ async function loadAllPicks() {
     let html = `<div class="picks-summary"><span class="pick-stat">Total: ${data.totalPicks}</span><span class="pick-stat pending">Pending: ${data.stats.pending}</span><span class="pick-stat win">Wins: ${data.stats.win}</span><span class="pick-stat loss">Losses: ${data.stats.loss}</span></div><div class="picks-list">`;
     data.picks.forEach(pick => {
       const statusClass = pick.result === 'pending' ? 'status-pending' : pick.result === 'win' ? 'status-win' : 'status-loss';
-      html += `<div class="pick-item"><div class="pick-user"><strong>${pick.users?.display_name || 'Unknown'}</strong><span class="pick-round">${pick.rounds?.name || ''}</span></div><div class="pick-team"><img src="${pick.teams?.flag_url}" alt="" class="pick-flag"><span>${pick.teams?.name}</span></div><span class="pick-result ${statusClass}">${pick.result}</span></div>`;
+      const pointsDisplay = pick.points > 0 ? ` (+${pick.points} pts)` : '';
+      html += `<div class="pick-item"><div class="pick-user"><strong>${pick.users?.display_name || 'Unknown'}</strong><span class="pick-round">${pick.rounds?.name || ''}</span></div><div class="pick-team"><img src="${pick.teams?.flag_url}" alt="" class="pick-flag"><span>${pick.teams?.name}</span></div><span class="pick-result ${statusClass}">${pick.result}${pointsDisplay}</span></div>`;
     });
     html += '</div>';
     container.innerHTML = html;
@@ -160,7 +161,7 @@ async function updateResultsFromFixturedownload() {
     const response = await fetch('/api/update-results', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } });
     const data = await response.json();
     if (response.ok) {
-      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Results updated!</p><p>Matches updated: ${data.matchesUpdated || 0}</p><p>Lives deducted: ${data.livesDeducted || 0}</p><p>Players eliminated: ${data.playersEliminated || 0}</p>`;
+      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Results updated!</p><p>Matches updated: ${data.matchesUpdated || 0}</p><p>Points awarded: ${data.pointsAwarded || 0}</p>`;
       loadAdminData();
     } else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
@@ -214,7 +215,7 @@ async function resetAllData() {
 
 // ─── SETUP TOURNAMENT ─────────────────────────────────────
 async function setupTournament() {
-  const confirmed = confirm('Setup the World Cup 2026 Last Man Standing tournament?\n\n£30 entry | 100 players max | 3 lives\n\nMake sure you have run Reset All Data first.');
+  const confirmed = confirm('Setup the World Cup 2026 Last Man Standing tournament?\n\n£30 entry | 100 players max | Points-based system\n\nMake sure you have run Reset All Data first.');
   if (!confirmed) return;
   const statusDiv = document.getElementById('setup-status');
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Setting up tournament...</p>';
@@ -222,21 +223,6 @@ async function setupTournament() {
     const response = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'setup', admin_pin: '1234' }) });
     const data = await response.json();
     if (response.ok) { statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Tournament ready!</p><p>Teams: ${data.teamsAdded} | Matches: ${data.matchesImported}</p>${data.missingTeams ? `<p style="color:orange;">Missing teams: ${data.missingTeams.join(', ')}</p>` : ''}<p>${data.message}</p>`; loadAdminData(); }
-    else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
-  } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
-}
-
-// ─── SET LIVES (live tournament) ──────────────────────────
-async function setLives() {
-  const lives = parseInt(document.getElementById('lives-select').value);
-  const confirmed = confirm(`Set lives to ${lives} for all active players?`);
-  if (!confirmed) return;
-  const statusDiv = document.getElementById('lives-status');
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Updating lives...</p>';
-  try {
-    const response = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'set_lives', lives, admin_pin: '1234' }) });
-    const data = await response.json();
-    if (response.ok) { statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>`; loadAdminData(); }
     else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
 }
@@ -279,7 +265,6 @@ async function simRegisterUsers() {
 
 // Run a simulation — reuses existing users, clears game data, runs full tournament
 async function runSimulation() {
-  const simLives = parseInt(document.getElementById('sim-lives-select').value) || 5;
   const statusDiv = document.getElementById('sim-run-status');
 
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Running simulation... (30-60 seconds, please wait)</p>';
@@ -288,14 +273,14 @@ async function runSimulation() {
     const response = await fetch('/api/reset-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'sim_run', sim_lives: simLives, admin_pin: '1234' })
+      body: JSON.stringify({ action: 'sim_run', admin_pin: '1234' })
     });
 
     const data = await response.json();
 
     if (response.ok && data.summary) {
       // Add to local history
-      simHistory.push({ summary: data.summary, sim_number: data.summary.simNumber, lives_setting: simLives, total_users: data.summary.totalUsers, winner: data.summary.winner, final_survivors: data.summary.finalSurvivors });
+      simHistory.push({ summary: data.summary, sim_number: data.summary.simNumber, total_users: data.summary.totalUsers, winner: data.summary.winner, final_top5: data.summary.finalTop5 });
       currentSimIndex = simHistory.length - 1;
       renderSimResult(simHistory[currentSimIndex]);
       updateSimNav();
@@ -317,23 +302,30 @@ function renderSimResult(sim) {
   const s = sim.summary || sim;
   const stages = s.survivorsPerStage || [];
 
-  // Find round with most eliminations
-  let worstRound = { stage: 'N/A', eliminated: 0 };
-  stages.forEach(st => { if ((st.eliminated || 0) > worstRound.eliminated) worstRound = st; });
+  // Find stage with most points awarded
+  let bestStage = { stage: 'N/A', pointsAwarded: 0 };
+  stages.forEach(st => { if ((st.pointsAwarded || 0) > bestStage.pointsAwarded) bestStage = st; });
 
   const stagesHtml = stages.map(stage => {
-    const dist = stage.livesDistribution || {};
-    const distHtml = Object.entries(dist).sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
-      .map(([lives, count]) => `<span style="color: ${lives === '0' ? '#ef4444' : lives === '1' ? 'orange' : 'var(--accent-green)'};">${lives}♥ = ${count}</span>`)
-      .join(' &nbsp;|&nbsp; ');
+    const top5 = stage.top5 || [];
+    const top5Html = top5.slice(0, 3).map((p, i) => 
+      `<span style="color: ${i === 0 ? 'gold' : i === 1 ? '#c0c0c0' : '#cd7f32'};">${p.name} (${p.points})</span>`
+    ).join(', ');
     return `
       <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
         <td style="padding: 0.4rem 0.6rem;">${stage.stage}</td>
-        <td style="padding: 0.4rem 0.6rem; text-align: center; color: var(--accent-green);">${stage.survivors}</td>
-        <td style="padding: 0.4rem 0.6rem; text-align: center; color: ${(stage.eliminated||0) > 0 ? 'orange' : 'inherit'};">${stage.eliminated || 0}</td>
-        <td style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">${distHtml}</td>
+        <td style="padding: 0.4rem 0.6rem; text-align: center; color: var(--accent-green);">+${stage.pointsAwarded || 0}</td>
+        <td style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">${top5Html}</td>
       </tr>`;
   }).join('');
+
+  const finalTop5 = s.finalTop5 || [];
+  const finalTop5Html = finalTop5.map((p, i) => 
+    `<div style="display: flex; justify-content: space-between; padding: 0.3rem 0; ${i === 0 ? 'color: gold; font-weight: bold;' : ''}">
+      <span>${i + 1}. ${p.name}</span>
+      <span>${p.points} pts (${p.wins} wins)</span>
+    </div>`
+  ).join('');
 
   container.innerHTML = `
     <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem; border: 1px solid #9333ea;">
@@ -347,26 +339,20 @@ function renderSimResult(sim) {
           <div style="font-size: 1.2rem; font-weight: bold;">${sim.total_users || s.totalUsers}</div>
         </div>
         <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
-          <div style="font-size: 0.75rem; color: var(--text-secondary);">Starting Lives</div>
-          <div style="font-size: 1.2rem; font-weight: bold; color: var(--accent-green);">${sim.lives_setting || s.sim_lives}</div>
-        </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
-          <div style="font-size: 0.75rem; color: var(--text-secondary);">Final Survivors</div>
-          <div style="font-size: 1.2rem; font-weight: bold;">${sim.final_survivors ?? s.finalSurvivors}</div>
-        </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
-          <div style="font-size: 0.75rem; color: var(--text-secondary);">Most Eliminations</div>
-          <div style="font-size: 0.85rem; font-weight: bold; color: orange;">${worstRound.stage}</div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary);">Winner</div>
+          <div style="font-size: 1rem; font-weight: bold; color: gold;">${sim.winner || s.winner}</div>
         </div>
       </div>
-      <p style="color: gold; font-size: 1rem; margin-bottom: 1rem;">🥇 Winner: <strong>${sim.winner || s.winner}</strong></p>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">Final Standings:</p>
+      <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 0.4rem; margin-bottom: 1rem;">
+        ${finalTop5Html}
+      </div>
       <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
         <thead>
           <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
             <th style="padding: 0.4rem 0.6rem; text-align: left;">Stage</th>
-            <th style="padding: 0.4rem 0.6rem;">Survivors</th>
-            <th style="padding: 0.4rem 0.6rem;">Eliminated</th>
-            <th style="padding: 0.4rem 0.6rem; text-align: left;">Lives Distribution</th>
+            <th style="padding: 0.4rem 0.6rem;">Points</th>
+            <th style="padding: 0.4rem 0.6rem; text-align: left;">Top 3</th>
           </tr>
         </thead>
         <tbody>${stagesHtml}</tbody>
@@ -441,7 +427,7 @@ async function simulateResults(matchday) {
   try {
     const response = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'simulate_results', matchday, admin_pin: '1234' }) });
     const data = await response.json();
-    if (response.ok) { statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>${data.eliminations > 0 ? `<p style="color:orange;">⚠️ ${data.eliminations} users eliminated!</p>` : ''}`; loadAdminData(); }
+    if (response.ok) { statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>`; loadAdminData(); }
     else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
 }
@@ -492,7 +478,10 @@ async function simulateKnockoutResults(roundNumber) {
   try {
     const response = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'simulate_knockout_results', round_number: roundNumber, admin_pin: '1234' }) });
     const data = await response.json();
-    if (response.ok) { statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>${data.eliminations > 0 ? `<p style="color:orange;">⚠️ ${data.eliminations} users eliminated!</p>` : ''}${data.winner ? `<p style="color:gold; font-size:1.1rem;">🏆 Tournament Winner: ${data.winner}!</p>` : ''}`; loadAdminData(); }
+    if (response.ok) { 
+      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>${data.winner ? `<p style="color:gold; font-size:1.1rem;">🏆 Tournament Winner: ${data.winner}!</p>` : ''}`; 
+      loadAdminData(); 
+    }
     else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
 }

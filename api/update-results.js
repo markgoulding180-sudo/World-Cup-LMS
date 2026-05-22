@@ -1,6 +1,5 @@
 // Vercel Function: Auto-update results from football-data.org
-// Replaces fixturedownload.com which has large delays on results
-// football-data.org updates within minutes of full time
+// Points-based system - awards points for wins instead of deducting lives
 const { createClient } = require('@supabase/supabase-js');
 
 const FOOTBALL_DATA_URL = 'https://api.football-data.org/v4/competitions/WC/matches?season=2026';
@@ -20,6 +19,16 @@ const TEAM_MAPPINGS = {
   'USA': 'United States',
   'Korea DPR': 'North Korea',
   'Kyrgyz Republic': 'Kyrgyzstan'
+};
+
+// Points structure for each round
+const POINTS_STRUCTURE = {
+  1: 2,  // Group Stage = 2 points
+  2: 4,  // Round of 32 = 4 points
+  3: 6,  // Round of 16 = 6 points
+  4: 8,  // Quarter Finals = 8 points
+  5: 10, // Semi Finals = 10 points
+  6: 15  // Final = 15 points
 };
 
 function normaliseTeamName(name) {
@@ -87,8 +96,7 @@ module.exports = async (req, res) => {
         message: 'No finished matches found yet.',
         matchesUpdated: 0,
         picksProcessed: 0,
-        livesDeducted: 0,
-        playersEliminated: 0
+        pointsAwarded: 0
       });
     }
 
@@ -112,13 +120,12 @@ module.exports = async (req, res) => {
     // ── Load all unfinished DB matches ────────────────────
     const { data: dbMatches } = await supabase
       .from('matches')
-      .select('id, home_team_id, away_team_id, status, round_id, matchday')
+      .select('id, home_team_id, away_team_id, status, round_id, matchday, rounds:round_id(round_number)')
       .eq('status', 'upcoming');
 
     let matchesUpdated = 0;
     let picksProcessed = 0;
-    let livesDeducted = 0;
-    let playersEliminated = 0;
+    let pointsAwarded = 0;
     const skipped = [];
 
     // ── Process each finished fixture ─────────────────────
@@ -153,6 +160,10 @@ module.exports = async (req, res) => {
       else if (awayScore > homeScore) result = 'A';
       else result = 'D';
 
+      // Get round number for points calculation
+      const roundNumber = dbMatch.rounds?.round_number || 1;
+      const pointsForWin = POINTS_STRUCTURE[roundNumber] || 2;
+
       // ── Update match record ───────────────────────────
       const { error: matchUpdateError } = await supabase
         .from('matches')
@@ -179,60 +190,40 @@ module.exports = async (req, res) => {
         ? [homeTeamId, awayTeamId]
         : [result === 'H' ? awayTeamId : homeTeamId];
 
-      // Mark winning picks
+      // Mark winning picks and award points
       if (winningTeamId) {
         await supabase
           .from('picks')
-          .update({ result: 'win' })
+          .update({ result: 'win', points: pointsForWin })
           .eq('team_id', winningTeamId)
           .eq('result', 'pending');
+
+        // Update tournament entries with points and wins
+        const { data: winningPicks } = await supabase
+          .from('picks')
+          .select('user_id')
+          .eq('team_id', winningTeamId)
+          .eq('result', 'win');
+
+        for (const pick of winningPicks || []) {
+          picksProcessed++;
+          
+          // Increment points and wins
+          await supabase.rpc('increment_points', { 
+            user_id: pick.user_id, 
+            points: pointsForWin 
+          });
+          pointsAwarded += pointsForWin;
+        }
       }
 
-      // Mark losing picks
+      // Mark losing picks (0 points)
       for (const losingTeamId of losingTeamIds) {
         await supabase
           .from('picks')
-          .update({ result: 'loss' })
+          .update({ result: 'loss', points: 0 })
           .eq('team_id', losingTeamId)
           .eq('result', 'pending');
-      }
-
-      // ── Deduct lives for each losing pick ────────────
-      for (const losingTeamId of losingTeamIds) {
-        const { data: losingPicks } = await supabase
-          .from('picks')
-          .select('user_id')
-          .eq('result', 'loss')
-          .eq('team_id', losingTeamId);
-
-        for (const pick of losingPicks || []) {
-          picksProcessed++;
-
-          const { data: entry } = await supabase
-            .from('tournament_entries')
-            .select('lives_remaining, tournament_id')
-            .eq('user_id', pick.user_id)
-            .single();
-
-          if (entry && entry.lives_remaining > 0) {
-            const newLives = Math.max(0, entry.lives_remaining - 1);
-            livesDeducted++;
-
-            await supabase
-              .from('tournament_entries')
-              .update({
-                lives_remaining: newLives,
-                ...(newLives === 0 ? {
-                  status: 'eliminated',
-                  eliminated_at: new Date().toISOString()
-                } : {})
-              })
-              .eq('user_id', pick.user_id)
-              .eq('tournament_id', entry.tournament_id);
-
-            if (newLives === 0) playersEliminated++;
-          }
-        }
       }
     }
 
@@ -242,10 +233,9 @@ module.exports = async (req, res) => {
       finishedFixturesFromAPI: finishedFixtures.length,
       matchesUpdated,
       picksProcessed,
-      livesDeducted,
-      playersEliminated,
+      pointsAwarded,
       skipped: skipped.length > 0 ? skipped : null,
-      message: `Updated ${matchesUpdated} matches. ${livesDeducted} lives deducted. ${playersEliminated} players eliminated.`
+      message: `Updated ${matchesUpdated} matches. ${pointsAwarded} points awarded.`
     });
 
   } catch (error) {

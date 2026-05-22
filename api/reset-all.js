@@ -17,6 +17,16 @@ const TEAM_MAPPINGS = {
   'United States': 'USA'
 };
 
+// Points structure for each round
+const POINTS_STRUCTURE = {
+  1: 2,  // Group Stage = 2 points
+  2: 4,  // Round of 32 = 4 points
+  3: 6,  // Round of 16 = 6 points
+  4: 8,  // Quarter Finals = 8 points
+  5: 10, // Semi Finals = 10 points
+  6: 15  // Final = 15 points
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -98,7 +108,7 @@ module.exports = async (req, res) => {
   // ── SETUP ──────────────────────────────────────────────────
   if (action === 'setup') {
     try {
-      const { data: tournament, error: tErr } = await supabase.from('tournaments').insert({ name: 'World Cup 2026 Last Man Standing', entry_fee: 30, prize_pool: 0, max_players: 100, current_players: 0, lives: 3, status: 'open' }).select().single();
+      const { data: tournament, error: tErr } = await supabase.from('tournaments').insert({ name: 'World Cup 2026 Last Man Standing', entry_fee: 30, prize_pool: 0, max_players: 100, current_players: 0, status: 'open' }).select().single();
       if (tErr) return res.status(500).json({ error: 'Failed to create tournament: ' + tErr.message });
 
       const { data: masterTeams, error: mErr } = await supabase.from('master_teams').select('*');
@@ -139,26 +149,12 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
-  // ── SET LIVES (live tournament) ────────────────────────────
-  if (action === 'set_lives') {
-    const { lives } = req.body;
-    if (!lives || lives < 1 || lives > 20) return res.status(400).json({ error: 'Lives must be 1-20' });
-    try {
-      const { data: t } = await supabase.from('tournaments').select('id').single();
-      if (!t) return res.status(400).json({ error: 'No tournament found' });
-      await supabase.from('tournaments').update({ lives }).eq('id', t.id);
-      const { data: updated } = await supabase.from('tournament_entries').update({ lives_remaining: lives, max_lives: lives }).eq('tournament_id', t.id).eq('status', 'active').select();
-      return res.status(200).json({ success: true, lives, entriesUpdated: updated?.length || 0, message: `Lives set to ${lives}. Updated ${updated?.length || 0} active entries.` });
-    } catch (error) { return res.status(500).json({ error: error.message }); }
-  }
-
   // ── SIMULATE USERS (step-by-step) ─────────────────────────
   if (action === 'simulate_users') {
     const { batch = 0 } = req.body;
     try {
-      const { data: t } = await supabase.from('tournaments').select('id, lives').single();
+      const { data: t } = await supabase.from('tournaments').select('id').single();
       if (!t) return res.status(400).json({ error: 'No tournament found.' });
-      const startLives = t.lives || 3;
       let registered = 0; let entered = 0;
       for (let i = batch * 10 + 1; i <= batch * 10 + 10; i++) {
         const email = `player${i}@wc2026.test`;
@@ -167,7 +163,7 @@ module.exports = async (req, res) => {
           if (authErr || !authData.user) continue;
           registered++;
           await supabase.from('users').insert({ id: authData.user.id, username: `player${i}`, display_name: `Player ${i}`, email });
-          await supabase.from('tournament_entries').insert({ tournament_id: t.id, user_id: authData.user.id, status: 'active', lives_remaining: startLives, max_lives: startLives });
+          await supabase.from('tournament_entries').insert({ tournament_id: t.id, user_id: authData.user.id, status: 'active', total_points: 0, wins: 0 });
           entered++;
         } catch (e) { /* skip */ }
       }
@@ -182,7 +178,7 @@ module.exports = async (req, res) => {
     try {
       const { data: t } = await supabase.from('tournaments').select('id').single();
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
-      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
       const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', matchday);
       const availableTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
       const userIds = entries.map(e => e.user_id);
@@ -194,7 +190,7 @@ module.exports = async (req, res) => {
         const used = userPicksMap[entry.user_id] || new Set();
         const available = availableTeams.filter(x => !used.has(x));
         const selected = [...available].sort(() => 0.5 - Math.random()).slice(0, 3);
-        for (const teamId of selected) picks.push({ tournament_id: t.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday, result: 'pending' });
+        for (const teamId of selected) picks.push({ tournament_id: t.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday, result: 'pending', points: 0 });
       }
       let picksMade = 0;
       for (let i = 0; i < picks.length; i += 100) { const { error } = await supabase.from('picks').insert(picks.slice(i, i + 100)); if (!error) picksMade += Math.min(100, picks.length - i); }
@@ -208,30 +204,26 @@ module.exports = async (req, res) => {
     if (!matchday) return res.status(400).json({ error: 'Matchday required' });
     try {
       const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
-      let matchesUpdated = 0; let eliminations = 0;
+      let matchesUpdated = 0; let pointsAwarded = 0;
       for (const match of matches) {
         const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
         const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
         const winId = result === 'H' ? match.home_team_id : result === 'A' ? match.away_team_id : null;
         const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
         await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
-        if (winId) await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
-        for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss' }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
+        if (winId) {
+          await supabase.from('picks').update({ result: 'win', points: POINTS_STRUCTURE[1] }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+          // Update entry points and wins
+          const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
+          for (const pick of winningPicks || []) {
+            await supabase.rpc('increment_points', { user_id: pick.user_id, points: POINTS_STRUCTURE[1] });
+            pointsAwarded += POINTS_STRUCTURE[1];
+          }
+        }
+        for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
         matchesUpdated++;
       }
-      const { data: losingPicks } = await supabase.from('picks').select('user_id').eq('matchday', matchday).eq('result', 'loss');
-      const userLosses = {};
-      losingPicks?.forEach(p => { userLosses[p.user_id] = (userLosses[p.user_id] || 0) + 1; });
-      const lossIds = Object.keys(userLosses);
-      if (lossIds.length > 0) {
-        const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', lossIds).gt('lives_remaining', 0);
-        await Promise.all((allEntries || []).map(async entry => {
-          const newLives = Math.max(0, entry.lives_remaining - (userLosses[entry.user_id] || 0));
-          if (newLives === 0) eliminations++;
-          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
-        }));
-      }
-      return res.status(200).json({ success: true, matchesUpdated, eliminations, message: `Updated ${matchesUpdated} matches. ${eliminations} users eliminated.` });
+      return res.status(200).json({ success: true, matchesUpdated, pointsAwarded, message: `Updated ${matchesUpdated} matches. ${pointsAwarded} points awarded.` });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
@@ -281,7 +273,7 @@ module.exports = async (req, res) => {
     try {
       const { data: t } = await supabase.from('tournaments').select('id').single();
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
-      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
       const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('round_id', round.id);
       const available = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
       const userIds = entries.map(e => e.user_id);
@@ -292,7 +284,7 @@ module.exports = async (req, res) => {
       for (const entry of entries) {
         const used = userPicksMap[entry.user_id] || new Set();
         const avail = available.filter(x => !used.has(x));
-        if (avail.length > 0) picks.push({ tournament_id: t.id, user_id: entry.user_id, round_id: round.id, team_id: avail[Math.floor(Math.random() * avail.length)], matchday: null, result: 'pending' });
+        if (avail.length > 0) picks.push({ tournament_id: t.id, user_id: entry.user_id, round_id: round.id, team_id: avail[Math.floor(Math.random() * avail.length)], matchday: null, result: 'pending', points: 0 });
       }
       let picksMade = 0;
       for (let i = 0; i < picks.length; i += 100) { const { error } = await supabase.from('picks').insert(picks.slice(i, i + 100)); if (!error) picksMade += Math.min(100, picks.length - i); }
@@ -307,7 +299,8 @@ module.exports = async (req, res) => {
     try {
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
       const { data: matches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
-      let matchesUpdated = 0; let eliminations = 0;
+      let matchesUpdated = 0; let pointsAwarded = 0;
+      const pointsForRound = POINTS_STRUCTURE[round_number] || 2;
       for (const match of matches) {
         let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
         if (hs === as) { hs > 0 ? as-- : hs++; }
@@ -315,38 +308,29 @@ module.exports = async (req, res) => {
         const winId = result === 'H' ? match.home_team_id : match.away_team_id;
         const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
         await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
-        await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
-        await supabase.from('picks').update({ result: 'loss' }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+        await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
+        await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+        // Update entry points and wins
+        const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+        for (const pick of winningPicks || []) {
+          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
+          pointsAwarded += pointsForRound;
+        }
         matchesUpdated++;
-      }
-      const { data: losingPicks } = await supabase.from('picks').select('user_id').eq('round_id', round.id).eq('result', 'loss');
-      const losingUserIds = [...new Set((losingPicks || []).map(p => p.user_id))];
-      if (losingUserIds.length > 0) {
-        const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', losingUserIds).gt('lives_remaining', 0);
-        await Promise.all((allEntries || []).map(async entry => {
-          const newLives = entry.lives_remaining - 1;
-          if (newLives === 0) eliminations++;
-          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: round_number } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
-        }));
       }
       let winner = null;
       if (round_number === 6) {
-        const { data: survivors } = await supabase.from('tournament_entries').select('users:user_id(display_name)').eq('status', 'active').limit(3);
-        winner = survivors?.[0]?.users?.display_name || 'No winner (all eliminated)';
+        const { data: topEntries } = await supabase.from('tournament_entries').select('*, users:user_id(display_name)').order('total_points', { ascending: false }).limit(1);
+        winner = topEntries?.[0]?.users?.display_name || 'No winner';
       }
-      return res.status(200).json({ success: true, matchesUpdated, eliminations, winner, message: `Updated ${matchesUpdated} matches. ${eliminations} users eliminated.` });
+      return res.status(200).json({ success: true, matchesUpdated, pointsAwarded, winner, message: `Updated ${matchesUpdated} matches. ${pointsAwarded} points awarded.` });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
   // ── SIM_RUN — THE MAIN SIMULATION BUTTON ──────────────────
-  // Clears picks/entries/KO matches, keeps users + group matches
-  // Re-enters all users with chosen lives
-  // Runs full tournament, saves to simulations table
-  // Safe to run repeatedly — builds up sim history
   if (action === 'sim_run') {
-    const { sim_lives = 5 } = req.body;
     try {
-      const { data: tournament } = await supabase.from('tournaments').select('id, lives').single();
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
       if (!tournament) return res.status(400).json({ error: 'No tournament found. Run Setup first.' });
 
       const { data: allUsers } = await supabase.from('users').select('id, display_name');
@@ -365,35 +349,25 @@ module.exports = async (req, res) => {
       // Reset group stage matches to upcoming
       await supabase.from('matches').update({ status: 'upcoming', home_score: null, away_score: null, result: null }).in('matchday', [1, 2, 3]);
 
-      // Re-enter all users with chosen lives
+      // Re-enter all users with 0 points
       await supabase.from('tournament_entries').insert(
-        allUsers.map(u => ({ tournament_id: tournament.id, user_id: u.id, status: 'active', lives_remaining: sim_lives, max_lives: sim_lives }))
+        allUsers.map(u => ({ tournament_id: tournament.id, user_id: u.id, status: 'active', total_points: 0, wins: 0 }))
       );
 
       // Get next sim number
       const { count: simCount } = await supabase.from('simulations').select('*', { count: 'exact', head: true });
       const simNumber = (simCount || 0) + 1;
 
-      const summary = { simNumber, totalUsers, sim_lives, survivorsPerStage: [], winner: null, finalSurvivors: 0, teamsQualifiedForR32: 32 };
+      const summary = { simNumber, totalUsers, survivorsPerStage: [], winner: null, finalTop5: [], teamsQualifiedForR32: 32 };
 
-      const countSurvivors = async () => {
-        const { count } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
-        return count || 0;
-      };
-
-      const livesSnapshot = async () => {
-        const { data: entries } = await supabase.from('tournament_entries').select('lives_remaining, status');
-        const dist = {};
-        (entries || []).forEach(e => {
-          const key = e.status === 'eliminated' ? '0' : String(e.lives_remaining);
-          dist[key] = (dist[key] || 0) + 1;
-        });
-        return dist;
+      const getTop5 = async () => {
+        const { data: entries } = await supabase.from('tournament_entries').select('*, users:user_id(display_name)').order('total_points', { ascending: false }).order('wins', { ascending: false }).order('entered_at', { ascending: true }).limit(5);
+        return entries?.map(e => ({ name: e.users?.display_name, points: e.total_points, wins: e.wins })) || [];
       };
 
       const doGroupPicks = async (matchday) => {
         const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
-        const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+        const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
         const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', matchday);
         const availTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
         const userIds = entries.map(e => e.user_id);
@@ -405,41 +379,36 @@ module.exports = async (req, res) => {
           const used = upm[entry.user_id] || new Set();
           const avail = availTeams.filter(t => !used.has(t));
           const selected = [...avail].sort(() => 0.5 - Math.random()).slice(0, 3);
-          for (const teamId of selected) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday, result: 'pending' });
+          for (const teamId of selected) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday, result: 'pending', points: 0 });
         }
         for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
       };
 
       const doGroupResults = async (matchday) => {
         const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
-        let eliminations = 0;
+        let pointsAwarded = 0;
         for (const match of matches) {
           const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
           const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
           const winId = result === 'H' ? match.home_team_id : result === 'A' ? match.away_team_id : null;
           const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
           await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
-          if (winId) await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
-          for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss' }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
+          if (winId) {
+            await supabase.from('picks').update({ result: 'win', points: POINTS_STRUCTURE[1] }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+            const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
+            for (const pick of winningPicks || []) {
+              await supabase.rpc('increment_points', { user_id: pick.user_id, points: POINTS_STRUCTURE[1] });
+              pointsAwarded += POINTS_STRUCTURE[1];
+            }
+          }
+          for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
         }
-        const { data: lp } = await supabase.from('picks').select('user_id').eq('matchday', matchday).eq('result', 'loss');
-        const ul = {};
-        lp?.forEach(p => { ul[p.user_id] = (ul[p.user_id] || 0) + 1; });
-        const lids = Object.keys(ul);
-        if (lids.length > 0) {
-          const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', lids).gt('lives_remaining', 0);
-          await Promise.all((allEntries || []).map(async entry => {
-            const newLives = Math.max(0, entry.lives_remaining - (ul[entry.user_id] || 0));
-            if (newLives === 0) eliminations++;
-            await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
-          }));
-        }
-        return eliminations;
+        return { pointsAwarded, top5: await getTop5() };
       };
 
       const doKORound = async (roundNum) => {
         const { data: round } = await supabase.from('rounds').select('id').eq('round_number', roundNum).single();
-        const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+        const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
         const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('round_id', round.id);
         const userIds = entries.map(e => e.user_id);
         const { data: allPicks } = await supabase.from('picks').select('user_id, team_id').in('user_id', userIds);
@@ -450,12 +419,13 @@ module.exports = async (req, res) => {
         for (const entry of entries) {
           const used = upm[entry.user_id] || new Set();
           const a = avail.filter(t => !used.has(t));
-          if (a.length > 0) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: a[Math.floor(Math.random() * a.length)], matchday: null, result: 'pending' });
+          if (a.length > 0) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: a[Math.floor(Math.random() * a.length)], matchday: null, result: 'pending', points: 0 });
         }
         for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
 
         const { data: koMatches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
-        let eliminations = 0;
+        let pointsAwarded = 0;
+        const pointsForRound = POINTS_STRUCTURE[roundNum] || 2;
         for (const match of koMatches) {
           let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
           if (hs === as) { hs > 0 ? as-- : hs++; }
@@ -463,20 +433,15 @@ module.exports = async (req, res) => {
           const winId = result === 'H' ? match.home_team_id : match.away_team_id;
           const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
           await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
-          await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
-          await supabase.from('picks').update({ result: 'loss' }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+          await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
+          await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+          const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+          for (const pick of winningPicks || []) {
+            await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
+            pointsAwarded += pointsForRound;
+          }
         }
-        const { data: lp } = await supabase.from('picks').select('user_id').eq('round_id', round.id).eq('result', 'loss');
-        const losingIds = [...new Set((lp || []).map(p => p.user_id))];
-        if (losingIds.length > 0) {
-          const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', losingIds).gt('lives_remaining', 0);
-          await Promise.all((allEntries || []).map(async entry => {
-            const newLives = entry.lives_remaining - 1;
-            if (newLives === 0) eliminations++;
-            await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: roundNum } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
-          }));
-        }
-        return { survivors: await countSurvivors(), eliminations };
+        return { pointsAwarded, top5: await getTop5() };
       };
 
       const advanceKO = async (fromRoundNum) => {
@@ -491,16 +456,16 @@ module.exports = async (req, res) => {
 
       // GROUP STAGE
       await doGroupPicks(1);
-      const md1e = await doGroupResults(1);
-      summary.survivorsPerStage.push({ stage: 'Matchday 1', survivors: await countSurvivors(), eliminated: md1e, livesDistribution: await livesSnapshot() });
+      const md1Result = await doGroupResults(1);
+      summary.survivorsPerStage.push({ stage: 'Matchday 1', pointsAwarded: md1Result.pointsAwarded, top5: md1Result.top5 });
 
       await doGroupPicks(2);
-      const md2e = await doGroupResults(2);
-      summary.survivorsPerStage.push({ stage: 'Matchday 2', survivors: await countSurvivors(), eliminated: md2e, livesDistribution: await livesSnapshot() });
+      const md2Result = await doGroupResults(2);
+      summary.survivorsPerStage.push({ stage: 'Matchday 2', pointsAwarded: md2Result.pointsAwarded, top5: md2Result.top5 });
 
       await doGroupPicks(3);
-      const md3e = await doGroupResults(3);
-      summary.survivorsPerStage.push({ stage: 'Matchday 3', survivors: await countSurvivors(), eliminated: md3e, livesDistribution: await livesSnapshot() });
+      const md3Result = await doGroupResults(3);
+      summary.survivorsPerStage.push({ stage: 'Matchday 3', pointsAwarded: md3Result.pointsAwarded, top5: md3Result.top5 });
 
       // R32
       const qualified = await get32QualifiedTeams();
@@ -514,17 +479,17 @@ module.exports = async (req, res) => {
       const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
       for (let r = 2; r <= 6; r++) {
         const result = await doKORound(r);
-        summary.survivorsPerStage.push({ stage: roundNames[r], survivors: result.survivors, eliminated: result.eliminations, livesDistribution: await livesSnapshot() });
-        if (r < 6 && result.survivors > 1) await advanceKO(r);
+        summary.survivorsPerStage.push({ stage: roundNames[r], pointsAwarded: result.pointsAwarded, top5: result.top5 });
+        if (r < 6) await advanceKO(r);
       }
 
       // WINNER
-      const { data: winners } = await supabase.from('tournament_entries').select('users:user_id(display_name)').eq('status', 'active').order('lives_remaining', { ascending: false }).limit(5);
-      summary.winner = winners?.[0]?.users?.display_name || 'No winner (all eliminated)';
-      summary.finalSurvivors = winners?.length || 0;
+      const finalTop5 = await getTop5();
+      summary.finalTop5 = finalTop5;
+      summary.winner = finalTop5[0]?.name || 'No winner';
 
       // SAVE TO DB
-      await supabase.from('simulations').insert({ sim_number: simNumber, total_users: totalUsers, lives_setting: sim_lives, winner: summary.winner, final_survivors: summary.finalSurvivors, summary });
+      await supabase.from('simulations').insert({ sim_number: simNumber, total_users: totalUsers, winner: summary.winner, final_top5: finalTop5, summary });
 
       return res.status(200).json({ success: true, summary, message: `Sim #${simNumber} complete. Winner: ${summary.winner}` });
 

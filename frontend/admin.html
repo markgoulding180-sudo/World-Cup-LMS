@@ -41,7 +41,7 @@
       <h2><i class="fas fa-trophy"></i> Setup Tournament</h2>
       <p>Run after Reset. Creates tournament, copies 48 teams, creates 6 rounds, imports match schedule.</p>
       <ul>
-        <li>✅ Creates tournament: £30 entry | 100 players max | 3 lives</li>
+        <li>✅ Creates tournament: £30 entry | 100 players max | Points-based system</li>
         <li>✅ Copies all 48 teams from master data (with flags)</li>
         <li>✅ Creates all 6 rounds and imports match schedule</li>
       </ul>
@@ -49,20 +49,21 @@
       <div id="setup-status" style="margin-top: 1rem;"></div>
     </div>
 
-    <!-- LIVE TOURNAMENT LIVES -->
-    <div class="admin-card" style="border: 2px solid var(--accent-green);">
-      <h2><i class="fas fa-heart"></i> Change Lives (Live Tournament)</h2>
-      <p>Updates lives for all active real players. Use for the live tournament only — not for simulations.</p>
-      <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1rem 0;">
-        <label for="lives-select"><strong>Lives:</strong></label>
-        <select id="lives-select" style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 1rem; width: 80px;">
-          <option value="1">1</option><option value="2">2</option><option value="3" selected>3</option>
-          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
-        </select>
-        <button class="btn btn-primary" onclick="setLives()" style="background: var(--accent-green);"><i class="fas fa-check"></i> Set Lives</button>
-      </div>
-      <div id="lives-status" style="margin-top: 0.5rem;"></div>
+    <!-- POINTS STRUCTURE INFO -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue);">
+      <h2><i class="fas fa-star"></i> Points Structure</h2>
+      <p>The tournament now uses a points-based system. All players participate through the Final.</p>
+      <ul>
+        <li>🎯 Group Stage win = <strong>2 points</strong></li>
+        <li>🎯 Round of 32 win = <strong>4 points</strong></li>
+        <li>🎯 Round of 16 win = <strong>6 points</strong></li>
+        <li>🎯 Quarter Final win = <strong>8 points</strong></li>
+        <li>🎯 Semi Final win = <strong>10 points</strong></li>
+        <li>🏆 Final win = <strong>15 points</strong></li>
+      </ul>
+      <p style="font-size: 0.9rem; color: var(--text-secondary);">
+        <i class="fas fa-info-circle"></i> Winner = highest total points. Tiebreaker: most wins, then earliest entry.
+      </p>
     </div>
 
     <!-- SIMULATION CARD -->
@@ -88,17 +89,8 @@
 
       <!-- Step 2: Run simulation -->
       <div style="margin: 1rem 0; padding: 1rem; background: rgba(147,51,234,0.1); border-radius: 0.5rem; border-left: 3px solid #9333ea;">
-        <p><strong>Step 2 — Run Simulation</strong> (run as many times as you like — change lives between runs)</p>
-        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 0.5rem 0;">
-          <label><strong>Lives for this sim:</strong></label>
-          <select id="sim-lives-select" style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); width: 80px;">
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-            <option value="4">4</option><option value="5" selected>5</option><option value="6">6</option>
-            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-            <option value="10">10</option><option value="12">12</option><option value="15">15</option>
-          </select>
-          <button class="btn btn-primary" onclick="runSimulation()" style="background: #9333ea; font-size: 1rem; padding: 0.6rem 1.2rem;"><i class="fas fa-bolt"></i> Run Simulation</button>
-        </div>
+        <p><strong>Step 2 — Run Simulation</strong> (run as many times as you like)</p>
+        <button class="btn btn-primary" onclick="runSimulation()" style="background: #9333ea; font-size: 1rem; padding: 0.6rem 1.2rem;"><i class="fas fa-bolt"></i> Run Simulation</button>
         <div id="sim-run-status" style="margin-top: 0.5rem;"></div>
       </div>
 
@@ -165,35 +157,35 @@
         <p><strong>Step 5:</strong> Knockout Stages — Picks → Results → Advance</p>
 
         <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
-          <span style="font-size: 0.85rem; font-weight: bold;">Round of 32:</span><br>
+          <span style="font-size: 0.85rem; font-weight: bold;">Round of 32 (4 pts):</span><br>
           <button class="btn btn-secondary" onclick="simulateKnockoutPicks(2)" style="margin: 0.25rem;">Make Picks</button>
           <button class="btn btn-primary" onclick="simulateKnockoutResults(2)" style="background: #9333ea; margin: 0.25rem;">Results</button>
           <button class="btn btn-primary" onclick="createNextRoundMatches(2)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to R16</button>
         </div>
 
         <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
-          <span style="font-size: 0.85rem; font-weight: bold;">Round of 16:</span><br>
+          <span style="font-size: 0.85rem; font-weight: bold;">Round of 16 (6 pts):</span><br>
           <button class="btn btn-secondary" onclick="simulateKnockoutPicks(3)" style="margin: 0.25rem;">Make Picks</button>
           <button class="btn btn-primary" onclick="simulateKnockoutResults(3)" style="background: #9333ea; margin: 0.25rem;">Results</button>
           <button class="btn btn-primary" onclick="createNextRoundMatches(3)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to QF</button>
         </div>
 
         <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
-          <span style="font-size: 0.85rem; font-weight: bold;">Quarter Finals:</span><br>
+          <span style="font-size: 0.85rem; font-weight: bold;">Quarter Finals (8 pts):</span><br>
           <button class="btn btn-secondary" onclick="simulateKnockoutPicks(4)" style="margin: 0.25rem;">Make Picks</button>
           <button class="btn btn-primary" onclick="simulateKnockoutResults(4)" style="background: #9333ea; margin: 0.25rem;">Results</button>
           <button class="btn btn-primary" onclick="createNextRoundMatches(4)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to SF</button>
         </div>
 
         <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid #ff6b35;">
-          <span style="font-size: 0.85rem; font-weight: bold;">Semi Finals:</span><br>
+          <span style="font-size: 0.85rem; font-weight: bold;">Semi Finals (10 pts):</span><br>
           <button class="btn btn-secondary" onclick="simulateKnockoutPicks(5)" style="margin: 0.25rem;">Make Picks</button>
           <button class="btn btn-primary" onclick="simulateKnockoutResults(5)" style="background: #9333ea; margin: 0.25rem;">Results</button>
           <button class="btn btn-primary" onclick="createNextRoundMatches(5)" style="background: #ff6b35; margin: 0.25rem;">▶ Advance to Final</button>
         </div>
 
         <div style="margin: 0.75rem 0; padding: 0.5rem; border-left: 3px solid gold;">
-          <span style="font-size: 0.85rem; font-weight: bold;">🏆 Final:</span><br>
+          <span style="font-size: 0.85rem; font-weight: bold;">🏆 Final (15 pts):</span><br>
           <button class="btn btn-secondary" onclick="simulateKnockoutPicks(6)" style="margin: 0.25rem;">Make Picks</button>
           <button class="btn btn-primary" onclick="simulateKnockoutResults(6)" style="background: #9333ea; margin: 0.25rem;">Results + Declare Winner</button>
         </div>
@@ -237,7 +229,7 @@
 
   </main>
 
-  <script src="js/app.js?v=6"></script>
-  <script src="js/admin.js?v=6"></script>
+  <script src="js/app.js?v=7"></script>
+  <script src="js/admin.js?v=7"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// Vercel Function: Leaderboard
+// Vercel Function: Leaderboard - Points-based System
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
@@ -21,12 +21,15 @@ module.exports = async (req, res) => {
     );
 
     // Get all tournament entries with user info
+    // Sort by total_points (desc), then wins (desc), then entered_at (asc) for tiebreaker
     const { data: entries, error } = await supabase
       .from('tournament_entries')
       .select(`
         *,
         users:user_id(username, display_name)
       `)
+      .order('total_points', { ascending: false })
+      .order('wins', { ascending: false })
       .order('entered_at', { ascending: true });
 
     if (error) {
@@ -45,56 +48,36 @@ module.exports = async (req, res) => {
     // Calculate stats
     const totalPlayers = entries?.length || 0;
     const activePlayers = entries?.filter(e => e.status === 'active').length || 0;
-    const eliminatedPlayers = entries?.filter(e => e.status === 'eliminated').length || 0;
 
-    // Build leaderboard data
+    // Build leaderboard data - sorted by points already from DB query
     const leaderboard = entries?.map((entry, index) => {
       const userPicks = picks?.filter(p => p.user_id === entry.user_id) || [];
-      const latestPick = userPicks[0];
+      const wins = userPicks.filter(p => p.result === 'win').length;
       
       return {
-        position: entry.status === 'active' ? null : index + 1,
+        position: index + 1,
         username: entry.users?.username || 'Unknown',
         display_name: entry.users?.display_name || 'Unknown',
         status: entry.status,
-        lives_remaining: entry.lives_remaining,
-        max_lives: entry.max_lives,
-        eliminated_round: entry.eliminated_round,
+        total_points: entry.total_points || 0,
+        wins: wins,
         entered_at: entry.entered_at,
-        current_pick: latestPick ? {
-          team: latestPick.teams?.name,
-          flag: latestPick.teams?.flag_url,
-          result: latestPick.result
+        current_pick: userPicks[0] ? {
+          team: userPicks[0].teams?.name,
+          flag: userPicks[0].teams?.flag_url,
+          result: userPicks[0].result,
+          points: userPicks[0].points
         } : null
       };
-    });
-
-    // Sort: active players by lives remaining (desc), then eliminated by elimination round
-    const sortedLeaderboard = leaderboard?.sort((a, b) => {
-      if (a.status === 'active' && b.status !== 'active') return -1;
-      if (a.status !== 'active' && b.status === 'active') return 1;
-      if (a.status === 'active' && b.status === 'active') {
-        // Active players sorted by lives remaining (desc) as tiebreaker
-        return (b.lives_remaining || 0) - (a.lives_remaining || 0);
-      }
-      return (b.eliminated_round || 0) - (a.eliminated_round || 0);
-    });
-
-    // Assign positions
-    sortedLeaderboard?.forEach((player, index) => {
-      if (player.status === 'active') {
-        player.position = index + 1;
-      }
     });
 
     return res.status(200).json({
       success: true,
       stats: {
         total_players: totalPlayers,
-        active_players: activePlayers,
-        eliminated_players: eliminatedPlayers
+        active_players: activePlayers
       },
-      leaderboard: sortedLeaderboard || []
+      leaderboard: leaderboard || []
     });
 
   } catch (error) {

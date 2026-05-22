@@ -1,5 +1,16 @@
 // Vercel Function: Admin - Update match results
+// Points-based system - awards points for wins instead of deducting lives
 const { createClient } = require('@supabase/supabase-js');
+
+// Points structure for each round
+const POINTS_STRUCTURE = {
+  1: 2,  // Group Stage = 2 points
+  2: 4,  // Round of 32 = 4 points
+  3: 6,  // Round of 16 = 6 points
+  4: 8,  // Quarter Finals = 8 points
+  5: 10, // Semi Finals = 10 points
+  6: 15  // Final = 15 points
+};
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,7 +60,7 @@ module.exports = async (req, res) => {
       .from('matches')
       .update({ home_score, away_score, result, status: 'finished' })
       .eq('id', match_id)
-      .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+      .select('*, home_team:home_team_id(*), away_team:away_team_id(*), rounds:round_id(round_number)')
       .single();
 
     if (matchError) {
@@ -59,17 +70,19 @@ module.exports = async (req, res) => {
     const winningTeamId = result === 'H' ? match.home_team_id :
                          result === 'A' ? match.away_team_id : null;
     const matchRoundId = match.round_id;
+    const roundNumber = match.rounds?.round_number || 1;
+    const pointsForWin = POINTS_STRUCTURE[roundNumber] || 2;
 
     if (result === 'D') {
-      await supabase.from('picks').update({ result: 'loss' })
+      await supabase.from('picks').update({ result: 'loss', points: 0 })
         .eq('team_id', match.home_team_id).eq('round_id', matchRoundId).eq('result', 'pending');
-      await supabase.from('picks').update({ result: 'loss' })
+      await supabase.from('picks').update({ result: 'loss', points: 0 })
         .eq('team_id', match.away_team_id).eq('round_id', matchRoundId).eq('result', 'pending');
     } else {
-      await supabase.from('picks').update({ result: 'win' })
+      await supabase.from('picks').update({ result: 'win', points: pointsForWin })
         .eq('team_id', winningTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
       const losingTeamId = result === 'H' ? match.away_team_id : match.home_team_id;
-      await supabase.from('picks').update({ result: 'loss' })
+      await supabase.from('picks').update({ result: 'loss', points: 0 })
         .eq('team_id', losingTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
     }
 
@@ -77,48 +90,30 @@ module.exports = async (req, res) => {
       ? [match.home_team_id, match.away_team_id]
       : [result === 'H' ? match.away_team_id : match.home_team_id];
 
-    let livesDeducted = 0;
+    let pointsAwarded = 0;
 
-    for (const losingTeamId of losingTeamIds) {
-      const { data: losingPicks } = await supabase
+    // Award points to winners
+    if (winningTeamId) {
+      const { data: winningPicks } = await supabase
         .from('picks')
-        .select('user_id, rounds:round_id(round_number)')
-        .eq('result', 'loss')
-        .eq('team_id', losingTeamId)
+        .select('user_id')
+        .eq('result', 'win')
+        .eq('team_id', winningTeamId)
         .eq('round_id', match.round_id);
 
-      for (const pick of losingPicks || []) {
-        const { data: entry } = await supabase
-          .from('tournament_entries')
-          .select('lives_remaining, tournament_id')
-          .eq('user_id', pick.user_id)
-          .single();
-
-        if (!entry) continue;
-
-        const currentLives = entry.lives_remaining ?? 5;
-        const newLives = Math.max(0, currentLives - 1);
-        livesDeducted++;
-
-        await supabase
-          .from('tournament_entries')
-          .update({
-            lives_remaining: newLives,
-            ...(newLives === 0 ? {
-              status: 'eliminated',
-              eliminated_round: pick.rounds?.round_number,
-              eliminated_at: new Date().toISOString()
-            } : {})
-          })
-          .eq('user_id', pick.user_id)
-          .eq('tournament_id', entry.tournament_id);
+      for (const pick of winningPicks || []) {
+        await supabase.rpc('increment_points', { 
+          user_id: pick.user_id, 
+          points: pointsForWin 
+        });
+        pointsAwarded += pointsForWin;
       }
     }
 
     return res.status(200).json({
       success: true,
       message: 'Match result updated',
-      livesDeducted,
+      pointsAwarded,
       match: {
         home: match.home_team?.name,
         away: match.away_team?.name,

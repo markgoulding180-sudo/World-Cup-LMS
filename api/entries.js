@@ -1,4 +1,4 @@
-// Vercel Function: Get Tournament Entry Status
+// Vercel Function: Get Tournament Entry Status - Points-based System
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
@@ -70,9 +70,13 @@ module.exports = async (req, res) => {
         .eq('id', 'current')
         .single();
 
-      // Use tournament lives setting if entry exists
-      let maxLives = entry?.max_lives || 5;
-      let livesRemaining = entry?.lives_remaining ?? maxLives;
+      // Get user's picks to calculate wins
+      const { data: userPicks } = await supabase
+        .from('picks')
+        .select('result')
+        .eq('user_id', user.id);
+
+      const wins = userPicks?.filter(p => p.result === 'win').length || 0;
 
       return res.status(200).json({
         status: entry?.status || 'not_entered',
@@ -80,9 +84,8 @@ module.exports = async (req, res) => {
         username: profile?.username || user.email?.split('@')[0] || 'Player',
         display_name: profile?.display_name || profile?.username || user.email?.split('@')[0] || 'Player',
         current_round: clock?.current_round || 1,
-        eliminated_round: entry?.eliminated_round || null,
-        lives_remaining: livesRemaining,
-        max_lives: maxLives
+        total_points: entry?.total_points || 0,
+        wins: wins
       });
 
     } catch (error) {
@@ -111,19 +114,6 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'tournament_id is required' });
       }
 
-      // Get tournament lives setting
-      const { data: tournament, error: tourneyError } = await supabase
-        .from('tournaments')
-        .select('lives')
-        .eq('id', tournament_id)
-        .single();
-
-      if (tourneyError || !tournament) {
-        return res.status(500).json({ error: 'Failed to get tournament settings: ' + (tourneyError?.message || 'not found') });
-      }
-
-      const lives = tournament?.lives || 3;
-
       // Check if user already entered
       const { data: existing } = await supabase
         .from('tournament_entries')
@@ -142,8 +132,8 @@ module.exports = async (req, res) => {
           user_id: user.id,
           tournament_id,
           status: 'active',
-          lives_remaining: lives,
-          max_lives: lives
+          total_points: 0,
+          wins: 0
         })
         .select();
 

@@ -1,4 +1,4 @@
-// Vercel Function: Handle Picks (User + Admin) - v2
+// Vercel Function: Handle Picks (User + Admin) - Points-based System
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
@@ -122,21 +122,21 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'You have already picked this team for this matchday' });
       }
 
-      const { data: previousPicks } = await supabase
+      // Check tournament-wide team uniqueness - team can only be used ONCE in entire tournament
+      const { data: allUserPicks } = await supabase
         .from('picks')
-        .select('team_id, matchday')
+        .select('team_id')
         .eq('user_id', user.id)
-        .eq('round_id', round_id)
         .eq('tournament_id', tournament_id);
 
-      const usedTeamIds = previousPicks?.map(p => p.team_id) || [];
+      const usedTeamIds = allUserPicks?.map(p => p.team_id) || [];
       if (usedTeamIds.includes(team_id)) {
-        return res.status(400).json({ error: 'You have already used this team in a previous matchday. Each team can only be used once across all matchdays.' });
+        return res.status(400).json({ error: 'You have already used this team in a previous round. Each team can only be used once across the entire tournament.' });
       }
 
       const { data, error } = await supabase
         .from('picks')
-        .insert({ user_id: user.id, team_id, round_id, tournament_id, matchday, result: 'pending' })
+        .insert({ user_id: user.id, team_id, round_id, tournament_id, matchday, result: 'pending', points: 0 })
         .select();
 
       if (error) return res.status(500).json({ error: error.message });
