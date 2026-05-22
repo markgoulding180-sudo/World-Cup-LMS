@@ -276,6 +276,14 @@ async function runSimulation() {
       body: JSON.stringify({ action: 'sim_run', admin_pin: '1234' })
     });
 
+    // Debug: log raw response if not OK
+    if (!response.ok) {
+      const rawText = await response.text();
+      console.error('API Error Response:', rawText);
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>API Error ${response.status}:</strong></p><pre style="font-size: 0.75rem; overflow: auto; max-height: 200px; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 0.25rem;">${rawText.substring(0, 1000)}</pre>`;
+      return;
+    }
+
     const data = await response.json();
 
     if (response.ok && data.summary) {
