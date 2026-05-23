@@ -686,12 +686,18 @@ module.exports = async (req, res) => {
       const matches = [];
       const missingTeams = [];
       for (const match of koMatches) {
-        const homeName = TEAM_MAPPINGS[match.homeTeam?.name] || match.homeTeam?.name;
-        const awayName = TEAM_MAPPINGS[match.awayTeam?.name] || match.awayTeam?.name;
+        // Try multiple possible locations for team name
+        const homeNameRaw = match.homeTeam?.name || match.homeTeam?.shortName || match.home?.name || match.homeTeam;
+        const awayNameRaw = match.awayTeam?.name || match.awayTeam?.shortName || match.away?.name || match.awayTeam;
+        
+        const homeName = TEAM_MAPPINGS[homeNameRaw] || homeNameRaw;
+        const awayName = TEAM_MAPPINGS[awayNameRaw] || awayNameRaw;
+        
         const homeTeamId = teamLookup.get(homeName) || teamLookup.get(homeName?.toLowerCase());
         const awayTeamId = teamLookup.get(awayName) || teamLookup.get(awayName?.toLowerCase());
-        if (!homeTeamId) { missingTeams.push(match.homeTeam?.name); continue; }
-        if (!awayTeamId) { missingTeams.push(match.awayTeam?.name); continue; }
+        
+        if (!homeTeamId) { missingTeams.push(homeNameRaw || 'undefined'); continue; }
+        if (!awayTeamId) { missingTeams.push(awayNameRaw || 'undefined'); continue; }
         matches.push({
           round_id: round.id,
           home_team_id: homeTeamId,
