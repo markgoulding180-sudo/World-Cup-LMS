@@ -258,6 +258,9 @@ function displayKnockoutPickFlow() {
   
   const roundTeams = allTeams.filter(t => roundTeamIds.has(t.id));
   
+  // Get all teams already used by this user in ANY round
+  const usedTeamIds = new Set(userPicks.map(p => p.team_id));
+  
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const roundName = roundNames[currentRound.round_number] || currentRound.name;
   
@@ -266,6 +269,7 @@ function displayKnockoutPickFlow() {
       <div class="knockout-header">
         <h3>${roundName}</h3>
         <p class="knockout-instruction">Pick <strong>ONE</strong> team to win their match</p>
+        <p class="used-teams-note"><i class="fas fa-info-circle"></i> Teams greyed out were used in previous rounds</p>
       </div>
       
       <div class="knockout-matches">
@@ -279,22 +283,25 @@ function displayKnockoutPickFlow() {
     const homeTeam = allTeams.find(t => t.id === m.home_team_id);
     const awayTeam = allTeams.find(t => t.id === m.away_team_id);
     
+    const homeUsed = usedTeamIds.has(m.home_team_id);
+    const awayUsed = usedTeamIds.has(m.away_team_id);
+    
     html += `
       <div class="knockout-match-card">
         <div class="match-header">
           <span class="match-date">${dateStr} @ ${timeStr}</span>
         </div>
         <div class="match-teams">
-          <div class="match-team" onclick="submitKnockoutPick('${m.home_team_id}')">
+          <div class="match-team ${homeUsed ? 'used' : ''}" ${homeUsed ? '' : `onclick="submitKnockoutPick('${m.home_team_id}')"`}>
             <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="team-flag">
             <span class="team-name">${homeTeam?.name || 'TBD'}</span>
-            <button class="pick-btn">Pick</button>
+            ${homeUsed ? '<span class="used-badge"><i class="fas fa-ban"></i> Used</span>' : '<button class="pick-btn">Pick</button>'}
           </div>
           <span class="match-vs">VS</span>
-          <div class="match-team" onclick="submitKnockoutPick('${m.away_team_id}')">
+          <div class="match-team ${awayUsed ? 'used' : ''}" ${awayUsed ? '' : `onclick="submitKnockoutPick('${m.away_team_id}')"`}>
             <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="team-flag">
             <span class="team-name">${awayTeam?.name || 'TBD'}</span>
-            <button class="pick-btn">Pick</button>
+            ${awayUsed ? '<span class="used-badge"><i class="fas fa-ban"></i> Used</span>' : '<button class="pick-btn">Pick</button>'}
           </div>
         </div>
       </div>

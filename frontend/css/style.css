@@ -2604,3 +2604,39 @@ a {
   color: var(--accent-green);
   margin-bottom: 0.5rem;
 }
+
+/* Used teams (already picked in previous rounds) */
+.knockout-match-card .match-team.used {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(0,0,0,0.2);
+}
+
+.knockout-match-card .match-team.used:hover {
+  background: rgba(0,0,0,0.2);
+  border: none;
+}
+
+.knockout-match-card .match-team.used .team-flag {
+  filter: grayscale(100%);
+}
+
+.knockout-match-card .match-team.used .team-name {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.used-badge {
+  background: var(--accent-red);
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.used-teams-note {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
