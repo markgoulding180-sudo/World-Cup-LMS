@@ -240,6 +240,62 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
+  // ── CREATE TEST USER ─────────────────────────────────────
+  if (action === 'create_test_user') {
+    try {
+      const { data: t } = await supabase.from('tournaments').select('id').single();
+      if (!t) return res.status(400).json({ error: 'No tournament found.' });
+      
+      const email = 'testuser@wc2026.test';
+      const password = '123456';
+      
+      // Check if user already exists
+      const { data: existingUsers } = await supabase.from('users').select('id').eq('email', email);
+      if (existingUsers?.length > 0) {
+        return res.status(200).json({ 
+          success: true, 
+          email, 
+          password,
+          message: 'Test user already exists. Use these credentials to log in.' 
+        });
+      }
+      
+      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({ 
+        email, 
+        password, 
+        email_confirm: true 
+      });
+      
+      if (authErr || !authData.user) {
+        return res.status(500).json({ error: 'Failed to create auth user: ' + authErr?.message });
+      }
+      
+      await supabase.from('users').insert({ 
+        id: authData.user.id, 
+        username: 'testuser', 
+        display_name: 'Test User', 
+        email 
+      });
+      
+      await supabase.from('tournament_entries').insert({ 
+        tournament_id: t.id, 
+        user_id: authData.user.id, 
+        status: 'active', 
+        total_points: 0, 
+        wins: 0 
+      });
+      
+      return res.status(200).json({ 
+        success: true, 
+        email, 
+        password,
+        message: 'Test user created successfully' 
+      });
+    } catch (error) { 
+      return res.status(500).json({ error: error.message }); 
+    }
+  }
+
   // ── SIMULATE USERS (step-by-step) ─────────────────────────
   if (action === 'simulate_users') {
     const { batch = 0 } = req.body;
