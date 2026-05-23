@@ -398,6 +398,52 @@ async function clearSimHistory() {
   } catch (e) { alert('Error clearing history: ' + e.message); }
 }
 
+// ─── CHECK API FOR KNOCKOUT MATCHES ─────────────────────
+async function checkKoMatches(roundNumber) {
+  const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  const statusDiv = document.getElementById('check-ko-status');
+  statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Checking football-data.org for ${roundNames[roundNumber]}...</p>`;
+  
+  try {
+    const response = await fetch('/api/check-ko-matches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ round_number: roundNumber, admin_pin: '1234' })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);"><i class="fas fa-exclamation-circle"></i> Error: ${data.error}</p>`;
+      return;
+    }
+    
+    if (data.found && data.loaded) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${data.message}</p>
+        ${data.missingTeams ? `<p style="color: orange;">Missing teams: ${data.missingTeams.join(', ')}</p>` : ''}
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">You can now open the round for users to make picks.</p>
+      `;
+      loadAdminData();
+    } else if (data.found && data.alreadyLoaded) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-blue);"><i class="fas fa-info-circle"></i> ${data.message}</p>`;
+    } else if (data.found && !data.loadable) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-red);"><i class="fas fa-exclamation-triangle"></i> ${data.message}</p>
+        <p>Missing teams: ${data.missingTeams?.join(', ') || 'Unknown'}</p>
+        <p style="font-size: 0.85rem;">API matches found: ${data.apiMatchesFound}</p>
+      `;
+    } else {
+      statusDiv.innerHTML = `
+        <p style="color: var(--text-secondary);"><i class="fas fa-clock"></i> ${data.message}</p>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">FIFA typically announces fixtures within 2-4 hours of the previous round completing. Try again later.</p>
+      `;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</p>`;
+  }
+}
+
 // ─── STEP BY STEP SIMULATION ──────────────────────────────
 async function simulateUsersBatch() {
   const statusDiv = document.getElementById('simulate-users-status');

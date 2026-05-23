@@ -119,6 +119,26 @@
       <div id="import-status" style="margin-top: 1rem;"></div>
     </div>
 
+    <!-- CHECK API FOR KNOCKOUT MATCHES -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue);">
+      <h2><i class="fas fa-cloud-download-alt"></i> Check API for Knockout Matches</h2>
+      <p>Check football-data.org for knockout round fixtures. Use after closing Group Stage to load R32, or after each knockout round completes.</p>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0;">
+        <button class="btn btn-primary" onclick="checkKoMatches(2)" style="background: #ff6b35;"><i class="fas fa-search"></i> Check R32</button>
+        <button class="btn btn-primary" onclick="checkKoMatches(3)" style="background: #ff6b35;"><i class="fas fa-search"></i> Check R16</button>
+        <button class="btn btn-primary" onclick="checkKoMatches(4)" style="background: #ff6b35;"><i class="fas fa-search"></i> Check QF</button>
+        <button class="btn btn-primary" onclick="checkKoMatches(5)" style="background: #ff6b35;"><i class="fas fa-search"></i> Check SF</button>
+        <button class="btn btn-primary" onclick="checkKoMatches(6)" style="background: gold; color: #000;"><i class="fas fa-search"></i> Check Final</button>
+      </div>
+      
+      <div id="check-ko-status" style="margin-top: 0.5rem;"></div>
+      
+      <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+        <i class="fas fa-info-circle"></i> FIFA typically announces knockout fixtures within 2-4 hours of the previous round completing.
+      </p>
+    </div>
+
     <!-- STEP BY STEP SIMULATION -->
     <div class="admin-card" style="border: 2px solid var(--accent-purple);">
       <h2><i class="fas fa-flask"></i> Simulate Tournament (Step by Step)</h2>

@@ -64,7 +64,17 @@ async function loadDashboard() {
       allTeams = teamsData.teams || [];
       allMatches = matchesData.matches || [];
       
-      displayMatchdayPickFlow();
+      // Check if this is a knockout round with no matches yet
+      const roundMatches = currentRound ? allMatches.filter(m => m.round_id === currentRound.id) : [];
+      const isKnockoutRound = currentRound && currentRound.round_number >= 2;
+      
+      if (isKnockoutRound && roundMatches.length === 0) {
+        // Show waiting state for knockout round
+        displayKnockoutWaitingState(currentRound);
+      } else {
+        displayMatchdayPickFlow();
+      }
+      
       displayCurrentPicks(roundPicks);
       displayRoundMatches(allMatches, currentRound);
     }
@@ -95,6 +105,75 @@ function determineCurrentMatchday() {
   
   // Reset selected teams when switching matchdays
   selectedTeams = [];
+}
+
+async function displayKnockoutWaitingState(round) {
+  const container = document.getElementById('available-teams');
+  const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  
+  // For R32, show qualified teams from group stage
+  if (round.round_number === 2) {
+    try {
+      const response = await fetch('/api/qualified-teams');
+      const data = await response.json();
+      
+      if (data.qualified && data.qualified.length > 0) {
+        const teamsHtml = data.qualified.map(team => `
+          <div class="qualified-team" style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+          ">
+            <img src="${team.flag_url}" alt="${team.name}" style="width: 40px; height: 28px; object-fit: cover; border-radius: 0.25rem; margin-bottom: 0.5rem;">
+            <span style="font-size: 0.75rem; font-weight: 600; text-align: center;">${team.name}</span>
+            <span style="font-size: 0.65rem; color: var(--text-secondary);">${team.group_name} ${team.position}</span>
+          </div>
+        `).join('');
+        
+        container.innerHTML = `
+          <div class="knockout-waiting" style="text-align: center; padding: 2rem 1rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+            <h2 style="margin-bottom: 0.5rem;">${roundNames[round.round_number]} - Waiting for Draw</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+              FIFA will announce the ${roundNames[round.round_number]} fixtures soon.
+              <br>Check back after the Group Stage completes.
+            </p>
+            
+            <div style="margin: 1.5rem 0;">
+              <h3 style="font-size: 1rem; margin-bottom: 1rem;">Teams Qualified (${data.qualified.length}/32)</h3>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem;">
+                ${teamsHtml}
+              </div>
+            </div>
+            
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1.5rem;">
+              <i class="fas fa-info-circle"></i> 
+              Top 2 from each group + 8 best third-placed teams advance
+            </p>
+          </div>
+        `;
+        return;
+      }
+    } catch (e) {
+      console.log('Could not load qualified teams:', e);
+    }
+  }
+  
+  // Default waiting message for other rounds or if qualified teams fail to load
+  container.innerHTML = `
+    <div class="knockout-waiting" style="text-align: center; padding: 3rem 1rem;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+      <h2 style="margin-bottom: 0.5rem;">${roundNames[round.round_number]} - Coming Soon</h2>
+      <p style="color: var(--text-secondary);">
+        The ${roundNames[round.round_number]} fixtures will be available once the previous round completes.
+        <br>Check back soon!
+      </p>
+    </div>
+  `;
 }
 
 function displayMatchdayPickFlow() {
