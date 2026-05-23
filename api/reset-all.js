@@ -697,12 +697,22 @@ module.exports = async (req, res) => {
       }
 
       if (matches.length === 0) {
+        // Debug: return sample of raw API data to see structure
+        const sampleMatch = koMatches[0];
         return res.status(200).json({
           found: true,
           loadable: false,
           message: 'Matches found in API but teams not matched to database.',
           missingTeams: [...new Set(missingTeams)],
-          apiMatchesFound: koMatches.length
+          apiMatchesFound: koMatches.length,
+          debug: {
+            sampleMatch: {
+              stage: sampleMatch?.stage,
+              homeTeam: sampleMatch?.homeTeam,
+              awayTeam: sampleMatch?.awayTeam,
+              utcDate: sampleMatch?.utcDate
+            }
+          }
         });
       }
 
