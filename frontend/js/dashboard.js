@@ -563,49 +563,97 @@ function displayTournamentHistory() {
   sortedRounds.forEach(round => {
     const isCurrentRound = currentRound && round.number === currentRound.round_number;
     const isFinal = round.number === 6;
+    const isGroupStage = round.number === 1;
     const totalPoints = round.picks.reduce((sum, p) => sum + (p.points || 0), 0);
     const wins = round.picks.filter(p => p.result === 'win').length;
     
-    html += `
-      <div class="round-history-card ${isCurrentRound ? 'current' : ''} ${isFinal ? 'final' : ''}" style="
-        background: ${isFinal ? 'rgba(255,215,0,0.1)' : isCurrentRound ? 'rgba(147,51,234,0.1)' : 'var(--bg-secondary)'};
-        border: 2px solid ${isFinal ? 'var(--accent-gold)' : isCurrentRound ? '#9333ea' : 'var(--border-color)'};
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
-        margin-bottom: 0.75rem;
-      ">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 0.75rem;">
-            ${isFinal ? '<span style="font-size: 1.5rem;">🏆</span>' : isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i>' : '<i class="fas fa-check-circle" style="color: var(--text-secondary);"></i>'}
-            <span style="font-weight: 600; ${isFinal ? 'color: var(--accent-gold); font-size: 1.1rem;' : ''}">${round.name}</span>
+    // Group Stage gets special 3x3 grid layout
+    if (isGroupStage) {
+      html += `
+        <div class="round-history-card ${isCurrentRound ? 'current' : ''}" style="
+          background: ${isCurrentRound ? 'rgba(147,51,234,0.1)' : 'var(--bg-secondary)'};
+          border: 1px solid ${isCurrentRound ? '#9333ea' : 'var(--border-color)'};
+          border-radius: 0.5rem;
+          padding: 1rem;
+          margin-bottom: 1rem;
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="margin: 0; font-size: 1.1rem;">
+              ${isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i> ' : ''}
+              ${round.name}
+            </h3>
+            <div style="text-align: right;">
+              <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-green);">${totalPoints} pts</span>
+              <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">${wins} wins</span>
+            </div>
           </div>
           
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <div class="round-teams-row" style="display: flex; gap: 0.3rem;">
-              ${round.picks.map(pick => `
-                <div class="history-pick-mini" style="
-                  display: flex;
-                  align-items: center;
-                  gap: 0.25rem;
-                  padding: 0.2rem 0.4rem;
-                  background: rgba(255,255,255,0.05);
-                  border-radius: 0.25rem;
-                  border-left: 2px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
-                ">
-                  <img src="${pick.teams?.flag_url}" alt="" style="width: 16px; height: 12px; object-fit: cover; border-radius: 0.125rem;">
-                  <span style="font-size: 0.7rem; white-space: nowrap;">${pick.teams?.name}</span>
-                  ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
-                </div>
-              `).join('')}
+          <div class="round-picks-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
+            ${round.picks.map(pick => `
+              <div class="history-pick-item" style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 0.25rem;
+                padding: 0.5rem 0.25rem;
+                min-height: 70px;
+                background: rgba(255,255,255,0.05);
+                border-radius: 0.25rem;
+                border-left: 2px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
+                text-align: center;
+              ">
+                <img src="${pick.teams?.flag_url}" alt="" style="width: 24px; height: 16px; object-fit: cover; border-radius: 0.125rem;">
+                <span style="font-size: 0.65rem; line-height: 1.1;">${pick.teams?.name}</span>
+                ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      // Knockout rounds get horizontal row layout
+      html += `
+        <div class="round-history-card ${isCurrentRound ? 'current' : ''} ${isFinal ? 'final' : ''}" style="
+          background: ${isFinal ? 'rgba(255,215,0,0.1)' : isCurrentRound ? 'rgba(147,51,234,0.1)' : 'var(--bg-secondary)'};
+          border: 2px solid ${isFinal ? 'var(--accent-gold)' : isCurrentRound ? '#9333ea' : 'var(--border-color)'};
+          border-radius: 0.5rem;
+          padding: 0.75rem 1rem;
+          margin-bottom: 0.75rem;
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              ${isFinal ? '<span style="font-size: 1.5rem;">🏆</span>' : isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i>' : '<i class="fas fa-check-circle" style="color: var(--text-secondary);"></i>'}
+              <span style="font-weight: 600; ${isFinal ? 'color: var(--accent-gold); font-size: 1.1rem;' : ''}">${round.name}</span>
             </div>
             
-            <div style="text-align: right; min-width: 60px;">
-              <span style="font-size: 1rem; font-weight: bold; color: ${isFinal ? 'var(--accent-gold)' : 'var(--accent-green)'};">${totalPoints} pts</span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div class="round-teams-row" style="display: flex; gap: 0.3rem;">
+                ${round.picks.map(pick => `
+                  <div class="history-pick-mini" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    padding: 0.2rem 0.4rem;
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 0.25rem;
+                    border-left: 2px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
+                  ">
+                    <img src="${pick.teams?.flag_url}" alt="" style="width: 16px; height: 12px; object-fit: cover; border-radius: 0.125rem;">
+                    <span style="font-size: 0.7rem; white-space: nowrap;">${pick.teams?.name}</span>
+                    ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+              
+              <div style="text-align: right; min-width: 60px;">
+                <span style="font-size: 1rem; font-weight: bold; color: ${isFinal ? 'var(--accent-gold)' : 'var(--accent-green)'};">${totalPoints} pts</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
   });
   
   html += '</div>';
