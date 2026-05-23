@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 
       let query = supabase
         .from('picks')
-        .select('*, teams:team_id(name, flag_url, code)')
+        .select('*, teams:team_id(name, flag_url, code), rounds:round_id(name, round_number)')
         .eq('user_id', user.id);
 
       if (tournament_id) query = query.eq('tournament_id', tournament_id);
