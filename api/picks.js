@@ -93,10 +93,7 @@ module.exports = async (req, res) => {
 
       const { team_id, round_id, tournament_id, matchday } = req.body || {};
 
-      if (!matchday || matchday < 1 || matchday > 3) {
-        return res.status(400).json({ error: 'Valid matchday (1-3) required' });
-      }
-
+      // Get round info first to determine if matchday is required
       const { data: round, error: roundError } = await supabase
         .from('rounds')
         .select('picks_required, round_number')
@@ -105,16 +102,38 @@ module.exports = async (req, res) => {
 
       if (roundError) return res.status(500).json({ error: 'Failed to get round settings' });
 
-      const { data: existingMatchdayPicks } = await supabase
+      // Group Stage (round 1) requires matchday 1-3
+      // Knockout rounds (round 2+) don't use matchdays
+      const isKnockoutRound = round.round_number >= 2;
+      
+      if (!isKnockoutRound && (!matchday || matchday < 1 || matchday > 3)) {
+        return res.status(400).json({ error: 'Valid matchday (1-3) required for Group Stage' });
+      }
+
+      // Build query for existing picks
+      let existingPicksQuery = supabase
         .from('picks')
         .select('id, team_id')
         .eq('user_id', user.id)
         .eq('round_id', round_id)
-        .eq('tournament_id', tournament_id)
-        .eq('matchday', matchday);
+        .eq('tournament_id', tournament_id);
+      
+      // Only filter by matchday for Group Stage
+      if (!isKnockoutRound) {
+        existingPicksQuery = existingPicksQuery.eq('matchday', matchday);
+      }
+      
+      const { data: existingMatchdayPicks } = await existingPicksQuery;
 
-      if (existingMatchdayPicks && existingMatchdayPicks.length >= 3) {
-        return res.status(400).json({ error: `You have already made 3 picks for Matchday ${matchday}` });
+      // For Group Stage: max 3 picks per matchday
+      // For Knockout rounds: max 1 pick per round
+      const maxPicks = isKnockoutRound ? 1 : 3;
+      if (existingMatchdayPicks && existingMatchdayPicks.length >= maxPicks) {
+        return res.status(400).json({ 
+          error: isKnockoutRound 
+            ? 'You have already made a pick for this round' 
+            : `You have already made 3 picks for Matchday ${matchday}` 
+        });
       }
 
       const teamAlreadyPickedThisMatchday = existingMatchdayPicks?.some(p => p.team_id === team_id);
@@ -136,11 +155,21 @@ module.exports = async (req, res) => {
 
       const { data, error } = await supabase
         .from('picks')
-        .insert({ user_id: user.id, team_id, round_id, tournament_id, matchday, result: 'pending', points: 0 })
+        .insert({ user_id: user.id, team_id, round_id, tournament_id, matchday: matchday || null, result: 'pending', points: 0 })
         .select();
 
       if (error) return res.status(500).json({ error: error.message });
 
+      // For knockout rounds, just return success
+      if (isKnockoutRound) {
+        return res.status(200).json({
+          success: true,
+          pick: data[0],
+          roundComplete: true
+        });
+      }
+
+      // For Group Stage, check matchday progress
       const { data: matchdayPicks } = await supabase
         .from('picks')
         .select('id')
