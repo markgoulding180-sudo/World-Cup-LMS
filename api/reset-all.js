@@ -1,7 +1,8 @@
 // Vercel Function: Reset All Data + Setup Tournament + Simulation
 const { createClient } = require('@supabase/supabase-js');
 
-const FIXTURE_URL = 'https://fixturedownload.com/feed/json/fifa-world-cup-2026';
+const FOOTBALL_DATA_URL = 'https://api.football-data.org/v4/competitions/WC/matches?season=2026';
+const FOOTBALL_DATA_TOKEN = 'aef925b3b2df4c6e922f08a5498bdab0';
 const FAKE_ID = '00000000-0000-0000-0000-000000000000';
 
 const TEAM_MAPPINGS = {
@@ -13,8 +14,10 @@ const TEAM_MAPPINGS = {
   'Cabo Verde': 'Cape Verde',
   "Côte d'Ivoire": 'Ivory Coast',
   'Bosnia and Herzegovina': 'Bosnia & Herzegovina',
+  'United States': 'USA',
   'USA': 'United States',
-  'United States': 'USA'
+  'Korea DPR': 'North Korea',
+  'Kyrgyz Republic': 'Kyrgyzstan'
 };
 
 // Points structure for each round
@@ -164,31 +167,74 @@ module.exports = async (req, res) => {
       ]);
       if (roundsErr) return res.status(500).json({ error: 'Failed to create rounds: ' + roundsErr.message });
 
-      const fixtureResp = await fetch(FIXTURE_URL);
-      const fixtures = await fixtureResp.json();
+      // Fetch fixtures from football-data.org (single source of truth)
+      const fixtureResp = await fetch(FOOTBALL_DATA_URL, {
+        headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN }
+      });
+      
+      if (!fixtureResp.ok) {
+        const errorText = await fixtureResp.text();
+        return res.status(500).json({ error: `football-data.org API error: ${fixtureResp.status} — ${errorText}` });
+      }
+      
+      const apiData = await fixtureResp.json();
+      const fixtures = apiData.matches || [];
+      
       const { data: insertedTeams } = await supabase.from('teams').select('id, name');
-      const teamLookup = new Map(insertedTeams.map(t => [t.name, t.id]));
+      const teamLookup = new Map();
+      insertedTeams?.forEach(t => {
+        teamLookup.set(t.name, t.id);
+        teamLookup.set(t.name.toLowerCase(), t.id);
+      });
+      
       const { data: insertedRounds } = await supabase.from('rounds').select('id, round_number');
       const roundLookup = new Map(insertedRounds.map(r => [r.round_number, r.id]));
 
-      const matches = []; const missingTeams = [];
-      for (const m of fixtures.filter(f => f.RoundNumber >= 1 && f.RoundNumber <= 3)) {
-        const homeName = TEAM_MAPPINGS[m.HomeTeam] || m.HomeTeam;
-        const awayName = TEAM_MAPPINGS[m.AwayTeam] || m.AwayTeam;
-        const homeId = teamLookup.get(homeName); const awayId = teamLookup.get(awayName);
-        if (!homeId) { missingTeams.push(m.HomeTeam); continue; }
-        if (!awayId) { missingTeams.push(m.AwayTeam); continue; }
-        matches.push({ round_id: roundLookup.get(1), matchday: m.RoundNumber, home_team_id: homeId, away_team_id: awayId, match_time: m.DateUtc, status: 'upcoming' });
+      const matches = []; 
+      const missingTeams = [];
+      
+      // Group stage matches are those with stage === 'GROUP_STAGE'
+      const groupStageMatches = fixtures.filter(f => f.stage === 'GROUP_STAGE');
+      
+      for (const m of groupStageMatches) {
+        const homeName = TEAM_MAPPINGS[m.homeTeam?.name] || m.homeTeam?.name;
+        const awayName = TEAM_MAPPINGS[m.awayTeam?.name] || m.awayTeam?.name;
+        
+        // Try to find team ID with various name formats
+        let homeId = teamLookup.get(homeName) || teamLookup.get(homeName?.toLowerCase());
+        let awayId = teamLookup.get(awayName) || teamLookup.get(awayName?.toLowerCase());
+        
+        if (!homeId) { missingTeams.push(m.homeTeam?.name || 'Unknown'); continue; }
+        if (!awayId) { missingTeams.push(m.awayTeam?.name || 'Unknown'); continue; }
+        
+        // matchday comes from the group name (e.g., "GROUP_A" -> matchday 1, 2, or 3)
+        // We'll use the matchday field if available, otherwise infer from match count per group
+        const matchday = m.matchday || 1;
+        
+        matches.push({ 
+          round_id: roundLookup.get(1), 
+          matchday: matchday, 
+          home_team_id: homeId, 
+          away_team_id: awayId, 
+          match_time: m.utcDate, 
+          status: 'upcoming' 
+        });
       }
-      if (matches.length > 0) { const { error: matchErr } = await supabase.from('matches').insert(matches); if (matchErr) return res.status(500).json({ error: 'Failed to insert matches: ' + matchErr.message }); }
+      
+      if (matches.length > 0) { 
+        const { error: matchErr } = await supabase.from('matches').insert(matches); 
+        if (matchErr) return res.status(500).json({ error: 'Failed to insert matches: ' + matchErr.message }); 
+      }
+      
       await supabase.from('master_clock').upsert({ id: 'current', current_round: 1, current_matchday: 1, status: 'active' });
+      
       return res.status(200).json({ 
         success: true, 
         teamsAdded: masterTeams.length, 
         matchesImported: matches.length, 
         missingTeams: missingTeams.length > 0 ? [...new Set(missingTeams)] : null,
         adminUsers: adminCount,
-        message: `Tournament ready. ${masterTeams.length} teams, 6 rounds, ${matches.length} group stage matches imported. ${adminCount} admin user(s) preserved.` 
+        message: `Tournament ready. ${masterTeams.length} teams, 6 rounds, ${matches.length} group stage matches imported from football-data.org. ${adminCount} admin user(s) preserved.` 
       });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }

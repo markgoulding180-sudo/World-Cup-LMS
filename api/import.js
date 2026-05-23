@@ -1,7 +1,8 @@
-// Vercel Function: Import from fixturedownload.com - v5
+// Vercel Function: Import from football-data.org - v6
 const { createClient } = require('@supabase/supabase-js');
 
-const FIXTURE_URL = 'https://fixturedownload.com/feed/json/fifa-world-cup-2026';
+const FOOTBALL_DATA_URL = 'https://api.football-data.org/v4/competitions/WC/matches?season=2026';
+const FOOTBALL_DATA_TOKEN = 'aef925b3b2df4c6e922f08a5498bdab0';
 
 const TEAM_MAPPINGS = {
   'Korea Republic': 'South Korea',
@@ -11,8 +12,11 @@ const TEAM_MAPPINGS = {
   'Congo DR': 'DR Congo',
   'Cabo Verde': 'Cape Verde',
   "Côte d'Ivoire": 'Ivory Coast',
+  'Bosnia and Herzegovina': 'Bosnia & Herzegovina',
+  'United States': 'USA',
   'USA': 'United States',
-  'Bosnia and Herzegovina': 'Bosnia & Herzegovina'
+  'Korea DPR': 'North Korea',
+  'Kyrgyz Republic': 'Kyrgyzstan'
 };
 
 const ROUNDS = [
@@ -57,10 +61,21 @@ module.exports = async (req, res) => {
 
   if (action === 'setup') {
     try {
-      const response = await fetch(FIXTURE_URL);
-      const fixtures = await response.json();
+      // Fetch from football-data.org (single source of truth)
+      const response = await fetch(FOOTBALL_DATA_URL, {
+        headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(500).json({ error: `football-data.org API error: ${response.status} — ${errorText}` });
+      }
+      
+      const apiData = await response.json();
+      const fixtures = apiData.matches || [];
 
-      const groupStage = fixtures.filter(f => f.RoundNumber >= 1 && f.RoundNumber <= 3);
+      // Group stage matches only
+      const groupStage = fixtures.filter(f => f.stage === 'GROUP_STAGE');
 
       const { data: existingTeams, error: teamsError } = await supabase
         .from('teams')
@@ -68,7 +83,11 @@ module.exports = async (req, res) => {
 
       if (teamsError) throw teamsError;
 
-      const teamLookup = new Map(existingTeams?.map(t => [t.name, t.id]));
+      const teamLookup = new Map();
+      existingTeams?.forEach(t => {
+        teamLookup.set(t.name, t.id);
+        teamLookup.set(t.name.toLowerCase(), t.id);
+      });
 
       const { data: existingRounds } = await supabase.from('rounds').select('round_number');
       const existingRoundNumbers = new Set(existingRounds?.map(r => r.round_number) || []);
@@ -86,21 +105,23 @@ module.exports = async (req, res) => {
       const missingTeams = [];
 
       for (const match of groupStage) {
-        const homeName = TEAM_MAPPINGS[match.HomeTeam] || match.HomeTeam;
-        const awayName = TEAM_MAPPINGS[match.AwayTeam] || match.AwayTeam;
+        const homeName = TEAM_MAPPINGS[match.homeTeam?.name] || match.homeTeam?.name;
+        const awayName = TEAM_MAPPINGS[match.awayTeam?.name] || match.awayTeam?.name;
 
-        const homeTeamId = teamLookup.get(homeName);
-        const awayTeamId = teamLookup.get(awayName);
+        const homeTeamId = teamLookup.get(homeName) || teamLookup.get(homeName?.toLowerCase());
+        const awayTeamId = teamLookup.get(awayName) || teamLookup.get(awayName?.toLowerCase());
 
-        if (!homeTeamId) { missingTeams.push(homeName); continue; }
-        if (!awayTeamId) { missingTeams.push(awayName); continue; }
+        if (!homeTeamId) { missingTeams.push(match.homeTeam?.name || 'Unknown'); continue; }
+        if (!awayTeamId) { missingTeams.push(match.awayTeam?.name || 'Unknown'); continue; }
+
+        const matchday = match.matchday || 1;
 
         matches.push({
           round_id: roundLookup.get(1),
-          matchday: match.RoundNumber,
+          matchday: matchday,
           home_team_id: homeTeamId,
           away_team_id: awayTeamId,
-          match_time: match.DateUtc,
+          match_time: match.utcDate,
           status: 'upcoming'
         });
       }
@@ -121,7 +142,7 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: 'Import complete from fixturedownload',
+        message: 'Import complete from football-data.org',
         teamsFound: existingTeams?.length || 0,
         matchesInserted: insertedMatches?.length || 0,
         missingTeams: missingTeams.length > 0 ? [...new Set(missingTeams)] : null
