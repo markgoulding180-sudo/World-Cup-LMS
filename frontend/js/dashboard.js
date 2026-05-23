@@ -231,16 +231,29 @@ function displayKnockoutPickFlow() {
   const existingPick = roundPicks.find(p => p.round_id === currentRound.id);
   if (existingPick) {
     const team = allTeams.find(t => t.id === existingPick.team_id);
+    const result = existingPick.result || 'pending';
+    const points = existingPick.points || 0;
+    
+    // Determine result display
+    let resultHtml = '';
+    if (result === 'win') {
+      resultHtml = `<div class="pick-result-display win"><i class="fas fa-trophy"></i> WIN! +${points} points</div>`;
+    } else if (result === 'loss') {
+      resultHtml = `<div class="pick-result-display loss"><i class="fas fa-times-circle"></i> Lost</div>`;
+    } else {
+      resultHtml = `<div class="pick-result-display pending"><i class="fas fa-clock"></i> Pending</div>`;
+    }
+    
     container.innerHTML = `
-      <div class="pick-submitted">
+      <div class="pick-submitted ${result}">
         <i class="fas fa-check-circle"></i>
         <h3>Pick Submitted!</h3>
         <div class="submitted-pick-display">
           <img src="${team?.flag_url || ''}" alt="${team?.name}" class="submitted-flag">
           <span class="submitted-team-name">${team?.name || existingPick.teams?.name}</span>
         </div>
+        ${resultHtml}
         <p class="submitted-round">${currentRound.name}</p>
-        <p>Good luck!</p>
       </div>
     `;
     return;
