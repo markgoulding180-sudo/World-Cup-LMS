@@ -584,23 +584,25 @@ function displayTournamentHistory() {
           </div>
         </div>
         
-        <div class="round-picks-grid" style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 0.4rem;">
+        <div class="round-picks-grid" style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
           ${round.picks.map(pick => `
             <div class="history-pick-item" style="
+              flex: 1;
+              min-width: 80px;
+              max-width: 120px;
               display: flex;
               flex-direction: column;
               align-items: center;
               gap: 0.2rem;
-              padding: 0.3rem 0.1rem;
+              padding: 0.4rem 0.2rem;
               background: rgba(255,255,255,0.05);
               border-radius: 0.25rem;
               border-left: 2px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
               text-align: center;
-              min-width: 0;
             ">
-              <img src="${pick.teams?.flag_url}" alt="" style="width: 20px; height: 14px; object-fit: cover; border-radius: 0.125rem;">
-              <span style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${pick.teams?.code || pick.teams?.name?.substring(0, 3)}</span>
-              ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.7rem;">+${pick.points}</span>` : ''}
+              <img src="${pick.teams?.flag_url}" alt="" style="width: 24px; height: 16px; object-fit: cover; border-radius: 0.125rem;">
+              <span style="font-size: 0.65rem; line-height: 1.2;">${pick.teams?.name}</span>
+              ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
             </div>
           `).join('')}
         </div>
