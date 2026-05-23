@@ -539,33 +539,37 @@ function displayTournamentHistory() {
   const container = document.getElementById('tournament-history');
   if (!container) return;
   
+  // Define all rounds
+  const allRounds = [
+    { number: 1, name: 'Group Stage', picksRequired: 9 },
+    { number: 2, name: 'Round of 32', picksRequired: 1 },
+    { number: 3, name: 'Round of 16', picksRequired: 1 },
+    { number: 4, name: 'Quarter Finals', picksRequired: 1 },
+    { number: 5, name: 'Semi Finals', picksRequired: 1 },
+    { number: 6, name: 'Final', picksRequired: 1 }
+  ];
+  
   // Group picks by round
   const picksByRound = {};
   userPicks.forEach(pick => {
-    const roundName = pick.rounds?.name || 'Unknown Round';
     const roundNumber = pick.rounds?.round_number || 0;
     if (!picksByRound[roundNumber]) {
-      picksByRound[roundNumber] = { name: roundName, number: roundNumber, picks: [] };
+      picksByRound[roundNumber] = [];
     }
-    picksByRound[roundNumber].picks.push(pick);
+    picksByRound[roundNumber].push(pick);
   });
-  
-  // Sort by round number
-  const sortedRounds = Object.values(picksByRound).sort((a, b) => a.number - b.number);
-  
-  if (sortedRounds.length === 0) {
-    container.innerHTML = '<p class="text-secondary">No picks yet. Make your first picks below!</p>';
-    return;
-  }
   
   let html = '<div class="tournament-history">';
   
-  sortedRounds.forEach(round => {
+  allRounds.forEach(round => {
+    const roundPicks = picksByRound[round.number] || [];
+    const hasPicks = roundPicks.length > 0;
     const isCurrentRound = currentRound && round.number === currentRound.round_number;
     const isFinal = round.number === 6;
     const isGroupStage = round.number === 1;
-    const totalPoints = round.picks.reduce((sum, p) => sum + (p.points || 0), 0);
-    const wins = round.picks.filter(p => p.result === 'win').length;
+    const totalPoints = roundPicks.reduce((sum, p) => sum + (p.points || 0), 0);
+    const wins = roundPicks.filter(p => p.result === 'win').length;
+    const isUpcoming = !hasPicks && !isCurrentRound;
     
     // Group Stage gets special 3x3 grid layout
     if (isGroupStage) {
@@ -589,7 +593,7 @@ function displayTournamentHistory() {
           </div>
           
           <div class="round-picks-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
-            ${round.picks.map(pick => `
+            ${roundPicks.map(pick => `
               <div class="history-pick-item" style="
                 display: flex;
                 flex-direction: column;
@@ -623,13 +627,13 @@ function displayTournamentHistory() {
         ">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-              ${isFinal ? '<span style="font-size: 1.5rem;">🏆</span>' : isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i>' : '<i class="fas fa-check-circle" style="color: var(--text-secondary);"></i>'}
+              ${isFinal ? '<span style="font-size: 1.5rem;">🏆</span>' : isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i>' : isUpcoming ? '<i class="fas fa-clock" style="color: var(--text-secondary);"></i>' : '<i class="fas fa-check-circle" style="color: var(--accent-green);"></i>'}
               <span style="font-weight: 600; ${isFinal ? 'color: var(--accent-gold); font-size: 1.1rem;' : ''}">${round.name}</span>
             </div>
             
             <div style="display: flex; align-items: center; gap: 1rem;">
-              <div class="round-teams-row" style="display: flex; gap: 0.3rem;">
-                ${round.picks.map(pick => `
+              <div class="round-teams-row" style="display: flex; gap: 0.3rem; ${!hasPicks ? 'opacity: 0.5;' : ''}">
+                ${hasPicks ? roundPicks.map(pick => `
                   <div class="history-pick-mini" style="
                     display: flex;
                     align-items: center;
@@ -643,11 +647,11 @@ function displayTournamentHistory() {
                     <span style="font-size: 0.7rem; white-space: nowrap;">${pick.teams?.name}</span>
                     ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
                   </div>
-                `).join('')}
+                `).join('') : `<span style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic;">Not started</span>`}
               </div>
               
               <div style="text-align: right; min-width: 60px;">
-                <span style="font-size: 1rem; font-weight: bold; color: ${isFinal ? 'var(--accent-gold)' : 'var(--accent-green)'};">${totalPoints} pts</span>
+                ${hasPicks ? `<span style="font-size: 1rem; font-weight: bold; color: ${isFinal ? 'var(--accent-gold)' : 'var(--accent-green)'};">${totalPoints} pts</span>` : `<span style="font-size: 0.8rem; color: var(--text-secondary);">${round.picksRequired} pick${round.picksRequired > 1 ? 's' : ''}</span>`}
               </div>
             </div>
           </div>
