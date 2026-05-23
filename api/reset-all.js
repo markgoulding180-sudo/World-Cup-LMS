@@ -707,21 +707,31 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Check if teams are null (draw not done yet)
+      const sampleMatch = koMatches[0];
+      if (!sampleMatch.homeTeam?.name || !sampleMatch.awayTeam?.name) {
+        return res.status(200).json({
+          found: true,
+          drawPending: true,
+          message: `${koMatches.length} ${targetStage} matches found in API, but teams are TBD (draw not completed).`,
+          matchesInApi: koMatches.length,
+          stage: targetStage,
+          note: 'FIFA will populate team data after the draw. Check again later.'
+        });
+      }
+
       const matches = [];
       const missingTeams = [];
       for (const match of koMatches) {
-        // Try multiple possible locations for team name
-        const homeNameRaw = match.homeTeam?.name || match.homeTeam?.shortName || match.home?.name || match.homeTeam;
-        const awayNameRaw = match.awayTeam?.name || match.awayTeam?.shortName || match.away?.name || match.awayTeam;
-        
-        const homeName = TEAM_MAPPINGS[homeNameRaw] || homeNameRaw;
-        const awayName = TEAM_MAPPINGS[awayNameRaw] || awayNameRaw;
+        const homeName = TEAM_MAPPINGS[match.homeTeam?.name] || match.homeTeam?.name;
+        const awayName = TEAM_MAPPINGS[match.awayTeam?.name] || match.awayTeam?.name;
         
         const homeTeamId = teamLookup.get(homeName) || teamLookup.get(homeName?.toLowerCase());
         const awayTeamId = teamLookup.get(awayName) || teamLookup.get(awayName?.toLowerCase());
         
-        if (!homeTeamId) { missingTeams.push(homeNameRaw || 'undefined'); continue; }
-        if (!awayTeamId) { missingTeams.push(awayNameRaw || 'undefined'); continue; }
+        if (!homeTeamId) { missingTeams.push(match.homeTeam?.name); continue; }
+        if (!awayTeamId) { missingTeams.push(match.awayTeam?.name); continue; }
+        
         matches.push({
           round_id: round.id,
           home_team_id: homeTeamId,
@@ -732,18 +742,12 @@ module.exports = async (req, res) => {
       }
 
       if (matches.length === 0) {
-        // Debug: return first match keys to understand structure
-        const sampleMatch = koMatches[0];
         return res.status(200).json({
           found: true,
           loadable: false,
           message: 'Matches found in API but teams not matched to database.',
           missingTeams: [...new Set(missingTeams)],
-          apiMatchesFound: koMatches.length,
-          debug: {
-            matchKeys: sampleMatch ? Object.keys(sampleMatch) : null,
-            firstMatch: sampleMatch
-          }
+          apiMatchesFound: koMatches.length
         });
       }
 

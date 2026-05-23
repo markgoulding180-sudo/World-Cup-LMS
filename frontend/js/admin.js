@@ -457,6 +457,11 @@ async function checkKoMatches(roundNumber) {
         <p style="font-size: 0.85rem; color: var(--text-secondary);">You can now open the round for users to make picks.</p>
       `;
       loadAdminData();
+    } else if (data.found && data.drawPending) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-gold);"><i class="fas fa-clock"></i> ${data.message}</p>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">${data.note}</p>
+      `;
     } else if (data.found && data.alreadyLoaded) {
       statusDiv.innerHTML = `<p style="color: var(--accent-blue);"><i class="fas fa-info-circle"></i> ${data.message}</p>`;
     } else if (data.found && !data.loadable) {
