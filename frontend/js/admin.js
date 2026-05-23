@@ -41,12 +41,15 @@ async function loadRoundStatus() {
     const data = await response.json();
     if (!response.ok) { container.innerHTML = `<p class="error">Error: ${data.error}</p>`; return; }
     let html = '<div class="rounds-list">';
+    let idsHtml = '<strong>Round IDs:</strong><br>';
     data.rounds?.forEach(round => {
       const statusClass = round.status === 'open' ? 'status-open' : round.status === 'closed' ? 'status-closed' : 'status-upcoming';
       html += `<div class="round-item"><span class="round-name">${round.name}</span><span class="round-status ${statusClass}">${round.status}</span></div>`;
+      idsHtml += `<code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 0.25rem; margin: 0.2rem; display: inline-block;">${round.name}: ${round.id.substring(0, 8)}...</code><br>`;
     });
     html += '</div>';
     container.innerHTML = html;
+    document.getElementById('round-ids').innerHTML = idsHtml;
   } catch (error) { container.innerHTML = `<p class="error">Error loading rounds</p>`; }
 }
 
