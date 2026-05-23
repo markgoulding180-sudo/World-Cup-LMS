@@ -622,5 +622,103 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
+  // ── CHECK API FOR KNOCKOUT MATCHES ─────────────────────────
+  if (action === 'check_ko_matches') {
+    const { round_number } = req.body || {};
+    if (!round_number || round_number < 2 || round_number > 6) {
+      return res.status(400).json({ error: 'Valid round_number (2-6) required' });
+    }
+    
+    try {
+      const apiResponse = await fetch(FOOTBALL_DATA_URL, {
+        headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN }
+      });
+
+      if (!apiResponse.ok) {
+        const errorText = await apiResponse.text();
+        return res.status(500).json({ 
+          error: `football-data.org API error: ${apiResponse.status}`,
+          details: errorText
+        });
+      }
+
+      const apiData = await apiResponse.json();
+      const fixtures = apiData.matches || [];
+
+      const stageMap = { 2: 'LAST_32', 3: 'LAST_16', 4: 'QUARTER_FINALS', 5: 'SEMI_FINALS', 6: 'FINAL' };
+      const targetStage = stageMap[round_number];
+      const koMatches = fixtures.filter(f => f.stage === targetStage || (round_number === 6 && f.stage === 'FINAL'));
+
+      if (koMatches.length === 0) {
+        return res.status(200).json({
+          found: false,
+          message: `No ${targetStage} matches found in API yet.`,
+          round: round_number,
+          stage: targetStage
+        });
+      }
+
+      const { data: teams } = await supabase.from('teams').select('id, name');
+      const teamLookup = new Map();
+      teams?.forEach(t => {
+        teamLookup.set(t.name, t.id);
+        teamLookup.set(t.name.toLowerCase(), t.id);
+      });
+
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
+      if (!round) return res.status(400).json({ error: `Round ${round_number} not found` });
+
+      const { data: existingMatches } = await supabase.from('matches').select('id').eq('round_id', round.id);
+      if (existingMatches?.length > 0) {
+        return res.status(200).json({
+          found: true,
+          alreadyLoaded: true,
+          message: `${existingMatches.length} matches already loaded for this round.`,
+          matches: existingMatches.length
+        });
+      }
+
+      const matches = [];
+      const missingTeams = [];
+      for (const match of koMatches) {
+        const homeName = TEAM_MAPPINGS[match.homeTeam?.name] || match.homeTeam?.name;
+        const awayName = TEAM_MAPPINGS[match.awayTeam?.name] || match.awayTeam?.name;
+        const homeTeamId = teamLookup.get(homeName) || teamLookup.get(homeName?.toLowerCase());
+        const awayTeamId = teamLookup.get(awayName) || teamLookup.get(awayName?.toLowerCase());
+        if (!homeTeamId) { missingTeams.push(match.homeTeam?.name); continue; }
+        if (!awayTeamId) { missingTeams.push(match.awayTeam?.name); continue; }
+        matches.push({
+          round_id: round.id,
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId,
+          match_time: match.utcDate,
+          status: 'upcoming'
+        });
+      }
+
+      if (matches.length === 0) {
+        return res.status(200).json({
+          found: true,
+          loadable: false,
+          message: 'Matches found in API but teams not matched to database.',
+          missingTeams: [...new Set(missingTeams)],
+          apiMatchesFound: koMatches.length
+        });
+      }
+
+      const { data: inserted, error: insertError } = await supabase.from('matches').insert(matches).select();
+      if (insertError) return res.status(500).json({ error: 'Failed to insert matches', details: insertError.message });
+
+      return res.status(200).json({
+        found: true,
+        loaded: true,
+        message: `Loaded ${inserted.length} matches for Round ${round_number}`,
+        matches: inserted.length,
+        missingTeams: missingTeams.length > 0 ? [...new Set(missingTeams)] : null
+      });
+
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
   return res.status(400).json({ error: 'Invalid action.' });
 };

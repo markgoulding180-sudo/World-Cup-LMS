@@ -114,7 +114,7 @@ async function displayKnockoutWaitingState(round) {
   // For R32, show qualified teams from group stage
   if (round.round_number === 2) {
     try {
-      const response = await fetch('/api/qualified-teams');
+      const response = await fetch('/api/matches?qualified=true');
       const data = await response.json();
       
       if (data.qualified && data.qualified.length > 0) {

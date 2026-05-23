@@ -405,10 +405,10 @@ async function checkKoMatches(roundNumber) {
   statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Checking football-data.org for ${roundNames[roundNumber]}...</p>`;
   
   try {
-    const response = await fetch('/api/check-ko-matches', {
+    const response = await fetch('/api/reset-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ round_number: roundNumber, admin_pin: '1234' })
+      body: JSON.stringify({ action: 'check_ko_matches', round_number: roundNumber, admin_pin: '1234' })
     });
     
     const data = await response.json();
