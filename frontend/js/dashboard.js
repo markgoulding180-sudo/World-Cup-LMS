@@ -64,13 +64,21 @@ async function loadDashboard() {
       allTeams = teamsData.teams || [];
       allMatches = matchesData.matches || [];
       
-      // Check if this is a knockout round with no matches yet
-      const roundMatches = currentRound ? allMatches.filter(m => m.round_id === currentRound.id) : [];
-      const isKnockoutRound = currentRound && currentRound.round_number >= 2;
+      // Check if there's no open round (waiting between rounds)
+      const openRound = roundsData.rounds?.find(r => r.status === 'open');
       
-      if (isKnockoutRound && roundMatches.length === 0) {
-        // Show waiting state for knockout round
-        displayKnockoutWaitingState(currentRound);
+      if (!openRound) {
+        // No open round - show waiting message
+        displayWaitingState();
+      } else if (openRound.round_number >= 2) {
+        // Knockout round - check if matches exist
+        const roundMatches = allMatches.filter(m => m.round_id === openRound.id);
+        if (roundMatches.length === 0) {
+          displayKnockoutWaitingState(openRound);
+        } else {
+          currentRound = openRound;
+          displayMatchdayPickFlow();
+        }
       } else {
         displayMatchdayPickFlow();
       }
@@ -106,6 +114,24 @@ function determineCurrentMatchday() {
   
   // Reset selected teams when switching matchdays
   selectedTeams = [];
+}
+
+function displayWaitingState() {
+  const container = document.getElementById('available-teams');
+  container.innerHTML = `
+    <div class="waiting-state" style="text-align: center; padding: 3rem 1rem;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+      <h2 style="margin-bottom: 0.5rem;">Waiting for Next Round</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+        The Group Stage has finished.<br>
+        Waiting for the Round of 32 to begin.
+      </p>
+      <p style="font-size: 0.85rem; color: var(--text-secondary);">
+        <i class="fas fa-info-circle"></i> 
+        FIFA will announce the knockout fixtures after the group stage completes.
+      </p>
+    </div>
+  `;
 }
 
 async function displayKnockoutWaitingState(round) {
@@ -707,6 +733,8 @@ function updateStatusCard(data) {
         
         ${isEliminated ? 
           `<p class="eliminated-text"><i class="fas fa-times-circle"></i> Eliminated - No more picks allowed</p>` :
+          data.current_round === 'waiting' ?
+          `<p class="waiting-text"><i class="fas fa-clock"></i> Waiting for next round</p>` :
           `<p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>`
         }
       </div>
