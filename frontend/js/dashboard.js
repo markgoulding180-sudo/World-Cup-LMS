@@ -584,16 +584,18 @@ function displayTournamentHistory() {
           </div>
         </div>
         
-        <div class="round-picks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
+        <div class="round-picks-grid" style="display: flex; flex-wrap: nowrap; gap: 0.5rem; overflow-x: auto;">
           ${round.picks.map(pick => `
             <div class="history-pick-item" style="
               display: flex;
               align-items: center;
               gap: 0.5rem;
-              padding: 0.5rem;
+              padding: 0.5rem 0.75rem;
               background: rgba(255,255,255,0.05);
               border-radius: 0.25rem;
               border-left: 3px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
+              white-space: nowrap;
+              flex-shrink: 0;
             ">
               <img src="${pick.teams?.flag_url}" alt="" style="width: 24px; height: 16px; object-fit: cover; border-radius: 0.125rem;">
               <span style="font-size: 0.85rem; flex: 1;">${pick.teams?.name}</span>
