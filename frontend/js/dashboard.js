@@ -30,9 +30,10 @@ async function loadDashboard() {
       updateStatusCard(statusData);
     }
     
+    let roundsData = null;
     const roundsResponse = await fetch('/api/rounds');
     if (roundsResponse.ok) {
-      const roundsData = await roundsResponse.json();
+      roundsData = await roundsResponse.json();
       currentRound = roundsData.rounds?.find(r => r.status === 'open') || roundsData.rounds?.[0];
     }
     
