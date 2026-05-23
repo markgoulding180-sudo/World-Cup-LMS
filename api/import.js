@@ -15,7 +15,6 @@ const TEAM_MAPPINGS = {
   "Côte d'Ivoire": 'Ivory Coast',
   'Bosnia and Herzegovina': 'Bosnia & Herzegovina',
   'Bosnia-Herzegovina': 'Bosnia & Herzegovina',
-  'United States': 'USA',
   'USA': 'United States',
   'Korea DPR': 'North Korea',
   'Kyrgyz Republic': 'Kyrgyzstan'
