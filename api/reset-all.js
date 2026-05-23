@@ -622,6 +622,30 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
+  // ── DEBUG: Inspect API structure ──────────────────────────
+  if (action === 'debug_api') {
+    try {
+      const response = await fetch(FOOTBALL_DATA_URL, {
+        headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN }
+      });
+      
+      if (!response.ok) {
+        return res.status(500).json({ error: `API error: ${response.status}` });
+      }
+      
+      const data = await response.json();
+      const fixtures = data.matches || [];
+      const stages = [...new Set(fixtures.map(f => f.stage))];
+      const koMatch = fixtures.find(f => f.stage !== 'GROUP_STAGE');
+      
+      return res.status(200).json({
+        totalMatches: fixtures.length,
+        stages: stages,
+        sampleKnockoutMatch: koMatch
+      });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
   // ── CHECK API FOR KNOCKOUT MATCHES ─────────────────────────
   if (action === 'check_ko_matches') {
     const { round_number } = req.body || {};

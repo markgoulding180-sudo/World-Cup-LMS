@@ -399,6 +399,38 @@ async function clearSimHistory() {
 }
 
 // ─── CHECK API FOR KNOCKOUT MATCHES ─────────────────────
+async function debugApi() {
+  const statusDiv = document.getElementById('debug-api-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Fetching API data...</p>';
+  
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'debug_api', admin_pin: '1234' })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
+      return;
+    }
+    
+    statusDiv.innerHTML = `
+      <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 0.25rem; max-height: 300px; overflow: auto;">
+        <p><strong>Total Matches:</strong> ${data.totalMatches}</p>
+        <p><strong>Stages:</strong> ${data.stages?.join(', ')}</p>
+        <hr style="margin: 0.5rem 0;">
+        <p><strong>Sample Knockout Match:</strong></p>
+        <pre style="font-size: 0.7rem; white-space: pre-wrap;">${JSON.stringify(data.sampleKnockoutMatch, null, 2)}</pre>
+      </div>
+    `;
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
 async function checkKoMatches(roundNumber) {
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const statusDiv = document.getElementById('check-ko-status');
