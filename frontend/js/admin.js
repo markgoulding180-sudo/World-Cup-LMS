@@ -219,7 +219,7 @@ async function closeSelectedRound() {
   if (nextRoundOption && nextRoundOption.value) {
     const openRes = await fetch('/api/rounds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open', round_id: nextRoundOption.value }) });
     if (openRes.ok) {
-      alert(`Round closed! ${nextRoundOption.text.split('(')[0].trim()} is now open.`);
+      alert(`Round closed! ${nextRoundOption.text.split('(')[0].trim()} is now open.\n\nUsers should refresh their dashboard to see the new matches.`);
     } else {
       alert('Round closed! (Next round could not be opened automatically)');
     }

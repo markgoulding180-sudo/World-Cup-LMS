@@ -56,7 +56,7 @@ async function loadDashboard() {
     determineCurrentMatchday();
     
     const teamsResponse = await fetch('/api/teams');
-    const matchesResponse = await fetch('/api/matches?limit=100');
+    const matchesResponse = await fetch('/api/matches?limit=200');
     
     if (teamsResponse.ok && matchesResponse.ok) {
       const teamsData = await teamsResponse.json();
