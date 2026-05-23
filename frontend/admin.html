@@ -222,11 +222,14 @@
     <div class="admin-card">
       <h2>Round Management</h2>
       <div id="round-status">Loading...</div>
-      <div id="round-ids" style="margin: 1rem 0; padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem;">
-        <strong>Round IDs:</strong> Loading...
+      
+      <div style="margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <select id="round-select" style="flex: 1; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+          <option value="">Select round...</option>
+        </select>
+        <button class="btn btn-primary" onclick="openSelectedRound()">Open</button>
+        <button class="btn btn-secondary" onclick="closeSelectedRound()">Close</button>
       </div>
-      <button class="btn btn-primary" onclick="openRound()">Open Round</button>
-      <button class="btn btn-secondary" onclick="closeRound()">Close Round</button>
     </div>
 
     <!-- MATCH RESULTS -->

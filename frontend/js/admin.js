@@ -41,15 +41,16 @@ async function loadRoundStatus() {
     const data = await response.json();
     if (!response.ok) { container.innerHTML = `<p class="error">Error: ${data.error}</p>`; return; }
     let html = '<div class="rounds-list">';
-    let idsHtml = '<strong>Round IDs:</strong><br>';
+    const select = document.getElementById('round-select');
+    select.innerHTML = '<option value="">Select round...</option>';
+    
     data.rounds?.forEach(round => {
       const statusClass = round.status === 'open' ? 'status-open' : round.status === 'closed' ? 'status-closed' : 'status-upcoming';
       html += `<div class="round-item"><span class="round-name">${round.name}</span><span class="round-status ${statusClass}">${round.status}</span></div>`;
-      idsHtml += `<code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 0.25rem; margin: 0.2rem; display: inline-block;">${round.name}: ${round.id.substring(0, 8)}...</code><br>`;
+      select.innerHTML += `<option value="${round.id}">${round.name} (${round.status})</option>`;
     });
     html += '</div>';
     container.innerHTML = html;
-    document.getElementById('round-ids').innerHTML = idsHtml;
   } catch (error) { container.innerHTML = `<p class="error">Error loading rounds</p>`; }
 }
 
@@ -182,18 +183,20 @@ async function importWorldCupData() {
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
 }
 
-async function openRound() {
-  const roundId = prompt('Enter Round ID to open:');
-  if (!roundId) return;
+async function openSelectedRound() {
+  const select = document.getElementById('round-select');
+  const roundId = select.value;
+  if (!roundId) { alert('Please select a round'); return; }
   const res = await fetch('/api/rounds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open', round_id: roundId }) });
   const data = await res.json();
   alert(res.ok ? 'Round opened!' : `Error: ${data.error}`);
   loadAdminData();
 }
 
-async function closeRound() {
-  const roundId = prompt('Enter Round ID to close:');
-  if (!roundId) return;
+async function closeSelectedRound() {
+  const select = document.getElementById('round-select');
+  const roundId = select.value;
+  if (!roundId) { alert('Please select a round'); return; }
   const res = await fetch('/api/rounds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'close', round_id: roundId }) });
   const data = await res.json();
   alert(res.ok ? 'Round closed!' : `Error: ${data.error}`);
