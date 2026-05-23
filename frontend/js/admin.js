@@ -197,9 +197,36 @@ async function closeSelectedRound() {
   const select = document.getElementById('round-select');
   const roundId = select.value;
   if (!roundId) { alert('Please select a round'); return; }
+  
+  // Get current round info to find next round
+  const selectedOption = select.options[select.selectedIndex];
+  const roundText = selectedOption.text;
+  const roundMatch = roundText.match(/Round (\d+)/);
+  const currentRoundNum = roundMatch ? parseInt(roundMatch[1]) : 0;
+  const nextRoundNum = currentRoundNum + 1;
+  
+  // Close current round
   const res = await fetch('/api/rounds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'close', round_id: roundId }) });
-  const data = await res.json();
-  alert(res.ok ? 'Round closed!' : `Error: ${data.error}`);
+  if (!res.ok) {
+    const data = await res.json();
+    alert(`Error: ${data.error}`);
+    return;
+  }
+  
+  // Find and open next round
+  const nextRoundOption = Array.from(select.options).find(opt => opt.text.includes(`Round ${nextRoundNum}`) || (nextRoundNum === 2 && opt.text.includes('Round of 32')) || (nextRoundNum === 3 && opt.text.includes('Round of 16')));
+  
+  if (nextRoundOption && nextRoundOption.value) {
+    const openRes = await fetch('/api/rounds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open', round_id: nextRoundOption.value }) });
+    if (openRes.ok) {
+      alert(`Round closed! ${nextRoundOption.text.split('(')[0].trim()} is now open.`);
+    } else {
+      alert('Round closed! (Next round could not be opened automatically)');
+    }
+  } else {
+    alert('Round closed! (No next round to open)');
+  }
+  
   loadAdminData();
 }
 
