@@ -78,7 +78,7 @@ async function loadDashboard() {
           displayKnockoutWaitingState(openRound);
         } else {
           currentRound = openRound;
-          displayMatchdayPickFlow();
+          displayKnockoutPickFlow();
         }
       } else {
         displayMatchdayPickFlow();
@@ -202,6 +202,146 @@ async function displayKnockoutWaitingState(round) {
       </p>
     </div>
   `;
+}
+
+function displayKnockoutPickFlow() {
+  const container = document.getElementById('available-teams');
+  
+  if (!currentRound) {
+    container.innerHTML = '<p class="text-secondary">No active round available.</p>';
+    return;
+  }
+  
+  const statusDiv = document.getElementById('player-status');
+  const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
+  
+  if (!isEntered) {
+    container.innerHTML = `
+      <div class="not-entered-message">
+        <p>You need to enter the tournament before making picks.</p>
+        <button class="btn btn-primary" onclick="enterTournament()">
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
+        </button>
+      </div>
+    `;
+    return;
+  }
+  
+  // Check if user already has a pick for this round
+  const existingPick = roundPicks.find(p => p.round_id === currentRound.id);
+  if (existingPick) {
+    container.innerHTML = `
+      <div class="pick-submitted">
+        <i class="fas fa-check-circle"></i>
+        <h3>Pick Submitted!</h3>
+        <p>You have picked <strong>${existingPick.teams?.name}</strong> for the ${currentRound.name}.</p>
+        <p>Good luck!</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Get matches for this round
+  const roundMatches = allMatches.filter(m => m.round_id === currentRound.id);
+  
+  if (roundMatches.length === 0) {
+    container.innerHTML = `<p class="text-secondary">No matches found for ${currentRound.name}.</p>`;
+    return;
+  }
+  
+  // Get all teams playing in this round
+  const roundTeamIds = new Set();
+  roundMatches.forEach(m => {
+    roundTeamIds.add(m.home_team_id);
+    roundTeamIds.add(m.away_team_id);
+  });
+  
+  const roundTeams = allTeams.filter(t => roundTeamIds.has(t.id));
+  
+  const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  const roundName = roundNames[currentRound.round_number] || currentRound.name;
+  
+  let html = `
+    <div class="knockout-pick-flow">
+      <div class="knockout-header">
+        <h3>${roundName}</h3>
+        <p class="knockout-instruction">Pick <strong>ONE</strong> team to win their match</p>
+      </div>
+      
+      <div class="knockout-matches">
+  `;
+  
+  roundMatches.forEach(m => {
+    const matchDate = new Date(m.match_time);
+    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    
+    const homeTeam = allTeams.find(t => t.id === m.home_team_id);
+    const awayTeam = allTeams.find(t => t.id === m.away_team_id);
+    
+    html += `
+      <div class="knockout-match-card">
+        <div class="match-header">
+          <span class="match-date">${dateStr} @ ${timeStr}</span>
+        </div>
+        <div class="match-teams">
+          <div class="match-team" onclick="submitKnockoutPick('${m.home_team_id}')">
+            <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="team-flag">
+            <span class="team-name">${homeTeam?.name || 'TBD'}</span>
+            <button class="pick-btn">Pick</button>
+          </div>
+          <span class="match-vs">VS</span>
+          <div class="match-team" onclick="submitKnockoutPick('${m.away_team_id}')">
+            <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="team-flag">
+            <span class="team-name">${awayTeam?.name || 'TBD'}</span>
+            <button class="pick-btn">Pick</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+async function submitKnockoutPick(teamId) {
+  const token = localStorage.getItem('wc_lms_token');
+  const team = allTeams.find(t => t.id === teamId);
+  
+  if (!confirm(`Pick ${team?.name} for the ${currentRound.name}?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/picks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        team_id: teamId,
+        round_id: currentRound.id,
+        tournament_id: tournamentId,
+        matchday: null  // Knockout rounds don't use matchdays
+      })
+    });
+    
+    if (response.ok) {
+      alert(`✓ Pick submitted! You picked ${team?.name}`);
+      loadDashboard();
+    } else {
+      const error = await response.json();
+      alert('Error: ' + (error.error || 'Failed to submit pick'));
+    }
+  } catch (error) {
+    alert('Error submitting pick: ' + error.message);
+  }
 }
 
 function displayMatchdayPickFlow() {
