@@ -553,6 +553,15 @@ function displayTournamentHistory() {
   // Sort by round number
   const sortedRounds = Object.values(picksByRound).sort((a, b) => a.number - b.number);
   
+  // Function to determine grid style based on pick count
+  const getGridStyle = (pickCount) => {
+    if (pickCount <= 3) return 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; justify-items: center;';
+    if (pickCount === 4) return 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;';
+    if (pickCount <= 6) return 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;';
+    if (pickCount <= 8) return 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;';
+    return 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;';
+  };
+  
   if (sortedRounds.length === 0) {
     container.innerHTML = '<p class="text-secondary">No picks yet. Make your first picks below!</p>';
     return;
@@ -584,24 +593,23 @@ function displayTournamentHistory() {
           </div>
         </div>
         
-        <div class="round-picks-grid" style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+        <div class="round-picks-grid" style="${getGridStyle(round.picks.length)}">
           ${round.picks.map(pick => `
             <div class="history-pick-item" style="
-              flex: 1;
-              min-width: 80px;
-              max-width: 120px;
               display: flex;
               flex-direction: column;
               align-items: center;
-              gap: 0.2rem;
-              padding: 0.4rem 0.2rem;
+              justify-content: center;
+              gap: 0.25rem;
+              padding: 0.5rem 0.25rem;
+              min-height: 70px;
               background: rgba(255,255,255,0.05);
               border-radius: 0.25rem;
               border-left: 2px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
               text-align: center;
             ">
               <img src="${pick.teams?.flag_url}" alt="" style="width: 24px; height: 16px; object-fit: cover; border-radius: 0.125rem;">
-              <span style="font-size: 0.65rem; line-height: 1.2;">${pick.teams?.name}</span>
+              <span style="font-size: 0.6rem; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pick.teams?.name}</span>
               ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
             </div>
           `).join('')}
