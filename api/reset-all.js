@@ -647,6 +647,10 @@ module.exports = async (req, res) => {
 
       const stageMap = { 2: 'LAST_32', 3: 'LAST_16', 4: 'QUARTER_FINALS', 5: 'SEMI_FINALS', 6: 'FINAL' };
       const targetStage = stageMap[round_number];
+      
+      // Debug: get all unique stages in API
+      const allStages = [...new Set(fixtures.map(f => f.stage))];
+      
       const koMatches = fixtures.filter(f => f.stage === targetStage || (round_number === 6 && f.stage === 'FINAL'));
 
       if (koMatches.length === 0) {
@@ -654,7 +658,8 @@ module.exports = async (req, res) => {
           found: false,
           message: `No ${targetStage} matches found in API yet.`,
           round: round_number,
-          stage: targetStage
+          stage: targetStage,
+          availableStages: allStages
         });
       }
 
