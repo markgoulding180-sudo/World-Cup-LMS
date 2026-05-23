@@ -245,39 +245,6 @@ async function loadSimHistory() {
 }
 
 // Register users for simulation
-async function createTestUser() {
-  const statusDiv = document.getElementById('test-user-status');
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Creating test user...</p>';
-  
-  try {
-    const response = await fetch('/api/reset-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create_test_user', admin_pin: '1234' })
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
-      return;
-    }
-    
-    statusDiv.innerHTML = `
-      <div style="background: rgba(34,197,94,0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid #22c55e;">
-        <p style="color: #22c55e; font-weight: bold;"><i class="fas fa-check-circle"></i> Test user created!</p>
-        <p style="margin: 0.5rem 0;"><strong>Email:</strong> ${data.email}</p>
-        <p style="margin: 0.5rem 0;"><strong>Password:</strong> ${data.password}</p>
-        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
-          Log out and log in with these credentials to test the full experience.
-        </p>
-      </div>
-    `;
-  } catch (error) {
-    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
-  }
-}
-
 async function simRegisterUsers() {
   const userCount = parseInt(document.getElementById('sim-user-count').value) || 50;
   const statusDiv = document.getElementById('sim-register-status');
