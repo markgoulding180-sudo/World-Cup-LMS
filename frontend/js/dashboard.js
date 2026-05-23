@@ -77,6 +77,7 @@ async function loadDashboard() {
       
       displayCurrentPicks(roundPicks);
       displayRoundMatches(allMatches, currentRound);
+      displayTournamentHistory();
     }
     
   } catch (error) {
@@ -528,6 +529,80 @@ function displayCurrentPicks(picks) {
       html += '</div>';
     }
     html += '</div>';
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function displayTournamentHistory() {
+  const container = document.getElementById('tournament-history');
+  if (!container) return;
+  
+  // Group picks by round
+  const picksByRound = {};
+  userPicks.forEach(pick => {
+    const roundName = pick.rounds?.name || 'Unknown Round';
+    const roundNumber = pick.rounds?.round_number || 0;
+    if (!picksByRound[roundNumber]) {
+      picksByRound[roundNumber] = { name: roundName, number: roundNumber, picks: [] };
+    }
+    picksByRound[roundNumber].picks.push(pick);
+  });
+  
+  // Sort by round number
+  const sortedRounds = Object.values(picksByRound).sort((a, b) => a.number - b.number);
+  
+  if (sortedRounds.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No picks yet. Make your first picks below!</p>';
+    return;
+  }
+  
+  let html = '<div class="tournament-history">';
+  
+  sortedRounds.forEach(round => {
+    const isCurrentRound = currentRound && round.number === currentRound.round_number;
+    const totalPoints = round.picks.reduce((sum, p) => sum + (p.points || 0), 0);
+    const wins = round.picks.filter(p => p.result === 'win').length;
+    
+    html += `
+      <div class="round-history-card ${isCurrentRound ? 'current' : ''}" style="
+        background: ${isCurrentRound ? 'rgba(147,51,234,0.1)' : 'var(--bg-secondary)'};
+        border: 1px solid ${isCurrentRound ? '#9333ea' : 'var(--border-color)'};
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="margin: 0; font-size: 1.1rem;">
+            ${isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i> ' : ''}
+            ${round.name}
+          </h3>
+          <div style="text-align: right;">
+            <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-green);">${totalPoints} pts</span>
+            <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">${wins} wins</span>
+          </div>
+        </div>
+        
+        <div class="round-picks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
+          ${round.picks.map(pick => `
+            <div class="history-pick-item" style="
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+              padding: 0.5rem;
+              background: rgba(255,255,255,0.05);
+              border-radius: 0.25rem;
+              border-left: 3px solid ${pick.result === 'win' ? 'var(--accent-green)' : pick.result === 'loss' ? 'var(--accent-red)' : 'var(--text-secondary)'};
+            ">
+              <img src="${pick.teams?.flag_url}" alt="" style="width: 24px; height: 16px; object-fit: cover; border-radius: 0.125rem;">
+              <span style="font-size: 0.85rem; flex: 1;">${pick.teams?.name}</span>
+              ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold;">+${pick.points}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
   });
   
   html += '</div>';
