@@ -2640,3 +2640,177 @@ a {
   font-size: 0.85rem;
   margin-top: 0.5rem;
 }
+
+/* Submitted pick display */
+.submitted-pick-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.submitted-flag {
+  width: 80px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.submitted-team-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.submitted-round {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Current knockout pick */
+.current-knockout-pick {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--accent-gold);
+}
+
+.current-pick-flag {
+  width: 48px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.current-pick-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.current-pick-team {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.current-pick-match {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.current-pick-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.current-pick-status.pending {
+  background: rgba(255,193,7,0.2);
+  color: #ffc107;
+}
+
+.current-pick-status.win {
+  background: rgba(34,197,94,0.2);
+  color: var(--accent-green);
+}
+
+.current-pick-status.loss {
+  background: rgba(239,68,68,0.2);
+  color: var(--accent-red);
+}
+
+/* Round text in status card */
+.round-text {
+  color: #9333ea;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+}
+
+/* All rounds matches display */
+.matches-list-compact.all-rounds {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.round-matches-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.round-matches-section:last-child {
+  border-bottom: none;
+}
+
+.round-matches-section.current {
+  background: rgba(147,51,234,0.1);
+  border: 1px solid #9333ea;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.round-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--accent-gold);
+  font-size: 1rem;
+}
+
+.current-badge {
+  background: #9333ea;
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.match-compact-item.finished {
+  opacity: 0.8;
+}
+
+.match-compact-item.live {
+  background: rgba(34,197,94,0.1);
+  border-left: 3px solid var(--accent-green);
+}
+
+.match-compact-teams .winner {
+  font-weight: 700;
+  color: var(--accent-green);
+}
+
+.match-score-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.live-badge {
+  background: var(--accent-green);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.finished-badge {
+  color: var(--accent-green);
+  font-size: 0.8rem;
+}

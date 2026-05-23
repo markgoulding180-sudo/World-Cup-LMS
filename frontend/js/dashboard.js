@@ -230,11 +230,16 @@ function displayKnockoutPickFlow() {
   // Check if user already has a pick for this round
   const existingPick = roundPicks.find(p => p.round_id === currentRound.id);
   if (existingPick) {
+    const team = allTeams.find(t => t.id === existingPick.team_id);
     container.innerHTML = `
       <div class="pick-submitted">
         <i class="fas fa-check-circle"></i>
         <h3>Pick Submitted!</h3>
-        <p>You have picked <strong>${existingPick.teams?.name}</strong> for the ${currentRound.name}.</p>
+        <div class="submitted-pick-display">
+          <img src="${team?.flag_url || ''}" alt="${team?.name}" class="submitted-flag">
+          <span class="submitted-team-name">${team?.name || existingPick.teams?.name}</span>
+        </div>
+        <p class="submitted-round">${currentRound.name}</p>
         <p>Good luck!</p>
       </div>
     `;
@@ -647,18 +652,49 @@ function displayCurrentPicks(picks) {
   
   const picksMade = picks.length;
   
+  // Separate Group Stage and Knockout picks
+  const groupStagePicks = picks.filter(p => p.rounds?.round_number === 1 || !p.rounds);
+  const knockoutPicks = picks.filter(p => p.rounds?.round_number >= 2);
+  
   if (picksMade === 0) {
     container.innerHTML = `
       <div class="current-pick-card">
-        <h3>Your Group Stage Picks</h3>
-        <p class="text-secondary">No picks yet. You need to make 9 picks total (3 per matchday).</p>
+        <h3>Your Picks</h3>
+        <p class="text-secondary">No picks yet.</p>
       </div>
     `;
     return;
   }
   
+  // Show current round pick if in knockout stage
+  if (currentRound && currentRound.round_number >= 2 && knockoutPicks.length > 0) {
+    const currentRoundPick = knockoutPicks.find(p => p.round_id === currentRound.id);
+    if (currentRoundPick) {
+      const team = allTeams.find(t => t.id === currentRoundPick.team_id);
+      const match = allMatches.find(m => m.home_team_id === currentRoundPick.team_id || m.away_team_id === currentRoundPick.team_id);
+      const matchDate = match ? new Date(match.match_time) : null;
+      const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+      
+      container.innerHTML = `
+        <div class="current-pick-card">
+          <h3>Your ${currentRound.name} Pick</h3>
+          <div class="current-knockout-pick">
+            <img src="${team?.flag_url || ''}" alt="${team?.name}" class="current-pick-flag">
+            <div class="current-pick-details">
+              <span class="current-pick-team">${team?.name || currentRoundPick.teams?.name}</span>
+              <span class="current-pick-match">${dateStr}</span>
+            </div>
+            <span class="current-pick-status ${currentRoundPick.result}">${currentRoundPick.result}</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+  }
+  
+  // Default: Show Group Stage picks
   const picksByMatchday = { 1: [], 2: [], 3: [] };
-  picks.forEach(pick => {
+  groupStagePicks.forEach(pick => {
     if (pick.matchday && picksByMatchday[pick.matchday]) {
       picksByMatchday[pick.matchday].push(pick);
     }
@@ -883,6 +919,8 @@ function updateStatusCard(data) {
           `<p class="eliminated-text"><i class="fas fa-times-circle"></i> Eliminated - No more picks allowed</p>` :
           data.current_round === 'waiting' ?
           `<p class="waiting-text"><i class="fas fa-clock"></i> Waiting for next round</p>` :
+          currentRound && currentRound.round_number >= 2 ?
+          `<p class="round-text"><i class="fas fa-play-circle"></i> ${currentRound.name}</p>` :
           `<p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>`
         }
       </div>
@@ -931,50 +969,62 @@ async function enterTournament() {
 
 function displayRoundMatches(matches, currentRound) {
   const container = document.getElementById('round-matches');
-  if (!container || !currentRound) return;
+  if (!container) return;
   
-  const roundMatches = matches?.filter(m => m.round_id === currentRound.id) || [];
+  // Show ALL matches from ALL rounds, sorted by date
+  const allMatchesSorted = [...(matches || [])].sort((a, b) => new Date(a.match_time) - new Date(b.match_time));
   
-  if (roundMatches.length === 0) {
+  if (allMatchesSorted.length === 0) {
     container.innerHTML = '<p class="text-secondary">No matches scheduled.</p>';
     return;
   }
   
-  // Group by matchday
-  const matchesByMatchday = { 1: [], 2: [], 3: [] };
-  roundMatches.forEach(m => {
-    if (m.matchday && matchesByMatchday[m.matchday]) {
-      matchesByMatchday[m.matchday].push(m);
+  // Group matches by round
+  const matchesByRound = {};
+  allMatchesSorted.forEach(m => {
+    const roundName = m.rounds?.name || 'Unknown Round';
+    if (!matchesByRound[roundName]) {
+      matchesByRound[roundName] = [];
     }
+    matchesByRound[roundName].push(m);
   });
   
-  let html = '<div class="matches-list-compact">';
+  // Round order for display
+  const roundOrder = ['Group Stage', 'Round of 32', 'Round of 16', 'Quarter Finals', 'Semi Finals', 'Final'];
   
-  [1, 2, 3].forEach(matchday => {
-    const matchdayMatches = matchesByMatchday[matchday];
-    if (matchdayMatches.length === 0) return;
+  let html = '<div class="matches-list-compact all-rounds">';
+  
+  // Display rounds in order
+  roundOrder.forEach(roundName => {
+    const roundMatches = matchesByRound[roundName];
+    if (!roundMatches || roundMatches.length === 0) return;
     
-    html += `<div class="matchday-compact">`;
-    html += `<h5>Matchday ${matchday}</h5>`;
+    const isCurrentRound = currentRound && currentRound.name === roundName;
     
-    matchdayMatches.forEach(m => {
+    html += `<div class="round-matches-section ${isCurrentRound ? 'current' : ''}">`;
+    html += `<h5 class="round-header">${roundName} ${isCurrentRound ? '<span class="current-badge">CURRENT</span>' : ''}</h5>`;
+    
+    roundMatches.forEach(m => {
       const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       const date = new Date(m.match_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       
       const hasScore = m.home_score !== null && m.home_score !== undefined;
+      const isFinished = m.status === 'finished' || hasScore;
       
       html += `
-        <div class="match-compact-item">
+        <div class="match-compact-item ${isFinished ? 'finished' : ''} ${m.status === 'live' ? 'live' : ''}">
           <div class="match-compact-teams">
             <img src="${m.home_team?.flag_url}" alt="" class="match-compact-flag">
-            <span>${m.home_team?.name}</span>
-            ${hasScore ? `<span class="match-score">${m.home_score}</span>` : ''}
+            <span class="${hasScore && m.home_score > m.away_score ? 'winner' : ''}">${m.home_team?.name}</span>
+            ${hasScore ? `<span class="match-score">${m.home_score}</span>` : '<span class="match-score-placeholder">-</span>'}
             <span class="vs">vs</span>
-            ${hasScore ? `<span class="match-score">${m.away_score}</span>` : ''}
-            <span>${m.away_team?.name}</span>
+            ${hasScore ? `<span class="match-score">${m.away_score}</span>` : '<span class="match-score-placeholder">-</span>'}
+            <span class="${hasScore && m.away_score > m.home_score ? 'winner' : ''}">${m.away_team?.name}</span>
             <img src="${m.away_team?.flag_url}" alt="" class="match-compact-flag">
           </div>
           <span class="match-compact-time">${date} ${time}</span>
+          ${m.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+          ${isFinished ? '<span class="finished-badge"><i class="fas fa-check"></i></span>' : ''}
         </div>
       `;
     });
