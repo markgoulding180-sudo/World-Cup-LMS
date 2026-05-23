@@ -284,16 +284,37 @@ async function simRegisterUsers() {
   const batchCount = Math.ceil(userCount / 10);
   let totalRegistered = 0;
 
+  let testUserInfo = null;
+  
   for (let b = 0; b < batchCount; b++) {
     statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Registering users ${b * 10 + 1}-${Math.min((b + 1) * 10, userCount)}...</p>`;
     try {
       const response = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'simulate_users', batch: b, admin_pin: '1234' }) });
       const data = await response.json();
-      if (response.ok) totalRegistered += data.registered || 0;
+      if (response.ok) {
+        totalRegistered += data.registered || 0;
+        if (data.testUser) testUserInfo = data.testUser;
+      }
       else { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`; return; }
     } catch (e) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${e.message}</p>`; return; }
   }
-  statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${totalRegistered} users registered and entered. Ready to run simulations.</p>`;
+  
+  let html = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> ${totalRegistered} users registered and entered. Ready to run simulations.</p>`;
+  
+  if (testUserInfo) {
+    html += `
+      <div style="background: rgba(34,197,94,0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid #22c55e; margin-top: 1rem;">
+        <p style="color: #22c55e; font-weight: bold;"><i class="fas fa-user"></i> First user created with test credentials:</p>
+        <p style="margin: 0.5rem 0;"><strong>Email:</strong> ${testUserInfo.email}</p>
+        <p style="margin: 0.5rem 0;"><strong>Password:</strong> ${testUserInfo.password}</p>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+          Log out and log in with these credentials to test the full player experience.
+        </p>
+      </div>
+    `;
+  }
+  
+  statusDiv.innerHTML = html;
 }
 
 // Run a simulation — reuses existing users, clears game data, runs full tournament

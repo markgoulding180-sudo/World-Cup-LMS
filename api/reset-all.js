@@ -303,18 +303,35 @@ module.exports = async (req, res) => {
       const { data: t } = await supabase.from('tournaments').select('id').single();
       if (!t) return res.status(400).json({ error: 'No tournament found.' });
       let registered = 0; let entered = 0;
+      let testUserCredentials = null;
+      
       for (let i = batch * 10 + 1; i <= batch * 10 + 10; i++) {
-        const email = `player${i}@wc2026.test`;
+        // First user of first batch gets admin credentials
+        const isFirstUser = (batch === 0 && i === 1);
+        const email = isFirstUser ? 'admin@admin.com' : `player${i}@wc2026.test`;
+        const password = isFirstUser ? '123456' : 'Test123456!';
+        const displayName = isFirstUser ? 'Admin Player' : `Player ${i}`;
+        const username = isFirstUser ? 'adminplayer' : `player${i}`;
+        
         try {
-          const { data: authData, error: authErr } = await supabase.auth.admin.createUser({ email, password: 'Test123456!', email_confirm: true });
+          const { data: authData, error: authErr } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
           if (authErr || !authData.user) continue;
           registered++;
-          await supabase.from('users').insert({ id: authData.user.id, username: `player${i}`, display_name: `Player ${i}`, email });
+          await supabase.from('users').insert({ id: authData.user.id, username, display_name: displayName, email });
           await supabase.from('tournament_entries').insert({ tournament_id: t.id, user_id: authData.user.id, status: 'active', total_points: 0, wins: 0 });
           entered++;
+          
+          if (isFirstUser) {
+            testUserCredentials = { email, password };
+          }
         } catch (e) { /* skip */ }
       }
-      return res.status(200).json({ success: true, registered, entered, batch: batch + 1, message: `Batch ${batch + 1} done. ${registered} users created.` });
+      
+      const message = testUserCredentials 
+        ? `Batch ${batch + 1} done. ${registered} users created. Test user: ${testUserCredentials.email} / ${testUserCredentials.password}`
+        : `Batch ${batch + 1} done. ${registered} users created.`;
+        
+      return res.status(200).json({ success: true, registered, entered, batch: batch + 1, message, testUser: testUserCredentials });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
