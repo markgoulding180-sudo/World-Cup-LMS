@@ -697,7 +697,7 @@ module.exports = async (req, res) => {
       }
 
       if (matches.length === 0) {
-        // Debug: return sample of raw API data to see structure
+        // Debug: return first match keys to understand structure
         const sampleMatch = koMatches[0];
         return res.status(200).json({
           found: true,
@@ -706,12 +706,8 @@ module.exports = async (req, res) => {
           missingTeams: [...new Set(missingTeams)],
           apiMatchesFound: koMatches.length,
           debug: {
-            sampleMatch: {
-              stage: sampleMatch?.stage,
-              homeTeam: sampleMatch?.homeTeam,
-              awayTeam: sampleMatch?.awayTeam,
-              utcDate: sampleMatch?.utcDate
-            }
+            matchKeys: sampleMatch ? Object.keys(sampleMatch) : null,
+            firstMatch: sampleMatch
           }
         });
       }
