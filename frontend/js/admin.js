@@ -388,15 +388,19 @@ async function runSimulation() {
 
       // Add metadata to finalize step
       if (step.action === 'sim_finalize' && simMeta) {
-        body.sim_number = simMeta.sim_number;
-        body.total_users = simMeta.total_users;
-        body.sim_lives = simMeta.sim_lives;
-        body.participation_data = participationData; // Send participation data to backend
-        // Re-send the request with metadata
+        const finalBody = { 
+          action: 'sim_finalize', 
+          admin_pin: '1234',
+          sim_number: simMeta.sim_number,
+          total_users: simMeta.total_users,
+          sim_lives: simMeta.sim_lives,
+          participation_data: participationData
+        };
+        // Send the request with metadata
         const finalResponse = await fetch('/api/reset-all', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+          body: JSON.stringify(finalBody)
         });
         if (!finalResponse.ok) {
           const rawText = await finalResponse.text();
