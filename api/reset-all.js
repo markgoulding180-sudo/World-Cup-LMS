@@ -783,5 +783,201 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // STEP-BY-STEP SIMULATION ACTIONS (avoid Vercel 10s timeout)
+  // ═══════════════════════════════════════════════════════════
+
+  // ── SIM_INIT: Clear game data, reset users with lives ──────
+  if (action === 'sim_init') {
+    const { sim_lives = 5 } = req.body;
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      if (!tournament) return res.status(400).json({ error: 'No tournament found' });
+      const { data: allUsers } = await supabase.from('users').select('id, display_name');
+      if (!allUsers?.length) return res.status(400).json({ error: 'No users found' });
+
+      // Clear game data
+      await supabase.from('picks').delete().neq('id', FAKE_ID);
+      await supabase.from('tournament_entries').delete().neq('id', FAKE_ID);
+      const { data: koRounds } = await supabase.from('rounds').select('id').gte('round_number', 2);
+      for (const r of koRounds || []) await supabase.from('matches').delete().eq('round_id', r.id);
+      await supabase.from('matches').update({ status: 'upcoming', home_score: null, away_score: null, result: null }).in('matchday', [1, 2, 3]);
+
+      // Re-enter users
+      await supabase.from('tournament_entries').insert(allUsers.map(u => ({ tournament_id: tournament.id, user_id: u.id, status: 'active', lives_remaining: sim_lives, max_lives: sim_lives })));
+
+      // Get sim number
+      const { count: simCount } = await supabase.from('simulations').select('*', { count: 'exact', head: true });
+      const simNumber = (simCount || 0) + 1;
+
+      return res.status(200).json({ success: true, simNumber, totalUsers: allUsers.length, simLives: sim_lives });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_GROUP_PICKS: Make picks for a matchday ─────────────
+  if (action === 'sim_group_picks') {
+    const { matchday } = req.body;
+    if (!matchday) return res.status(400).json({ error: 'matchday required' });
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', matchday);
+      const availTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
+      const userIds = entries.map(e => e.user_id);
+      const { data: allPicks } = await supabase.from('picks').select('user_id, team_id').in('user_id', userIds);
+      const upm = {};
+      allPicks?.forEach(p => { if (!upm[p.user_id]) upm[p.user_id] = new Set(); upm[p.user_id].add(p.team_id); });
+      const picks = [];
+      for (const entry of entries) {
+        const used = upm[entry.user_id] || new Set();
+        const avail = availTeams.filter(t => !used.has(t));
+        const selected = [...avail].sort(() => 0.5 - Math.random()).slice(0, 3);
+        for (const teamId of selected) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday, result: 'pending' });
+      }
+      for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
+      return res.status(200).json({ success: true, picksMade: picks.length });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_GROUP_RESULTS: Process results for a matchday ──────
+  if (action === 'sim_group_results') {
+    const { matchday } = req.body;
+    if (!matchday) return res.status(400).json({ error: 'matchday required' });
+    try {
+      const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
+      let eliminations = 0;
+      for (const match of matches) {
+        const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
+        const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
+        const winId = result === 'H' ? match.home_team_id : result === 'A' ? match.away_team_id : null;
+        const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
+        await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
+        if (winId) await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+        for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss' }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
+      }
+      const { data: lp } = await supabase.from('picks').select('user_id').eq('matchday', matchday).eq('result', 'loss');
+      const ul = {};
+      lp?.forEach(p => { ul[p.user_id] = (ul[p.user_id] || 0) + 1; });
+      const lids = Object.keys(ul);
+      if (lids.length > 0) {
+        const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', lids).gt('lives_remaining', 0);
+        await Promise.all((allEntries || []).map(async entry => {
+          const newLives = Math.max(0, entry.lives_remaining - (ul[entry.user_id] || 0));
+          if (newLives === 0) eliminations++;
+          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
+        }));
+      }
+      const { count: survivors } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
+      return res.status(200).json({ success: true, eliminations, survivors: survivors || 0 });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_CREATE_R32: Create Round of 32 matches ─────────────
+  if (action === 'sim_create_r32') {
+    try {
+      const qualified = await get32QualifiedTeams();
+      const { data: r32round } = await supabase.from('rounds').select('id').eq('round_number', 2).single();
+      const r32matches = [];
+      for (let i = 0; i < qualified.length - 1; i += 2) {
+        r32matches.push({ round_id: r32round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      }
+      await supabase.from('matches').insert(r32matches);
+      return res.status(200).json({ success: true, teamsQualified: qualified.length, matchesCreated: r32matches.length });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_KO_ROUND: Picks + Results for a KO round ───────────
+  if (action === 'sim_ko_round') {
+    const { round_number } = req.body;
+    if (!round_number || round_number < 2 || round_number > 6) return res.status(400).json({ error: 'round_number 2-6 required' });
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('round_id', round.id);
+      const userIds = entries.map(e => e.user_id);
+      const { data: allPicks } = await supabase.from('picks').select('user_id, team_id').in('user_id', userIds);
+      const upm = {};
+      allPicks?.forEach(p => { if (!upm[p.user_id]) upm[p.user_id] = new Set(); upm[p.user_id].add(p.team_id); });
+      const avail = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
+      const picks = [];
+      for (const entry of entries) {
+        const used = upm[entry.user_id] || new Set();
+        const a = avail.filter(t => !used.has(t));
+        if (a.length > 0) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: a[Math.floor(Math.random() * a.length)], matchday: null, result: 'pending' });
+      }
+      for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
+
+      // Results
+      const { data: koMatches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
+      let eliminations = 0;
+      for (const match of koMatches) {
+        let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
+        if (hs === as) { hs > 0 ? as-- : hs++; }
+        const result = hs > as ? 'H' : 'A';
+        const winId = result === 'H' ? match.home_team_id : match.away_team_id;
+        const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
+        await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
+        await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
+        await supabase.from('picks').update({ result: 'loss' }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+      }
+      const { data: lp } = await supabase.from('picks').select('user_id').eq('round_id', round.id).eq('result', 'loss');
+      const losingIds = [...new Set((lp || []).map(p => p.user_id))];
+      if (losingIds.length > 0) {
+        const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', losingIds).gt('lives_remaining', 0);
+        await Promise.all((allEntries || []).map(async entry => {
+          const newLives = entry.lives_remaining - 1;
+          if (newLives === 0) eliminations++;
+          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: round_number } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
+        }));
+      }
+      const { count: survivors } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
+      return res.status(200).json({ success: true, eliminations, survivors: survivors || 0 });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_ADVANCE: Create next round matches ─────────────────
+  if (action === 'sim_advance') {
+    const { from_round } = req.body;
+    if (!from_round || from_round < 2 || from_round > 5) return res.status(400).json({ error: 'from_round 2-5 required' });
+    try {
+      const { data: fromRound } = await supabase.from('rounds').select('id').eq('round_number', from_round).single();
+      const { data: nextRound } = await supabase.from('rounds').select('id').eq('round_number', from_round + 1).single();
+      const { data: finished } = await supabase.from('matches').select('home_team_id, away_team_id, result').eq('round_id', fromRound.id).eq('status', 'finished');
+      const winners = finished.map(m => m.result === 'H' ? m.home_team_id : m.away_team_id);
+      const newMatches = [];
+      for (let i = 0; i < winners.length - 1; i += 2) {
+        newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      }
+      if (newMatches.length > 0) await supabase.from('matches').insert(newMatches);
+      return res.status(200).json({ success: true, matchesCreated: newMatches.length });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_FINALIZE: Save results to simulations table ────────
+  if (action === 'sim_finalize') {
+    const { sim_number, sim_lives, total_users } = req.body;
+    try {
+      const { data: winners } = await supabase.from('tournament_entries').select('users:user_id(display_name)').eq('status', 'active').order('lives_remaining', { ascending: false }).limit(5);
+      const winner = winners?.[0]?.users?.display_name || 'No winner';
+      const { count: finalSurvivors } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
+
+      const summary = {
+        simNumber: sim_number,
+        totalUsers: total_users,
+        sim_lives: sim_lives,
+        winner,
+        finalSurvivors: finalSurvivors || 0,
+        teamsQualifiedForR32: 32,
+        survivorsPerStage: []
+      };
+
+      await supabase.from('simulations').insert({ sim_number, total_users, lives_setting: sim_lives, winner, final_survivors: finalSurvivors || 0, summary });
+
+      return res.status(200).json({ success: true, summary });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
   return res.status(400).json({ error: 'Invalid action.' });
 };

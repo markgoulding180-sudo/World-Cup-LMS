@@ -318,41 +318,100 @@ async function simRegisterUsers() {
 }
 
 // Run a simulation — reuses existing users, clears game data, runs full tournament
+// BROKEN INTO STEPS to avoid Vercel 10s timeout (18 API calls, each under 2 seconds)
 async function runSimulation() {
+  const simLives = parseInt(document.getElementById('sim-lives-select')?.value) || 5;
   const statusDiv = document.getElementById('sim-run-status');
+  const steps = [
+    { action: 'sim_init', name: 'Initializing simulation...' },
+    { action: 'sim_group_picks', matchday: 1, name: 'Matchday 1 picks...' },
+    { action: 'sim_group_results', matchday: 1, name: 'Matchday 1 results...' },
+    { action: 'sim_group_picks', matchday: 2, name: 'Matchday 2 picks...' },
+    { action: 'sim_group_results', matchday: 2, name: 'Matchday 2 results...' },
+    { action: 'sim_group_picks', matchday: 3, name: 'Matchday 3 picks...' },
+    { action: 'sim_group_results', matchday: 3, name: 'Matchday 3 results...' },
+    { action: 'sim_create_r32', name: 'Creating Round of 32...' },
+    { action: 'sim_ko_round', round: 2, name: 'Round of 32...' },
+    { action: 'sim_advance', from: 2, name: 'Advancing to R16...' },
+    { action: 'sim_ko_round', round: 3, name: 'Round of 16...' },
+    { action: 'sim_advance', from: 3, name: 'Advancing to QF...' },
+    { action: 'sim_ko_round', round: 4, name: 'Quarter Finals...' },
+    { action: 'sim_advance', from: 4, name: 'Advancing to SF...' },
+    { action: 'sim_ko_round', round: 5, name: 'Semi Finals...' },
+    { action: 'sim_advance', from: 5, name: 'Advancing to Final...' },
+    { action: 'sim_ko_round', round: 6, name: 'Final...' },
+    { action: 'sim_finalize', name: 'Finalizing...' }
+  ];
 
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Running simulation... (30-60 seconds, please wait)</p>';
+  let summary = null;
+  let simMeta = null;
 
-  try {
-    const response = await fetch('/api/reset-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'sim_run', admin_pin: '1234' })
-    });
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Step ${i + 1}/${steps.length}: ${step.name}</p>`;
 
-    // Debug: log raw response if not OK
-    if (!response.ok) {
-      const rawText = await response.text();
-      console.error('API Error Response:', rawText);
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>API Error ${response.status}:</strong></p><pre style="font-size: 0.75rem; overflow: auto; max-height: 200px; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 0.25rem;">${rawText.substring(0, 1000)}</pre>`;
+    try {
+      const body = { action: step.action, sim_lives: simLives, admin_pin: '1234' };
+      if (step.matchday) body.matchday = step.matchday;
+      if (step.round) body.round_number = step.round;
+      if (step.from) body.from_round = step.from;
+
+      const response = await fetch('/api/reset-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      // Debug: log raw response if not OK
+      if (!response.ok) {
+        const rawText = await response.text();
+        console.error(`API Error at step ${i + 1}:`, rawText);
+        statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>Step ${i + 1} Error ${response.status}:</strong></p><pre style="font-size: 0.75rem; overflow: auto; max-height: 200px; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 0.25rem;">${rawText.substring(0, 1000)}</pre>`;
+        return;
+      }
+
+      const data = await response.json();
+
+      // Capture sim metadata from init step
+      if (step.action === 'sim_init') {
+        simMeta = { sim_number: data.simNumber, total_users: data.totalUsers, sim_lives: data.simLives };
+      }
+
+      // Add metadata to finalize step
+      if (step.action === 'sim_finalize' && simMeta) {
+        body.sim_number = simMeta.sim_number;
+        body.total_users = simMeta.total_users;
+        body.sim_lives = simMeta.sim_lives;
+        // Re-send the request with metadata
+        const finalResponse = await fetch('/api/reset-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!finalResponse.ok) {
+          const rawText = await finalResponse.text();
+          statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>Finalize Error:</strong></p><pre style="font-size: 0.75rem;">${rawText.substring(0, 500)}</pre>`;
+          return;
+        }
+        const finalData = await finalResponse.json();
+        if (finalData.summary) summary = finalData.summary;
+        continue;
+      }
+
+      if (data.summary) summary = data.summary;
+    } catch (error) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error at step ${i + 1}: ${error.message}</p>`;
       return;
     }
+  }
 
-    const data = await response.json();
-
-    if (response.ok && data.summary) {
-      // Add to local history
-      simHistory.push({ summary: data.summary, sim_number: data.summary.simNumber, total_users: data.summary.totalUsers, winner: data.summary.winner, final_top5: data.summary.finalTop5 });
-      currentSimIndex = simHistory.length - 1;
-      renderSimResult(simHistory[currentSimIndex]);
-      updateSimNav();
-      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Sim #${data.summary.simNumber} complete!</p>`;
-      loadAdminData();
-    } else {
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data?.error || 'Simulation timed out. Try fewer users.'}</p>`;
-    }
-  } catch (error) {
-    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  if (summary) {
+    simHistory.push({ summary, sim_number: summary.simNumber, total_users: summary.totalUsers, winner: summary.winner, final_top5: summary.finalTop5 });
+    currentSimIndex = simHistory.length - 1;
+    renderSimResult(simHistory[currentSimIndex]);
+    updateSimNav();
+    statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Sim #${summary.simNumber} complete! Winner: ${summary.winner}</p>`;
+    loadAdminData();
   }
 }
 
