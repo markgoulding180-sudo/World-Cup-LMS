@@ -865,11 +865,12 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
-  // ── SIM_GROUP_RESULTS: Process results for a matchday (POINTS SYSTEM - no eliminations) ──────
+  // ── SIM_GROUP_RESULTS: Process results for a matchday (POINTS SYSTEM - award 2 points per win) ──────
   if (action === 'sim_group_results') {
     const { matchday } = req.body;
     if (!matchday) return res.status(400).json({ error: 'matchday required' });
     try {
+      const groupStagePoints = POINTS_STRUCTURE[1]; // 2 points for group stage
       const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
       for (const match of matches) {
         const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
@@ -877,8 +878,9 @@ module.exports = async (req, res) => {
         const winId = result === 'H' ? match.home_team_id : result === 'A' ? match.away_team_id : null;
         const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
         await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
-        if (winId) await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
-        for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss' }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
+        // Award 2 points for winning picks, 0 for losses
+        if (winId) await supabase.from('picks').update({ result: 'win', points: groupStagePoints }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+        for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
       }
       // Points system: NO eliminations, just count total active entries
       const { count: totalActive } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active');
@@ -937,7 +939,8 @@ module.exports = async (req, res) => {
       
       for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
 
-      // Results (points system - no eliminations)
+      // Results (points system - award points based on round)
+      const pointsForRound = POINTS_STRUCTURE[round_number] || 2;
       const { data: koMatches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
       for (const match of koMatches) {
         let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
@@ -946,8 +949,9 @@ module.exports = async (req, res) => {
         const winId = result === 'H' ? match.home_team_id : match.away_team_id;
         const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
         await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
-        await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
-        await supabase.from('picks').update({ result: 'loss' }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+        // Award points for winning picks
+        await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
+        await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
       }
       
       // Points system: count all active entries (no eliminations)
