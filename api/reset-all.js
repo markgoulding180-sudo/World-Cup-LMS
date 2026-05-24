@@ -1100,18 +1100,37 @@ module.exports = async (req, res) => {
       };
 
       console.log('Inserting simulation:', { sim_number, total_users, sim_lives });
-      const { error: insertError } = await supabase.from('simulations').insert({ 
-        sim_number, 
-        total_users, 
-        lives_setting: sim_lives, 
-        winner, 
-        final_survivors: validEntries?.length || 0, 
-        summary 
-      });
       
-      if (insertError) {
-        console.error('Failed to save simulation:', insertError);
-        return res.status(500).json({ error: 'Failed to save simulation: ' + insertError.message });
+      // Check if this sim_number already exists to prevent duplicates
+      const { data: existingSim } = await supabase.from('simulations').select('id').eq('sim_number', sim_number).limit(1);
+      if (existingSim && existingSim.length > 0) {
+        console.log('Simulation with sim_number', sim_number, 'already exists, updating instead');
+        const { error: updateError } = await supabase.from('simulations').update({ 
+          total_users, 
+          lives_setting: sim_lives, 
+          winner, 
+          final_survivors: validEntries?.length || 0, 
+          summary 
+        }).eq('sim_number', sim_number);
+        
+        if (updateError) {
+          console.error('Failed to update simulation:', updateError);
+          return res.status(500).json({ error: 'Failed to update simulation: ' + updateError.message });
+        }
+      } else {
+        const { error: insertError } = await supabase.from('simulations').insert({ 
+          sim_number, 
+          total_users, 
+          lives_setting: sim_lives, 
+          winner, 
+          final_survivors: validEntries?.length || 0, 
+          summary 
+        });
+        
+        if (insertError) {
+          console.error('Failed to save simulation:', insertError);
+          return res.status(500).json({ error: 'Failed to save simulation: ' + insertError.message });
+        }
       }
 
       return res.status(200).json({ success: true, summary });
