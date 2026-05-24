@@ -994,32 +994,47 @@ module.exports = async (req, res) => {
     const participation_data = req.body?.participation_data || [];
     console.log('SIM_FINALIZE received:', { sim_number, sim_lives, total_users, participation_data_length: participation_data?.length });
     try {
-      // Get all entries with their final scores (only sim users with points)
+      // Get all entries (simulation users)
       const { data: allEntries } = await supabase.from('tournament_entries')
-        .select('user_id, total_points, users:user_id(display_name, email)')
-        .eq('status', 'active')
-        .order('total_points', { ascending: false });
+        .select('user_id, users:user_id(display_name, email)')
+        .eq('status', 'active');
       
-      // Filter to only simulation users (those with @wc2026.test emails) who have points
-      const validEntries = allEntries?.filter(e => 
-        e.users?.email?.includes('@wc2026.test') && e.total_points > 0
-      ) || [];
+      // Get ALL picks to calculate total points per player
+      const { data: allPicks } = await supabase.from('picks')
+        .select('user_id, points');
+      
+      // Calculate total points per user from picks
+      const userPoints = {};
+      allPicks?.forEach(pick => {
+        userPoints[pick.user_id] = (userPoints[pick.user_id] || 0) + (pick.points || 0);
+      });
+      
+      // Build entries with calculated points
+      const entriesWithPoints = allEntries?.map(e => ({
+        ...e,
+        total_points: userPoints[e.user_id] || 0
+      })) || [];
+      
+      // Filter to only simulation users with points > 0
+      const validEntries = entriesWithPoints
+        .filter(e => e.users?.email?.includes('@wc2026.test') && e.total_points > 0)
+        .sort((a, b) => b.total_points - a.total_points);
       
       const winner = validEntries?.[0]?.users?.display_name || 'No winner';
       
       // Get ALL picks with team and round details for every player
-      const { data: allPicks } = await supabase.from('picks')
+      const { data: allPicksDetailed } = await supabase.from('picks')
         .select('user_id, team_id, round_id, matchday, result, points, teams:team_id(name), rounds:round_id(name, round_number)')
         .order('round_id');
       
       // Organize picks by player
       const playerPicks = {};
-      allPicks?.forEach(pick => {
+      allPicksDetailed?.forEach(pick => {
         if (!playerPicks[pick.user_id]) {
           playerPicks[pick.user_id] = {
             userId: pick.user_id,
-            displayName: allEntries?.find(e => e.user_id === pick.user_id)?.users?.display_name || 'Unknown',
-            totalPoints: allEntries?.find(e => e.user_id === pick.user_id)?.total_points || 0,
+            displayName: entriesWithPoints?.find(e => e.user_id === pick.user_id)?.users?.display_name || 'Unknown',
+            totalPoints: userPoints[pick.user_id] || 0,
             picks: []
           };
         }
@@ -1063,9 +1078,9 @@ module.exports = async (req, res) => {
         })) || [],
         mostPickedTeams,
         playerDetails: Object.values(playerPicks),
-        totalPicksMade: allPicks?.length || 0,
-        winningPicks: allPicks?.filter(p => p.result === 'win').length || 0,
-        losingPicks: allPicks?.filter(p => p.result === 'loss').length || 0
+        totalPicksMade: allPicksDetailed?.length || 0,
+        winningPicks: allPicksDetailed?.filter(p => p.result === 'win').length || 0,
+        losingPicks: allPicksDetailed?.filter(p => p.result === 'loss').length || 0
       };
 
       console.log('Inserting simulation:', { sim_number, total_users, sim_lives });
