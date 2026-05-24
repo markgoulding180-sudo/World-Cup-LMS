@@ -375,7 +375,13 @@ async function runSimulation() {
 
       // Capture sim metadata from init step
       if (step.action === 'sim_init') {
-        simMeta = { sim_number: data.simNumber, total_users: data.totalUsers, sim_lives: data.simLives };
+        console.log('Sim init response:', data);
+        simMeta = { 
+          sim_number: data.simNumber, 
+          total_users: data.totalUsers, 
+          sim_lives: data.simLives 
+        };
+        console.log('simMeta set:', simMeta);
       }
 
       // Track participation data from pick steps
@@ -387,7 +393,12 @@ async function runSimulation() {
       }
 
       // Add metadata to finalize step
-      if (step.action === 'sim_finalize' && simMeta) {
+      if (step.action === 'sim_finalize') {
+        console.log('Finalize step - simMeta:', simMeta);
+        if (!simMeta) {
+          statusDiv.innerHTML = '<p style="color: var(--accent-red);">Error: Simulation metadata not found. Please try again.</p>';
+          return;
+        }
         const finalBody = { 
           action: 'sim_finalize', 
           admin_pin: '1234',
@@ -396,6 +407,7 @@ async function runSimulation() {
           sim_lives: simMeta.sim_lives,
           participation_data: participationData
         };
+        console.log('Finalize body:', finalBody);
         // Send the request with metadata
         const finalResponse = await fetch('/api/reset-all', {
           method: 'POST',
