@@ -323,28 +323,29 @@ async function runSimulation() {
   const simLives = parseInt(document.getElementById('sim-lives-select')?.value) || 5;
   const statusDiv = document.getElementById('sim-run-status');
   const steps = [
-    { action: 'sim_init', name: 'Initializing simulation...' },
-    { action: 'sim_group_picks', matchday: 1, name: 'Matchday 1 picks...' },
-    { action: 'sim_group_results', matchday: 1, name: 'Matchday 1 results...' },
-    { action: 'sim_group_picks', matchday: 2, name: 'Matchday 2 picks...' },
-    { action: 'sim_group_results', matchday: 2, name: 'Matchday 2 results...' },
-    { action: 'sim_group_picks', matchday: 3, name: 'Matchday 3 picks...' },
-    { action: 'sim_group_results', matchday: 3, name: 'Matchday 3 results...' },
-    { action: 'sim_create_r32', name: 'Creating Round of 32...' },
-    { action: 'sim_ko_round', round: 2, name: 'Round of 32...' },
-    { action: 'sim_advance', from: 2, name: 'Advancing to R16...' },
-    { action: 'sim_ko_round', round: 3, name: 'Round of 16...' },
-    { action: 'sim_advance', from: 3, name: 'Advancing to QF...' },
-    { action: 'sim_ko_round', round: 4, name: 'Quarter Finals...' },
-    { action: 'sim_advance', from: 4, name: 'Advancing to SF...' },
-    { action: 'sim_ko_round', round: 5, name: 'Semi Finals...' },
-    { action: 'sim_advance', from: 5, name: 'Advancing to Final...' },
-    { action: 'sim_ko_round', round: 6, name: 'Final...' },
-    { action: 'sim_finalize', name: 'Finalizing...' }
+    { action: 'sim_init', name: 'Initializing simulation...', track: false },
+    { action: 'sim_group_picks', matchday: 1, name: 'Matchday 1 picks...', track: true, stage: 'Matchday 1' },
+    { action: 'sim_group_results', matchday: 1, name: 'Matchday 1 results...', track: false },
+    { action: 'sim_group_picks', matchday: 2, name: 'Matchday 2 picks...', track: true, stage: 'Matchday 2' },
+    { action: 'sim_group_results', matchday: 2, name: 'Matchday 2 results...', track: false },
+    { action: 'sim_group_picks', matchday: 3, name: 'Matchday 3 picks...', track: true, stage: 'Matchday 3' },
+    { action: 'sim_group_results', matchday: 3, name: 'Matchday 3 results...', track: false },
+    { action: 'sim_create_r32', name: 'Creating Round of 32...', track: false },
+    { action: 'sim_ko_round', round: 2, name: 'Round of 32...', track: true, stage: 'Round of 32' },
+    { action: 'sim_advance', from: 2, name: 'Advancing to R16...', track: false },
+    { action: 'sim_ko_round', round: 3, name: 'Round of 16...', track: true, stage: 'Round of 16' },
+    { action: 'sim_advance', from: 3, name: 'Advancing to QF...', track: false },
+    { action: 'sim_ko_round', round: 4, name: 'Quarter Finals...', track: true, stage: 'Quarter Finals' },
+    { action: 'sim_advance', from: 4, name: 'Advancing to SF...', track: false },
+    { action: 'sim_ko_round', round: 5, name: 'Semi Finals...', track: true, stage: 'Semi Finals' },
+    { action: 'sim_advance', from: 5, name: 'Advancing to Final...', track: false },
+    { action: 'sim_ko_round', round: 6, name: 'Final...', track: true, stage: 'Final' },
+    { action: 'sim_finalize', name: 'Finalizing...', track: false }
   ];
 
   let summary = null;
   let simMeta = null;
+  const participationData = []; // Track participation per stage
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
@@ -377,11 +378,20 @@ async function runSimulation() {
         simMeta = { sim_number: data.simNumber, total_users: data.totalUsers, sim_lives: data.simLives };
       }
 
+      // Track participation data from pick steps
+      if (step.track && data.participation) {
+        participationData.push({
+          stage: step.stage,
+          ...data.participation
+        });
+      }
+
       // Add metadata to finalize step
       if (step.action === 'sim_finalize' && simMeta) {
         body.sim_number = simMeta.sim_number;
         body.total_users = simMeta.total_users;
         body.sim_lives = simMeta.sim_lives;
+        body.participation_data = participationData; // Send participation data to backend
         // Re-send the request with metadata
         const finalResponse = await fetch('/api/reset-all', {
           method: 'POST',
@@ -394,7 +404,11 @@ async function runSimulation() {
           return;
         }
         const finalData = await finalResponse.json();
-        if (finalData.summary) summary = finalData.summary;
+        if (finalData.summary) {
+          summary = finalData.summary;
+          // Add participation data to summary for display
+          summary.participationByStage = participationData;
+        }
         continue;
       }
 
@@ -422,6 +436,7 @@ function renderSimResult(sim) {
 
   const s = sim.summary || sim;
   const stages = s.survivorsPerStage || [];
+  const participation = s.participationByStage || [];
 
   // Find stage with most points awarded
   let bestStage = { stage: 'N/A', pointsAwarded: 0 };
@@ -439,6 +454,39 @@ function renderSimResult(sim) {
         <td style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">${top5Html}</td>
       </tr>`;
   }).join('');
+
+  // Build participation table
+  const participationHtml = participation.length > 0 ? `
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+          <th style="padding: 0.4rem 0.6rem; text-align: left;">Stage</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center;">Eligible</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center; color: #22c55e;">Picked</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center; color: #ef4444;">Couldn't Pick</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center;">Pick Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${participation.map(p => `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 0.4rem 0.6rem;">${p.stage}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center;">${p.totalEligible}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center; color: #22c55e;">${p.couldPick}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center; color: ${p.couldNotPick > 0 ? '#ef4444' : 'inherit'};">${p.couldNotPick}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center; font-weight: bold;">${p.pickRate}%</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(239,68,68,0.1); border-radius: 0.4rem; border-left: 3px solid #ef4444;">
+      <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+        <strong style="color: #ef4444;">⚠️ Team Exhaustion:</strong> 
+        Players who "Couldn't Pick" had no valid teams remaining (all previously used).
+        ${participation.filter(p => p.couldNotPick > 0).length} rounds had players excluded due to team exhaustion.
+      </p>
+    </div>
+  ` : '';
 
   const finalTop5 = s.finalTop5 || [];
   const finalTop5Html = finalTop5.map((p, i) => 
@@ -464,7 +512,10 @@ function renderSimResult(sim) {
           <div style="font-size: 1rem; font-weight: bold; color: gold;">${sim.winner || s.winner}</div>
         </div>
       </div>
-      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">Final Standings:</p>
+      
+      ${participationHtml}
+      
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 1rem 0 0.5rem;">Final Standings:</p>
       <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 0.4rem; margin-bottom: 1rem;">
         ${finalTop5Html}
       </div>
