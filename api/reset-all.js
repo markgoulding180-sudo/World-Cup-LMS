@@ -807,8 +807,15 @@ module.exports = async (req, res) => {
       await supabase.from('tournament_entries').insert(allUsers.map(u => ({ tournament_id: tournament.id, user_id: u.id, status: 'active', lives_remaining: sim_lives, max_lives: sim_lives })));
 
       // Get sim number
-      const { count: simCount } = await supabase.from('simulations').select('*', { count: 'exact', head: true });
-      const simNumber = (simCount || 0) + 1;
+      let simNumber = 1;
+      try {
+        const { data: sims, error: countError } = await supabase.from('simulations').select('sim_number').order('sim_number', { ascending: false }).limit(1);
+        if (!countError && sims && sims.length > 0) {
+          simNumber = sims[0].sim_number + 1;
+        }
+      } catch (e) {
+        console.log('Could not get sim count, defaulting to 1');
+      }
 
       return res.status(200).json({ success: true, simNumber, totalUsers: allUsers.length, simLives: sim_lives });
     } catch (error) { return res.status(500).json({ error: error.message }); }

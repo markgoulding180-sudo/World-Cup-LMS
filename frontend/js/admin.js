@@ -376,6 +376,11 @@ async function runSimulation() {
       // Capture sim metadata from init step
       if (step.action === 'sim_init') {
         console.log('Sim init response:', data);
+        if (!data.simNumber) {
+          console.error('simNumber missing from init response!');
+          statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: Init step failed - no sim number returned</p>`;
+          return;
+        }
         simMeta = { 
           sim_number: data.simNumber, 
           total_users: data.totalUsers, 
