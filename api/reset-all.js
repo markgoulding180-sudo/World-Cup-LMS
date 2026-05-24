@@ -814,14 +814,15 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
-  // ── SIM_GROUP_PICKS: Make picks for a matchday ─────────────
+  // ── SIM_GROUP_PICKS: Make picks for a matchday (POINTS SYSTEM - no lives check) ─────────────
   if (action === 'sim_group_picks') {
     const { matchday } = req.body;
     if (!matchday) return res.status(400).json({ error: 'matchday required' });
     try {
       const { data: tournament } = await supabase.from('tournaments').select('id').single();
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
-      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      // Points system: all active entries can play (no lives check)
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
       const totalEligible = entries.length;
       const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', matchday);
       const availTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
@@ -857,13 +858,12 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
-  // ── SIM_GROUP_RESULTS: Process results for a matchday ──────
+  // ── SIM_GROUP_RESULTS: Process results for a matchday (POINTS SYSTEM - no eliminations) ──────
   if (action === 'sim_group_results') {
     const { matchday } = req.body;
     if (!matchday) return res.status(400).json({ error: 'matchday required' });
     try {
       const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
-      let eliminations = 0;
       for (const match of matches) {
         const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
         const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
@@ -873,20 +873,9 @@ module.exports = async (req, res) => {
         if (winId) await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
         for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss' }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
       }
-      const { data: lp } = await supabase.from('picks').select('user_id').eq('matchday', matchday).eq('result', 'loss');
-      const ul = {};
-      lp?.forEach(p => { ul[p.user_id] = (ul[p.user_id] || 0) + 1; });
-      const lids = Object.keys(ul);
-      if (lids.length > 0) {
-        const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', lids).gt('lives_remaining', 0);
-        await Promise.all((allEntries || []).map(async entry => {
-          const newLives = Math.max(0, entry.lives_remaining - (ul[entry.user_id] || 0));
-          if (newLives === 0) eliminations++;
-          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: 1 } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
-        }));
-      }
-      const { count: survivors } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
-      return res.status(200).json({ success: true, eliminations, survivors: survivors || 0 });
+      // Points system: NO eliminations, just count total active entries
+      const { count: totalActive } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active');
+      return res.status(200).json({ success: true, eliminations: 0, survivors: totalActive || 0 });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
@@ -904,7 +893,7 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
-  // ── SIM_KO_ROUND: Picks + Results for a KO round ───────────
+  // ── SIM_KO_ROUND: Picks + Results for a KO round (POINTS SYSTEM - no eliminations) ───────────
   if (action === 'sim_ko_round') {
     const { round_number } = req.body;
     if (!round_number || round_number < 2 || round_number > 6) return res.status(400).json({ error: 'round_number 2-6 required' });
@@ -912,8 +901,8 @@ module.exports = async (req, res) => {
       const { data: tournament } = await supabase.from('tournaments').select('id').single();
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
       
-      // Get active entries BEFORE picks to count total eligible
-      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active').gt('lives_remaining', 0);
+      // Get ALL active entries (points system - no lives check)
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
       const totalEligible = entries.length;
       
       const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('round_id', round.id);
@@ -923,7 +912,7 @@ module.exports = async (req, res) => {
       allPicks?.forEach(p => { if (!upm[p.user_id]) upm[p.user_id] = new Set(); upm[p.user_id].add(p.team_id); });
       const avail = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
       
-      // Track who can pick vs who can't
+      // Track who can pick vs who can't (team exhaustion only)
       let couldPick = 0;
       let couldNotPick = 0;
       const picks = [];
@@ -941,9 +930,8 @@ module.exports = async (req, res) => {
       
       for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
 
-      // Results
+      // Results (points system - no eliminations)
       const { data: koMatches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
-      let eliminations = 0;
       for (const match of koMatches) {
         let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
         if (hs === as) { hs > 0 ? as-- : hs++; }
@@ -954,22 +942,14 @@ module.exports = async (req, res) => {
         await supabase.from('picks').update({ result: 'win' }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
         await supabase.from('picks').update({ result: 'loss' }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
       }
-      const { data: lp } = await supabase.from('picks').select('user_id').eq('round_id', round.id).eq('result', 'loss');
-      const losingIds = [...new Set((lp || []).map(p => p.user_id))];
-      if (losingIds.length > 0) {
-        const { data: allEntries } = await supabase.from('tournament_entries').select('user_id, lives_remaining, tournament_id').in('user_id', losingIds).gt('lives_remaining', 0);
-        await Promise.all((allEntries || []).map(async entry => {
-          const newLives = entry.lives_remaining - 1;
-          if (newLives === 0) eliminations++;
-          await supabase.from('tournament_entries').update({ lives_remaining: newLives, ...(newLives === 0 ? { status: 'eliminated', eliminated_round: round_number } : {}) }).eq('user_id', entry.user_id).eq('tournament_id', entry.tournament_id);
-        }));
-      }
-      const { count: survivors } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
+      
+      // Points system: count all active entries (no eliminations)
+      const { count: totalActive } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active');
       
       return res.status(200).json({ 
         success: true, 
-        eliminations, 
-        survivors: survivors || 0,
+        eliminations: 0, 
+        survivors: totalActive || 0,
         participation: {
           totalEligible,
           couldPick,
