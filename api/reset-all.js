@@ -879,7 +879,14 @@ module.exports = async (req, res) => {
         const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
         await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
         // Award 2 points for winning picks, 0 for losses
-        if (winId) await supabase.from('picks').update({ result: 'win', points: groupStagePoints }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+        if (winId) {
+          await supabase.from('picks').update({ result: 'win', points: groupStagePoints }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+          // Also update tournament_entries.total_points via RPC (like manual sim)
+          const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
+          for (const pick of winningPicks || []) {
+            await supabase.rpc('increment_points', { user_id: pick.user_id, points: groupStagePoints });
+          }
+        }
         for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
       }
       // Points system: NO eliminations, just count total active entries
@@ -952,6 +959,11 @@ module.exports = async (req, res) => {
         // Award points for winning picks
         await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
         await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+        // Also update tournament_entries.total_points via RPC (like manual sim)
+        const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+        for (const pick of winningPicks || []) {
+          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
+        }
       }
       
       // Points system: count all active entries (no eliminations)

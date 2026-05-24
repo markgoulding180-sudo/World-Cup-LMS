@@ -70,14 +70,13 @@ module.exports = async (req, res) => {
         .eq('id', 'current')
         .single();
 
-      // Get user's picks to calculate wins and total points
+      // Get user's picks to calculate wins
       const { data: userPicks } = await supabase
         .from('picks')
-        .select('result, points')
+        .select('result')
         .eq('user_id', user.id);
 
       const wins = userPicks?.filter(p => p.result === 'win').length || 0;
-      const totalPoints = userPicks?.reduce((sum, p) => sum + (p.points || 0), 0) || 0;
 
       return res.status(200).json({
         status: entry?.status || 'not_entered',
@@ -85,7 +84,7 @@ module.exports = async (req, res) => {
         username: profile?.username || user.email?.split('@')[0] || 'Player',
         display_name: profile?.display_name || profile?.username || user.email?.split('@')[0] || 'Player',
         current_round: clock?.current_round || 1,
-        total_points: totalPoints,
+        total_points: entry?.total_points || 0,
         wins: wins
       });
 
