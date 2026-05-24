@@ -19,8 +19,8 @@
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: 
-    linear-gradient(rgba(10, 14, 39, 0.7), rgba(10, 14, 39, 0.75)),
-    url('../images/dashboard-bg.png') center/cover no-repeat fixed;
+    linear-gradient(rgba(10, 14, 39, 0.4), rgba(10, 14, 39, 0.5)),
+    url('../images/dashboard-bg.png?v=2') center/cover no-repeat fixed;
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
