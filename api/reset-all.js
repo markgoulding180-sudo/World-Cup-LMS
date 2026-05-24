@@ -982,25 +982,47 @@ module.exports = async (req, res) => {
   if (action === 'sim_finalize') {
     const { sim_number, sim_lives, total_users, participation_data = [] } = req.body;
     try {
-      const { data: winners } = await supabase.from('tournament_entries').select('users:user_id(display_name)').eq('status', 'active').order('lives_remaining', { ascending: false }).limit(5);
-      const winner = winners?.[0]?.users?.display_name || 'No winner';
-      const { count: finalSurvivors } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active').gt('lives_remaining', 0);
+      // Points system: get top 5 by total_points (not lives)
+      const { data: topEntries } = await supabase.from('tournament_entries')
+        .select('user_id, total_points, users:user_id(display_name)')
+        .eq('status', 'active')
+        .order('total_points', { ascending: false })
+        .limit(5);
+      
+      const winner = topEntries?.[0]?.users?.display_name || 'No winner';
+      const finalSurvivors = topEntries?.length || 0;
 
       const summary = {
         simNumber: sim_number,
         totalUsers: total_users,
         sim_lives: sim_lives,
         winner,
-        finalSurvivors: finalSurvivors || 0,
+        finalSurvivors: finalSurvivors,
         teamsQualifiedForR32: 32,
         survivorsPerStage: [],
-        participationByStage: participation_data // Store detailed participation data
+        participationByStage: participation_data,
+        finalTop5: topEntries?.map(e => ({ name: e.users?.display_name, points: e.total_points })) || []
       };
 
-      await supabase.from('simulations').insert({ sim_number, total_users, lives_setting: sim_lives, winner, final_survivors: finalSurvivors || 0, summary });
+      const { error: insertError } = await supabase.from('simulations').insert({ 
+        sim_number, 
+        total_users, 
+        lives_setting: sim_lives, 
+        winner, 
+        final_survivors: finalSurvivors, 
+        summary 
+      });
+      
+      if (insertError) {
+        console.error('Failed to save simulation:', insertError);
+        return res.status(500).json({ error: 'Failed to save simulation: ' + insertError.message });
+      }
 
       return res.status(200).json({ success: true, summary });
-    } catch (error) { return res.status(500).json({ error: error.message }); }
+    } catch (error) { 
+      console.error('Sim finalize error:', error);
+      return res.status(500).json({ error: error.message }); 
+    }
   }
 
   return res.status(400).json({ error: 'Invalid action.' });
