@@ -18,16 +18,11 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  line-height: 1.6;
-}
-
-/* Dashboard with background image */
-body.dashboard-page {
   background: 
     linear-gradient(rgba(10, 14, 39, 0.85), rgba(10, 14, 39, 0.9)),
     url('../images/dashboard-bg.png') center/cover no-repeat fixed;
+  color: var(--text-primary);
+  line-height: 1.6;
   min-height: 100vh;
 }
 
