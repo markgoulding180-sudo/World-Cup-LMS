@@ -988,6 +988,7 @@ module.exports = async (req, res) => {
   // ── SIM_FINALIZE: Save detailed simulation results ────────
   if (action === 'sim_finalize') {
     const { sim_number, sim_lives, total_users, participation_data = [] } = req.body;
+    console.log('SIM_FINALIZE received:', { sim_number, sim_lives, total_users, participation_data_length: participation_data?.length });
     try {
       // Get all entries with their final scores
       const { data: allEntries } = await supabase.from('tournament_entries')
@@ -1058,8 +1059,9 @@ module.exports = async (req, res) => {
         losingPicks: allPicks?.filter(p => p.result === 'loss').length || 0
       };
 
+      console.log('Inserting simulation with sim_number:', sim_number);
       const { error: insertError } = await supabase.from('simulations').insert({ 
-        sim_number, 
+        sim_number: sim_number || 1, 
         total_users, 
         lives_setting: sim_lives, 
         winner, 
