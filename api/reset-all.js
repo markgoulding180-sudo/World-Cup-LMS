@@ -994,13 +994,18 @@ module.exports = async (req, res) => {
     const participation_data = req.body?.participation_data || [];
     console.log('SIM_FINALIZE received:', { sim_number, sim_lives, total_users, participation_data_length: participation_data?.length });
     try {
-      // Get all entries with their final scores
+      // Get all entries with their final scores (only sim users with points)
       const { data: allEntries } = await supabase.from('tournament_entries')
-        .select('user_id, total_points, users:user_id(display_name)')
+        .select('user_id, total_points, users:user_id(display_name, email)')
         .eq('status', 'active')
         .order('total_points', { ascending: false });
       
-      const winner = allEntries?.[0]?.users?.display_name || 'No winner';
+      // Filter to only simulation users (those with @wc2026.test emails) who have points
+      const validEntries = allEntries?.filter(e => 
+        e.users?.email?.includes('@wc2026.test') && e.total_points > 0
+      ) || [];
+      
+      const winner = validEntries?.[0]?.users?.display_name || 'No winner';
       
       // Get ALL picks with team and round details for every player
       const { data: allPicks } = await supabase.from('picks')
@@ -1041,17 +1046,17 @@ module.exports = async (req, res) => {
         .slice(0, 10)
         .map(([name, count]) => ({ name, count }));
 
-      // Build comprehensive summary
+      // Build comprehensive summary (using validEntries for leaderboard)
       const summary = {
         simNumber: sim_number,
         totalUsers: total_users,
         sim_lives: sim_lives,
         winner,
-        winnerPoints: allEntries?.[0]?.total_points || 0,
-        finalSurvivors: allEntries?.length || 0,
+        winnerPoints: validEntries?.[0]?.total_points || 0,
+        finalSurvivors: validEntries?.length || 0,
         teamsQualifiedForR32: 32,
         participationByStage: participation_data,
-        finalLeaderboard: allEntries?.map((e, i) => ({ 
+        finalLeaderboard: validEntries?.map((e, i) => ({ 
           rank: i + 1,
           name: e.users?.display_name, 
           points: e.total_points 
@@ -1069,7 +1074,7 @@ module.exports = async (req, res) => {
         total_users, 
         lives_setting: sim_lives, 
         winner, 
-        final_survivors: allEntries?.length || 0, 
+        final_survivors: validEntries?.length || 0, 
         summary 
       });
       
