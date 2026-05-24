@@ -978,30 +978,77 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
-  // ── SIM_FINALIZE: Save results to simulations table ────────
+  // ── SIM_FINALIZE: Save detailed simulation results ────────
   if (action === 'sim_finalize') {
     const { sim_number, sim_lives, total_users, participation_data = [] } = req.body;
     try {
-      // Points system: get top 5 by total_points (not lives)
-      const { data: topEntries } = await supabase.from('tournament_entries')
+      // Get all entries with their final scores
+      const { data: allEntries } = await supabase.from('tournament_entries')
         .select('user_id, total_points, users:user_id(display_name)')
         .eq('status', 'active')
-        .order('total_points', { ascending: false })
-        .limit(5);
+        .order('total_points', { ascending: false });
       
-      const winner = topEntries?.[0]?.users?.display_name || 'No winner';
-      const finalSurvivors = topEntries?.length || 0;
+      const winner = allEntries?.[0]?.users?.display_name || 'No winner';
+      
+      // Get ALL picks with team and round details for every player
+      const { data: allPicks } = await supabase.from('picks')
+        .select('user_id, team_id, round_id, matchday, result, points, teams:team_id(name), rounds:round_id(name, round_number)')
+        .order('round_id');
+      
+      // Organize picks by player
+      const playerPicks = {};
+      allPicks?.forEach(pick => {
+        if (!playerPicks[pick.user_id]) {
+          playerPicks[pick.user_id] = {
+            userId: pick.user_id,
+            displayName: allEntries?.find(e => e.user_id === pick.user_id)?.users?.display_name || 'Unknown',
+            totalPoints: allEntries?.find(e => e.user_id === pick.user_id)?.total_points || 0,
+            picks: []
+          };
+        }
+        playerPicks[pick.user_id].picks.push({
+          round: pick.rounds?.name || 'Unknown',
+          roundNumber: pick.rounds?.round_number,
+          matchday: pick.matchday,
+          team: pick.teams?.name || 'Unknown',
+          result: pick.result,
+          points: pick.points || 0
+        });
+      });
 
+      // Calculate team usage frequency
+      const teamUsage = {};
+      allPicks?.forEach(pick => {
+        const teamName = pick.teams?.name;
+        if (teamName) {
+          teamUsage[teamName] = (teamUsage[teamName] || 0) + 1;
+        }
+      });
+      const mostPickedTeams = Object.entries(teamUsage)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }));
+
+      // Build comprehensive summary
       const summary = {
         simNumber: sim_number,
         totalUsers: total_users,
         sim_lives: sim_lives,
         winner,
-        finalSurvivors: finalSurvivors,
+        winnerPoints: allEntries?.[0]?.total_points || 0,
+        finalSurvivors: allEntries?.length || 0,
         teamsQualifiedForR32: 32,
-        survivorsPerStage: [],
         participationByStage: participation_data,
-        finalTop5: topEntries?.map(e => ({ name: e.users?.display_name, points: e.total_points })) || []
+        finalLeaderboard: allEntries?.map((e, i) => ({ 
+          rank: i + 1,
+          name: e.users?.display_name, 
+          points: e.total_points 
+        })) || [],
+        mostPickedTeams,
+        playerDetails: Object.values(playerPicks),
+        totalPicksMade: allPicks?.length || 0,
+        winningPicks: allPicks?.filter(p => p.result === 'win').length || 0,
+        losingPicks: allPicks?.filter(p => p.result === 'loss').length || 0
       };
 
       const { error: insertError } = await supabase.from('simulations').insert({ 
@@ -1009,7 +1056,7 @@ module.exports = async (req, res) => {
         total_users, 
         lives_setting: sim_lives, 
         winner, 
-        final_survivors: finalSurvivors, 
+        final_survivors: allEntries?.length || 0, 
         summary 
       });
       

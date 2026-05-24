@@ -488,6 +488,39 @@ function renderSimResult(sim) {
     </div>
   ` : '';
 
+  // Most picked teams
+  const mostPickedTeams = s.mostPickedTeams || [];
+  const teamsHtml = mostPickedTeams.length > 0 ? `
+    <div style="margin-top: 1rem;">
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">Most Picked Teams:</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        ${mostPickedTeams.map((t, i) => `
+          <span style="background: rgba(255,215,0,${0.1 + (0.05 * (10-i))}); padding: 0.3rem 0.6rem; border-radius: 0.3rem; font-size: 0.75rem; border: 1px solid rgba(255,215,0,0.3);">
+            ${i+1}. ${t.name} (${t.count}x)
+          </span>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
+  // Pick stats
+  const pickStatsHtml = s.totalPicksMade ? `
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem;">
+      <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary);">Total Picks</div>
+        <div style="font-size: 1rem; font-weight: bold;">${s.totalPicksMade}</div>
+      </div>
+      <div style="background: rgba(34,197,94,0.1); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
+        <div style="font-size: 0.7rem; color: #22c55e;">Wins</div>
+        <div style="font-size: 1rem; font-weight: bold; color: #22c55e;">${s.winningPicks}</div>
+      </div>
+      <div style="background: rgba(239,68,68,0.1); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
+        <div style="font-size: 0.7rem; color: #ef4444;">Losses</div>
+        <div style="font-size: 1rem; font-weight: bold; color: #ef4444;">${s.losingPicks}</div>
+      </div>
+    </div>
+  ` : '';
+
   const finalTop5 = s.finalTop5 || [];
   const finalTop5Html = finalTop5.map((p, i) => 
     `<div style="display: flex; justify-content: space-between; padding: 0.3rem 0; ${i === 0 ? 'color: gold; font-weight: bold;' : ''}">
@@ -510,13 +543,16 @@ function renderSimResult(sim) {
         <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-secondary);">Winner</div>
           <div style="font-size: 1rem; font-weight: bold; color: gold;">${sim.winner || s.winner}</div>
+          <div style="font-size: 0.75rem; color: var(--accent-green);">${s.winnerPoints || 0} pts</div>
         </div>
       </div>
       
       ${participationHtml}
+      ${pickStatsHtml}
+      ${teamsHtml}
       
       <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 1rem 0 0.5rem;">Final Standings:</p>
-      <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 0.4rem; margin-bottom: 1rem;">
+      <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 0.4rem; margin-bottom: 1rem; max-height: 200px; overflow-y: auto;">
         ${finalTop5Html}
       </div>
       <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
