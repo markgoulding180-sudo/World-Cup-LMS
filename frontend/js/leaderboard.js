@@ -33,18 +33,18 @@ function displayStats(stats) {
   if (!container) return;
   
   container.innerHTML = `
-    <div class="stats-row">
-      <div class="stat-box">
-        <div class="stat-value">${stats?.total_players || 0}</div>
-        <div class="stat-label">Players</div>
+    <div style="display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: nowrap;">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.25rem 1.5rem; background: rgba(26, 31, 77, 0.5); border: 1px solid #2a3066; border-radius: 0.75rem; flex: 0 1 140px; min-width: 100px;">
+        <div style="font-size: 1.75rem; font-weight: 700; color: #ffd700;">${stats?.total_players || 0}</div>
+        <div style="font-size: 0.875rem; color: #8b92b9; margin-top: 0.25rem;">Players</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value">${stats?.active_players || 0}</div>
-        <div class="stat-label">Active</div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.25rem 1.5rem; background: rgba(26, 31, 77, 0.5); border: 1px solid #2a3066; border-radius: 0.75rem; flex: 0 1 140px; min-width: 100px;">
+        <div style="font-size: 1.75rem; font-weight: 700; color: #ffd700;">${stats?.active_players || 0}</div>
+        <div style="font-size: 0.875rem; color: #8b92b9; margin-top: 0.25rem;">Active</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value">${stats?.eliminated_players || 0}</div>
-        <div class="stat-label">Eliminated</div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.25rem 1.5rem; background: rgba(26, 31, 77, 0.5); border: 1px solid #2a3066; border-radius: 0.75rem; flex: 0 1 140px; min-width: 100px;">
+        <div style="font-size: 1.75rem; font-weight: 700; color: #ffd700;">${stats?.eliminated_players || 0}</div>
+        <div style="font-size: 0.875rem; color: #8b92b9; margin-top: 0.25rem;">Eliminated</div>
       </div>
     </div>
   `;
