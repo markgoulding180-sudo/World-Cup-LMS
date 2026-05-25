@@ -71,7 +71,6 @@ function displayLeaderboard(leaderboard) {
       <div class="col-player">Player</div>
       <div class="col-points">Points</div>
       <div class="col-wins">Wins</div>
-      <div class="col-pick">Current Pick</div>
       <div class="col-status">Status</div>
     </div>
   `;
@@ -88,18 +87,53 @@ function displayLeaderboard(leaderboard) {
     else if (position === 2) rankDisplay = '<span class="rank-medal silver"><i class="fas fa-medal"></i></span>';
     else if (position === 3) rankDisplay = '<span class="rank-medal bronze"><i class="fas fa-medal"></i></span>';
     
-    // Current pick with points earned
-    let currentPickHtml = '<span class="no-pick">-</span>';
-    if (player.current_pick) {
-      const pointsEarned = player.current_pick.points_earned;
-      const pointsClass = pointsEarned > 0 ? 'points-won' : (pointsEarned === 0 ? 'points-lost' : 'points-pending');
-      const pointsText = pointsEarned > 0 ? `+${pointsEarned} pts` : (pointsEarned === 0 ? '0 pts' : 'Pending');
+    // Picks grouped by round (small flags)
+    let picksByRoundHtml = '';
+    if (player.picks_by_round && Object.keys(player.picks_by_round).length > 0) {
+      const roundOrder = ['GS', 'L32', 'L16', 'QF', 'SF', 'F'];
       
-      currentPickHtml = `
-        <div class="current-pick-info">
-          <img src="${player.current_pick.flag || ''}" alt="" class="pick-flag-small">
-          <span class="pick-team">${player.current_pick.team}</span>
-          <span class="pick-points ${pointsClass}">${pointsText}</span>
+      // Group Stage on its own line
+      const gsPicks = player.picks_by_round['GS'];
+      const gsHtml = gsPicks ? `
+        <div class="pick-round-line">
+          <span class="round-label">GS:</span>
+          <span class="round-flags">
+            ${gsPicks.map(p => `
+              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+            `).join('')}
+          </span>
+        </div>
+      ` : '';
+      
+      // All KO rounds on one line with labels before each flag
+      const koRounds = ['L32', 'L16', 'QF', 'SF', 'F'];
+      let koHtml = '';
+      
+      koRounds.forEach(round => {
+        if (player.picks_by_round[round]) {
+          player.picks_by_round[round].forEach(p => {
+            koHtml += `
+              <span class="ko-pick">
+                <span class="round-label-mini">${round}</span>
+                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+              </span>
+            `;
+          });
+        }
+      });
+      
+      koHtml = koHtml ? `
+        <div class="pick-round-line ko-line">
+          <span class="round-flags ko-flags">
+            ${koHtml}
+          </span>
+        </div>
+      ` : '';
+      
+      picksByRoundHtml = `
+        <div class="player-picks-by-round">
+          ${gsHtml}
+          ${koHtml}
         </div>
       `;
     }
@@ -109,8 +143,11 @@ function displayLeaderboard(leaderboard) {
         <div class="col-rank">${rankDisplay}</div>
         <div class="col-player">
           <div class="player-info">
-            <strong>${player.display_name || player.username}</strong>
+            <a href="player.html?user=${encodeURIComponent(player.username)}" class="player-name-link">
+              <strong>${player.display_name || player.username}</strong>
+            </a>
             <span class="username">@${player.username}</span>
+            ${picksByRoundHtml}
           </div>
         </div>
         <div class="col-points">
@@ -119,7 +156,6 @@ function displayLeaderboard(leaderboard) {
         <div class="col-wins">
           <span class="wins-badge">${wins}</span>
         </div>
-        <div class="col-pick">${currentPickHtml}</div>
         <div class="col-status">
           ${isEliminated ? 
             '<span class="status-badge eliminated"><i class="fas fa-times-circle"></i> Out</span>' :

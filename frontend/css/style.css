@@ -2265,7 +2265,7 @@ a {
 
 .leaderboard-header {
   display: grid;
-  grid-template-columns: 60px 1fr 80px 70px 150px 80px;
+  grid-template-columns: 60px 1fr 80px 70px 80px;
   gap: 0.5rem;
   padding: 1rem;
   background: var(--bg-secondary);
@@ -2277,10 +2277,10 @@ a {
 
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 60px 1fr 80px 70px 150px 80px;
+  grid-template-columns: 60px 1fr 80px 70px 80px;
   gap: 0.5rem;
-  padding: 1rem;
-  align-items: center;
+  padding: 0.75rem 1rem;
+  align-items: start;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.2s;
 }
@@ -2621,6 +2621,69 @@ a {
   color: var(--accent-gold);
   text-decoration: underline;
 }
+
+/* Small flags for leaderboard */
+.player-picks-by-round {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+}
+
+.pick-round-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+
+.round-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  min-width: 18px;
+  font-weight: 600;
+}
+
+.round-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.pick-flag-tiny {
+  width: 14px;
+  height: 10px;
+  border-radius: 1px;
+  object-fit: cover;
+}
+
+.ko-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+}
+
+.ko-pick {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.round-label-mini {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.player-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.player-name-link:hover strong {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
 }
 
 .col-player .username {
@@ -2797,6 +2860,29 @@ a {
   .col-wins {
     font-size: 0.8rem;
     text-align: right;
+  }
+  
+  /* Small flags on mobile */
+  .player-picks-by-round {
+    margin-top: 2px;
+  }
+  
+  .pick-round-line {
+    gap: 2px;
+  }
+  
+  .round-label {
+    font-size: 0.6rem;
+    min-width: 16px;
+  }
+  
+  .pick-flag-tiny {
+    width: 12px;
+    height: 8px;
+  }
+  
+  .round-label-mini {
+    font-size: 0.5rem;
   }
   
   .col-pick,
