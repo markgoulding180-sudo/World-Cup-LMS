@@ -3964,10 +3964,10 @@ a {
    GROUP RESULTS & KNOCKOUT GRID
    ============================================ */
 
-/* Group Results Grid */
+/* Group Results Grid - 4 per row on desktop */
 .groups-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -4148,6 +4148,12 @@ a {
 }
 
 /* Mobile responsive */
+@media (max-width: 1200px) {
+  .groups-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .groups-grid {
     grid-template-columns: 1fr;

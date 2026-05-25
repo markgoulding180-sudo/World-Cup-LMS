@@ -1120,6 +1120,27 @@ function displayRoundMatches(matches, currentRound) {
   container.innerHTML = html;
 }
 
+function calculateTeamGroupPoints(teamId) {
+  // Calculate points from group stage matches
+  // 3 points for win, 1 for draw, 0 for loss
+  const teamMatches = allMatches.filter(m => {
+    const isGroupStage = m.rounds?.round_number === 1 || !m.round_id;
+    return isGroupStage && (m.home_team_id === teamId || m.away_team_id === teamId) && m.status === 'finished';
+  });
+  
+  let points = 0;
+  teamMatches.forEach(m => {
+    const isHome = m.home_team_id === teamId;
+    const teamScore = isHome ? m.home_score : m.away_score;
+    const opponentScore = isHome ? m.away_score : m.home_score;
+    
+    if (teamScore > opponentScore) points += 3;
+    else if (teamScore === opponentScore) points += 1;
+  });
+  
+  return points;
+}
+
 function displayGroupResults() {
   const container = document.getElementById('group-results');
   if (!container) return;
@@ -1163,7 +1184,10 @@ function displayGroupResults() {
       <div class="group-card">
         <h4 class="group-title">Group ${groupName}</h4>
         <div class="group-teams">
-          ${groupTeams.map((team, index) => `
+          ${groupTeams.map((team, index) => {
+            // Calculate group stage points from picks
+            const groupStagePoints = calculateTeamGroupPoints(team.id);
+            return `
             <div class="team-card ${index < 2 ? 'qualified' : ''}">
               <div class="team-card-flag">
                 <img src="${team.flag_url}" alt="${team.name}">
@@ -1171,11 +1195,11 @@ function displayGroupResults() {
               <div class="team-card-name">
                 ${team.name}
               </div>
-              <div class="team-card-points">
-                ${team.group_points || 0} pts
+              <div class="team-card-points" title="Group Stage Points">
+                ${groupStagePoints} pts
               </div>
             </div>
-          `).join('')}
+          `}).join('')}
         </div>
       </div>
     `;
