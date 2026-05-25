@@ -2509,27 +2509,15 @@ a {
   }
   
   .points-stats-row {
-    gap: 1rem;
-  }
-  
-  .points-stat {
-    padding: 0.75rem 1rem;
-    min-width: 80px;
-  }
-  
-  .points-value {
-    font-size: 1.5rem;
-  }
-}
-
-@media (max-width: 380px) {
-  .points-stats-row {
     gap: 0.5rem;
+    flex-wrap: nowrap;
+    justify-content: space-between;
   }
   
   .points-stat {
-    padding: 0.5rem 0.75rem;
-    min-width: 70px;
+    padding: 0.75rem 0.5rem;
+    min-width: 0;
+    flex: 1;
   }
   
   .points-value {
@@ -2538,6 +2526,27 @@ a {
   
   .points-label {
     font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .points-stats-row {
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+  }
+  
+  .points-stat {
+    padding: 0.5rem 0.25rem;
+    min-width: 0;
+    flex: 1;
+  }
+  
+  .points-value {
+    font-size: 1.1rem;
+  }
+  
+  .points-label {
+    font-size: 0.7rem;
   }
 }
 
