@@ -36,7 +36,17 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    // Get all picks for context with round info
+    // Get current tournament ID
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    const tournamentId = tournament?.id;
+
+    // Get all picks for current tournament only
     const { data: picks } = await supabase
       .from('picks')
       .select(`
@@ -44,6 +54,7 @@ module.exports = async (req, res) => {
         teams:team_id(name, flag_url),
         rounds:round_id(round_number, name)
       `)
+      .eq('tournament_id', tournamentId)
       .order('created_at', { ascending: false });
 
     // Calculate stats
