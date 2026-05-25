@@ -3970,6 +3970,12 @@ a {
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   margin-top: 1rem;
+  width: 100%;
+}
+
+/* Ensure group sections fill the grid properly */
+.group-section {
+  min-width: 0;
 }
 
 /* Group Section - contains group card and qualifiers card */
