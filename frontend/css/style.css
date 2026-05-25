@@ -2626,22 +2626,22 @@ a {
 .player-picks-by-round {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  margin-top: 2px;
+  gap: 2px;
+  margin-top: 4px;
   line-height: 1;
 }
 
 .pick-round-line {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   line-height: 1;
 }
 
 .round-label {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
-  min-width: 16px;
+  min-width: 18px;
   font-weight: 600;
   line-height: 1;
 }
@@ -2649,13 +2649,17 @@ a {
 .round-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 3px;
 }
 
 .pick-flag-tiny {
-  width: 12px;
-  height: 8px;
-  border-radius: 1px;
+  width: 6px !important;
+  height: 4px !important;
+  min-width: 6px !important;
+  min-height: 4px !important;
+  max-width: 6px !important;
+  max-height: 4px !important;
+  border-radius: 0px;
   object-fit: cover;
   display: inline-block;
 }
@@ -2663,7 +2667,7 @@ a {
 .ko-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 4px;
+  gap: 2px 3px;
 }
 
 .ko-pick {
@@ -2674,7 +2678,7 @@ a {
 }
 
 .round-label-mini {
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   color: var(--text-secondary);
   font-weight: 600;
   line-height: 1;
@@ -2867,32 +2871,45 @@ a {
     text-align: right;
   }
   
-  /* Mobile flags - 3x bigger than current */
+  /* Mobile flags - GS on line 1, KO on line 2 */
   .player-picks-by-round {
-    margin-top: 3px;
-    gap: 2px;
+    margin-top: 4px;
+    gap: 4px;
   }
   
   .pick-round-line {
     gap: 4px;
+    flex-wrap: nowrap;
   }
   
   .round-label {
-    font-size: 0.75rem;
-    min-width: 20px;
+    font-size: 0.7rem;
+    min-width: 18px;
+    flex-shrink: 0;
+  }
+  
+  .round-flags {
+    flex-wrap: nowrap;
+    gap: 2px;
   }
   
   .pick-flag-tiny {
-    width: 18px;
-    height: 12px;
+    width: 18px !important;
+    height: 12px !important;
+    min-width: 18px !important;
+    min-height: 12px !important;
+    max-width: 18px !important;
+    max-height: 12px !important;
+    flex-shrink: 0;
   }
   
   .ko-flags {
-    gap: 3px 6px;
+    flex-wrap: wrap;
+    gap: 4px 6px;
   }
   
   .round-label-mini {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
   
   .col-pick,
