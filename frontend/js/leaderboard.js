@@ -143,7 +143,9 @@ function displayLeaderboard(leaderboard) {
         <div class="col-rank">${rankDisplay}</div>
         <div class="col-player">
           <div class="player-info">
-            <strong>${player.display_name || player.username}</strong>
+            <a href="player.html?user=${encodeURIComponent(player.username)}" class="player-name-link">
+              <strong>${player.display_name || player.username}</strong>
+            </a>
             <span class="username">@${player.username}</span>
             ${picksByRoundHtml}
           </div>

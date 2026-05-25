@@ -193,6 +193,8 @@ async function initHomePage() {
     
     // Update stats on page
     document.getElementById('active-players').textContent = data.stats?.total_players || '--';
+    document.getElementById('prize-pool').textContent = data.stats?.prize_pool ? `£${data.stats.prize_pool}` : '£--';
+    document.getElementById('current-round').textContent = data.stats?.current_round || '--';
   } catch (error) {
     console.error('Error loading home page stats:', error);
   }

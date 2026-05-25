@@ -64,6 +64,10 @@ module.exports = async (req, res) => {
     // Calculate stats
     const totalPlayers = entries?.length || 0;
     const activePlayers = entries?.filter(e => e.status === 'active').length || 0;
+    
+    // Calculate prize pool (£30 per player)
+    const entryFee = 30;
+    const prizePool = totalPlayers * entryFee;
 
     // Find the highest round number that has picks (to determine current round)
     const allRoundNumbers = picks?.map(p => p.rounds?.round_number || 1) || [];
@@ -117,11 +121,17 @@ module.exports = async (req, res) => {
       };
     });
 
+    // Get current round name
+    const roundNames = { 1: 'Group Stage', 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+    const currentRoundName = roundNames[maxRound] || 'Group Stage';
+    
     return res.status(200).json({
       success: true,
       stats: {
         total_players: totalPlayers,
-        active_players: activePlayers
+        active_players: activePlayers,
+        prize_pool: prizePool,
+        current_round: currentRoundName
       },
       leaderboard: leaderboard || []
     });

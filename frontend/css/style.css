@@ -2331,6 +2331,187 @@ a {
   flex-direction: column;
 }
 
+/* Player Profile Page Styles */
+.profile-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile-rank {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  min-width: 80px;
+  text-align: center;
+}
+
+.profile-info h1 {
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+}
+
+.profile-username {
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem 0;
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.profile-stat {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.profile-stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.profile-stat-label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.profile-picks-section {
+  margin-bottom: 2rem;
+}
+
+.profile-picks-section h3 {
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.profile-round {
+  margin-bottom: 1.5rem;
+}
+
+.profile-round h4 {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.profile-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.profile-pick.win {
+  border-color: var(--accent-green);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.profile-pick.loss {
+  border-color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.profile-pick-flag {
+  width: 32px;
+  height: 22px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.profile-pick-team {
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.profile-pick-result {
+  font-size: 1.2rem;
+}
+
+.profile-pick-points {
+  background: var(--accent-gold);
+  color: var(--bg-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.profile-actions {
+  text-align: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Mobile profile */
+@media (max-width: 768px) {
+  .profile-card {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .profile-rank {
+    font-size: 2.5rem;
+  }
+  
+  .profile-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .profile-stat {
+    padding: 1rem 0.5rem;
+  }
+  
+  .profile-stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .profile-pick {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .profile-pick-team {
+    min-width: auto;
+    font-size: 0.9rem;
+  }
+}
+
 /* Picks grouped by round in leaderboard */
 .player-picks-by-round {
   display: flex;
@@ -2368,6 +2549,17 @@ a {
 
 .col-player .player-info strong {
   color: var(--text-primary);
+}
+
+.player-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.player-name-link:hover strong {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
 }
 
 .col-player .username {
