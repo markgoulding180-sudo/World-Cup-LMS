@@ -2622,57 +2622,63 @@ a {
   text-decoration: underline;
 }
 
-/* Small flags for leaderboard */
+/* Small flags for leaderboard - VERY SMALL */
 .player-picks-by-round {
   display: flex;
   flex-direction: column;
   gap: 0px;
-  margin-top: 2px;
+  margin-top: 1px;
+  line-height: 1;
 }
 
 .pick-round-line {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   line-height: 1;
+  height: 12px;
 }
 
 .round-label {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   color: var(--text-secondary);
-  min-width: 14px;
+  min-width: 12px;
   font-weight: 600;
+  line-height: 1;
 }
 
 .round-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 1px;
+  gap: 0px;
 }
 
 .pick-flag-tiny {
-  width: 10px;
-  height: 7px;
-  border-radius: 1px;
+  width: 6px !important;
+  height: 4px !important;
+  border-radius: 0px;
   object-fit: cover;
+  display: inline-block;
 }
 
 .ko-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 1px 2px;
+  gap: 0px 1px;
 }
 
 .ko-pick {
   display: flex;
   align-items: center;
   gap: 0px;
+  line-height: 1;
 }
 
 .round-label-mini {
-  font-size: 0.5rem;
+  font-size: 0.4rem;
   color: var(--text-secondary);
   font-weight: 600;
+  line-height: 1;
 }
 
 .player-name-link {
