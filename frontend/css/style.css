@@ -2842,57 +2842,47 @@ a {
   }
   
   .leaderboard-row {
-    display: grid;
-    grid-template-columns: 45px 1fr 70px 60px;
-    grid-template-rows: auto auto;
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
     padding: 0.75rem 0.5rem;
-    align-items: center;
   }
   
-  .col-rank {
-    font-size: 1.1rem;
-    grid-row: 1;
-  }
-  
-  .col-player {
-    font-size: 1rem;
-    grid-row: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .col-player .player-info {
+  .mobile-row-1 {
     display: flex;
-    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  
-  .col-player .player-picks-by-round {
     width: 100%;
-    margin-top: 6px;
   }
   
-  .col-points {
+  .mobile-row-1 .col-rank {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  
+  .mobile-row-1 .col-player {
     font-size: 1rem;
-    text-align: right;
-    grid-row: 1;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
-  .col-wins {
+  .mobile-row-1 .col-points {
     font-size: 1rem;
-    text-align: right;
-    grid-row: 1;
+    flex-shrink: 0;
   }
   
-  .col-status {
-    display: none;
+  .mobile-row-1 .col-wins {
+    font-size: 1rem;
+    flex-shrink: 0;
   }
   
-  .mobile-hide {
+  .mobile-row-2 {
+    width: 100%;
+  }
+  
+  .desktop-only {
     display: none;
   }
   

@@ -140,23 +140,20 @@ function displayLeaderboard(leaderboard) {
     
     html += `
       <div class="leaderboard-row ${isEliminated ? 'eliminated' : ''} ${position <= 3 ? 'top-three' : ''}">
-        <div class="col-rank">${rankDisplay}</div>
-        <div class="col-player">
-          <div class="player-info">
+        <div class="mobile-row-1">
+          <span class="col-rank">${rankDisplay}</span>
+          <span class="col-player">
             <a href="player.html?user=${encodeURIComponent(player.username)}" class="player-name-link">
               <strong>${player.display_name || player.username}</strong>
             </a>
-            <span class="username mobile-hide">@${player.username}</span>
-            ${picksByRoundHtml}
-          </div>
+          </span>
+          <span class="col-points"><span class="points-badge">${totalPoints}</span></span>
+          <span class="col-wins"><span class="wins-badge">${wins}</span></span>
         </div>
-        <div class="col-points">
-          <span class="points-badge">${totalPoints}</span>
+        <div class="mobile-row-2">
+          ${picksByRoundHtml}
         </div>
-        <div class="col-wins">
-          <span class="wins-badge">${wins}</span>
-        </div>
-        <div class="col-status">
+        <div class="col-status desktop-only">
           ${isEliminated ? 
             '<span class="status-badge eliminated"><i class="fas fa-times-circle"></i> Out</span>' :
             '<span class="status-badge active"><i class="fas fa-check-circle"></i> In</span>'
