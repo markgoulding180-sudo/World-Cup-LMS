@@ -36,12 +36,13 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    // Get all picks for context
+    // Get all picks for context with round info
     const { data: picks } = await supabase
       .from('picks')
       .select(`
         *,
-        teams:team_id(name, flag_url)
+        teams:team_id(name, flag_url),
+        rounds:round_id(round_number, name)
       `)
       .order('created_at', { ascending: false });
 
@@ -54,13 +55,23 @@ module.exports = async (req, res) => {
       const userPicks = picks?.filter(p => p.user_id === entry.user_id) || [];
       const wins = userPicks.filter(p => p.result === 'win').length;
       
-      // Get all picks with flags for display
-      const allPicks = userPicks.map(p => ({
-        team: p.teams?.name,
-        flag: p.teams?.flag_url,
-        result: p.result,
-        points: p.points
-      }));
+      // Group picks by round
+      const roundNames = { 1: 'GS', 2: 'L32', 3: 'L16', 4: 'QF', 5: 'SF', 6: 'F' };
+      const picksByRound = {};
+      
+      userPicks.forEach(p => {
+        const roundNum = p.rounds?.round_number || 1;
+        const roundLabel = roundNames[roundNum] || 'GS';
+        if (!picksByRound[roundLabel]) {
+          picksByRound[roundLabel] = [];
+        }
+        picksByRound[roundLabel].push({
+          team: p.teams?.name,
+          flag: p.teams?.flag_url,
+          result: p.result,
+          points: p.points
+        });
+      });
       
       return {
         position: index + 1,
@@ -76,7 +87,7 @@ module.exports = async (req, res) => {
           result: userPicks[0].result,
           points: userPicks[0].points
         } : null,
-        all_picks: allPicks
+        picks_by_round: picksByRound
       };
     });
 

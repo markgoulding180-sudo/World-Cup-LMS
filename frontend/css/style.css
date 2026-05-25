@@ -2331,12 +2331,31 @@ a {
   flex-direction: column;
 }
 
-/* Tiny flags for all picks in leaderboard */
-.player-picks-flags {
+/* Picks grouped by round in leaderboard */
+.player-picks-by-round {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.pick-round-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.round-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  min-width: 24px;
+  font-weight: 600;
+}
+
+.round-flags {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
-  margin-top: 4px;
 }
 
 .pick-flag-tiny {
@@ -2545,15 +2564,28 @@ a {
     display: none;
   }
   
-  /* Tiny flags for mobile */
-  .player-picks-flags {
+  /* Picks by round for mobile */
+  .player-picks-by-round {
     margin-top: 4px;
-    gap: 3px;
+    gap: 1px;
+  }
+  
+  .pick-round-line {
+    gap: 4px;
+  }
+  
+  .round-label {
+    font-size: 0.65rem;
+    min-width: 20px;
+  }
+  
+  .round-flags {
+    gap: 2px;
   }
   
   .pick-flag-tiny {
-    width: 20px;
-    height: 14px;
+    width: 18px;
+    height: 12px;
   }
   
   /* Stats row - 3 cards on one line */
