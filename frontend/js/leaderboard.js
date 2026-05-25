@@ -71,7 +71,6 @@ function displayLeaderboard(leaderboard) {
       <div class="col-player">Player</div>
       <div class="col-points">Points</div>
       <div class="col-wins">Wins</div>
-      <div class="col-pick">Current Pick</div>
       <div class="col-status">Status</div>
     </div>
   `;
@@ -87,22 +86,6 @@ function displayLeaderboard(leaderboard) {
     if (position === 1) rankDisplay = '<span class="rank-medal gold"><i class="fas fa-trophy"></i></span>';
     else if (position === 2) rankDisplay = '<span class="rank-medal silver"><i class="fas fa-medal"></i></span>';
     else if (position === 3) rankDisplay = '<span class="rank-medal bronze"><i class="fas fa-medal"></i></span>';
-    
-    // Current pick with points earned
-    let currentPickHtml = '<span class="no-pick">-</span>';
-    if (player.current_pick) {
-      const pointsEarned = player.current_pick.points_earned;
-      const pointsClass = pointsEarned > 0 ? 'points-won' : (pointsEarned === 0 ? 'points-lost' : 'points-pending');
-      const pointsText = pointsEarned > 0 ? `+${pointsEarned} pts` : (pointsEarned === 0 ? '0 pts' : 'Pending');
-      
-      currentPickHtml = `
-        <div class="current-pick-info">
-          <img src="${player.current_pick.flag || ''}" alt="" class="pick-flag-small">
-          <span class="pick-team">${player.current_pick.team}</span>
-          <span class="pick-points ${pointsClass}">${pointsText}</span>
-        </div>
-      `;
-    }
     
     // Picks grouped by round for mobile view
     let picksByRoundHtml = '';
@@ -171,7 +154,6 @@ function displayLeaderboard(leaderboard) {
         <div class="col-wins">
           <span class="wins-badge">${wins}</span>
         </div>
-        <div class="col-pick">${currentPickHtml}</div>
         <div class="col-status">
           ${isEliminated ? 
             '<span class="status-badge eliminated"><i class="fas fa-times-circle"></i> Out</span>' :
