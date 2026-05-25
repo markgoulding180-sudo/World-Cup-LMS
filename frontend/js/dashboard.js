@@ -1180,26 +1180,59 @@ function displayGroupResults() {
       return (b.goals_scored || 0) - (a.goals_scored || 0);
     });
     
+    // Get top 3 teams
+    const firstPlace = groupTeams[0];
+    const secondPlace = groupTeams[1];
+    const thirdPlace = groupTeams[2];
+    
     html += `
-      <div class="group-card">
-        <h4 class="group-title">Group ${groupName}</h4>
-        <div class="group-teams">
-          ${groupTeams.map((team, index) => {
-            // Calculate group stage points from picks
-            const groupStagePoints = calculateTeamGroupPoints(team.id);
-            return `
-            <div class="team-card ${index < 2 ? 'qualified' : ''}">
-              <div class="team-card-flag">
-                <img src="${team.flag_url}" alt="${team.name}">
+      <div class="group-section">
+        <!-- Group Card with all teams -->
+        <div class="group-card">
+          <h4 class="group-title">Group ${groupName}</h4>
+          <div class="group-teams">
+            ${groupTeams.map((team, index) => `
+              <div class="group-team-item ${index < 2 ? 'qualified' : ''}">
+                <div class="team-mini-card flag-card">
+                  <img src="${team.flag_url}" alt="${team.name}">
+                </div>
+                <div class="team-mini-card name-card">
+                  ${team.name}
+                </div>
+                <div class="team-mini-card points-card">
+                  ${team.group_points || 0} pts
+                </div>
               </div>
-              <div class="team-card-name">
-                ${team.name}
+            `).join('')}
+          </div>
+        </div>
+        
+        <!-- Qualifiers Card - shows teams going to knockout -->
+        <div class="qualifiers-card">
+          <h5 class="qualifiers-title">Qualifiers</h5>
+          <div class="qualifiers-list">
+            ${firstPlace ? `
+              <div class="qualifier-item first">
+                <span class="qualifier-position">1st</span>
+                <img src="${firstPlace.flag_url}" alt="${firstPlace.name}" class="qualifier-flag">
+                <span class="qualifier-name">${firstPlace.name}</span>
               </div>
-              <div class="team-card-points" title="Group Stage Points">
-                ${groupStagePoints} pts
+            ` : ''}
+            ${secondPlace ? `
+              <div class="qualifier-item second">
+                <span class="qualifier-position">2nd</span>
+                <img src="${secondPlace.flag_url}" alt="${secondPlace.name}" class="qualifier-flag">
+                <span class="qualifier-name">${secondPlace.name}</span>
               </div>
-            </div>
-          `}).join('')}
+            ` : ''}
+            ${thirdPlace ? `
+              <div class="qualifier-item third">
+                <span class="qualifier-position">3rd</span>
+                <img src="${thirdPlace.flag_url}" alt="${thirdPlace.name}" class="qualifier-flag">
+                <span class="qualifier-name">${thirdPlace.name}</span>
+              </div>
+            ` : ''}
+          </div>
         </div>
       </div>
     `;
