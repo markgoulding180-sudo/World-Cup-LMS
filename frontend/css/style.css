@@ -2567,7 +2567,7 @@ a {
   /* Picks by round for mobile */
   .player-picks-by-round {
     margin-top: 4px;
-    gap: 1px;
+    gap: 2px;
   }
   
   .pick-round-line {
@@ -2581,6 +2581,24 @@ a {
   
   .round-flags {
     gap: 2px;
+  }
+  
+  .ko-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  
+  .ko-pick {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  
+  .round-label-mini {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    font-weight: 600;
   }
   
   .pick-flag-tiny {

@@ -122,22 +122,27 @@ function displayLeaderboard(leaderboard) {
         </div>
       ` : '';
       
-      // All KO rounds on one line in order
+      // All KO rounds on one line with labels before each flag
       const koRounds = ['L32', 'L16', 'QF', 'SF', 'F'];
-      const koPicks = [];
+      let koHtml = '';
+      
       koRounds.forEach(round => {
         if (player.picks_by_round[round]) {
-          player.picks_by_round[round].forEach(p => koPicks.push(p));
+          player.picks_by_round[round].forEach(p => {
+            koHtml += `
+              <span class="ko-pick">
+                <span class="round-label-mini">${round}</span>
+                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+              </span>
+            `;
+          });
         }
       });
       
-      const koHtml = koPicks.length > 0 ? `
+      koHtml = koHtml ? `
         <div class="pick-round-line ko-line">
-          <span class="round-label">KO:</span>
-          <span class="round-flags">
-            ${koPicks.map(p => `
-              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
-            `).join('')}
+          <span class="round-flags ko-flags">
+            ${koHtml}
           </span>
         </div>
       ` : '';
