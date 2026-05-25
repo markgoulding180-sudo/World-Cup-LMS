@@ -26,7 +26,7 @@ body {
 /* Dashboard with background image */
 body.dashboard-page {
   background: 
-    linear-gradient(rgba(10, 14, 39, 0.85), rgba(10, 14, 39, 0.9)),
+    linear-gradient(rgba(10, 14, 39, 0.95), rgba(10, 14, 39, 0.98)),
     url('../images/dashboard-bg.png') center/cover no-repeat fixed;
   min-height: 100vh;
 }
