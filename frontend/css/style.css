@@ -2281,7 +2281,10 @@ a {
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   align-items: start;
-  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
   transition: background 0.2s;
 }
 
@@ -2854,6 +2857,10 @@ a {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.75rem 0.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
   }
   
   .mobile-row-1 {
