@@ -1918,7 +1918,8 @@ a {
 @media (max-width: 768px) {
   /* Container adjustments */
   .container {
-    padding: 0 0.75rem;
+    padding: 0 0.5rem;
+    max-width: 100%;
   }
   
   /* Navigation mobile */
@@ -2488,22 +2489,30 @@ a {
     font-size: 0.75rem;
   }
   
+  .leaderboard-section {
+    padding: 0.75rem 0.5rem;
+    margin: 0 -0.5rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  
   .leaderboard-row {
     display: grid;
-    grid-template-columns: 45px 1fr 55px 45px;
+    grid-template-columns: 40px 1fr 50px 40px;
     grid-template-rows: auto;
-    gap: 0.5rem;
-    padding: 0.75rem;
+    gap: 0.4rem;
+    padding: 0.6rem 0.5rem;
     align-items: start;
   }
   
   .col-rank {
-    font-size: 1rem;
-    padding-top: 0.25rem;
+    font-size: 0.9rem;
+    padding-top: 0.2rem;
   }
   
   .col-player {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     min-width: 0;
   }
   
@@ -2520,15 +2529,15 @@ a {
   }
   
   .col-points {
-    font-size: 1rem;
+    font-size: 0.9rem;
     text-align: right;
-    padding-top: 0.25rem;
+    padding-top: 0.2rem;
   }
   
   .col-wins {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     text-align: right;
-    padding-top: 0.25rem;
+    padding-top: 0.2rem;
   }
   
   .col-pick,
@@ -2538,13 +2547,13 @@ a {
   
   /* Tiny flags for mobile */
   .player-picks-flags {
-    margin-top: 6px;
-    gap: 4px;
+    margin-top: 4px;
+    gap: 3px;
   }
   
   .pick-flag-tiny {
-    width: 22px;
-    height: 15px;
+    width: 20px;
+    height: 14px;
   }
   
   /* Stats row - 3 cards on one line */
