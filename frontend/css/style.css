@@ -2452,6 +2452,12 @@ a {
   background: rgba(239, 68, 68, 0.1);
 }
 
+.profile-pick.empty {
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  opacity: 0.5;
+}
+
 .profile-pick-flag {
   width: 32px;
   height: 22px;

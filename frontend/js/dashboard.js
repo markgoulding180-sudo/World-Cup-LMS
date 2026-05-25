@@ -785,56 +785,44 @@ function displayCurrentPicks(picks) {
     }
   }
   
-  // Default: Show Group Stage picks
-  const picksByMatchday = { 1: [], 2: [], 3: [] };
-  groupStagePicks.forEach(pick => {
-    if (pick.matchday && picksByMatchday[pick.matchday]) {
-      picksByMatchday[pick.matchday].push(pick);
-    }
-  });
-  
+  // Default: Show Group Stage picks in 3x3 grid
   let html = `
     <div class="current-pick-card">
       <h3>Your Group Stage Picks</h3>
       <p>Total: ${picksMade} / 9 picks</p>
+      <div class="profile-picks group-stage-grid">
   `;
   
-  [1, 2, 3].forEach(matchday => {
-    const matchdayPicks = picksByMatchday[matchday];
-    html += `<div class="matchday-picks-section">`;
-    html += `<h4>Matchday ${matchday} <span class="pick-count">(${matchdayPicks.length}/3)</span></h4>`;
+  // Show all group stage picks in 3x3 grid (same as player profile)
+  html += groupStagePicks.map(pick => {
+    const match = allMatches.find(m => 
+      (m.home_team_id === pick.team_id || m.away_team_id === pick.team_id)
+    );
+    const matchDate = match ? new Date(match.match_time) : null;
+    const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+    const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
     
-    if (matchdayPicks.length === 0) {
-      html += '<p class="no-picks">No picks yet</p>';
-    } else {
-      html += '<div class="picks-list-small">';
-      html += matchdayPicks.map(pick => {
-        // Find the match for this pick
-        const match = allMatches.find(m => 
-          (m.home_team_id === pick.team_id || m.away_team_id === pick.team_id) && 
-          m.matchday === matchday
-        );
-        const matchDate = match ? new Date(match.match_time) : null;
-        const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-        const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
-        
-        return `
-          <div class="pick-item-small">
-            <img src="${pick.teams?.flag_url}" alt="" class="pick-flag-small">
-            <div class="pick-details">
-              <span class="pick-team-name">${pick.teams?.name}</span>
-              <span class="pick-match-time">${dateStr} @ ${timeStr}</span>
-            </div>
-            <span class="pick-status-badge ${pick.result}">${pick.result}</span>
-          </div>
-        `;
-      }).join('');
-      html += '</div>';
-    }
-    html += '</div>';
-  });
+    return `
+      <div class="profile-pick ${pick.result}">
+        <img src="${pick.teams?.flag_url}" alt="${pick.teams?.name}" class="profile-pick-flag">
+        <span class="profile-pick-team">${pick.teams?.name}</span>
+        <span class="profile-pick-result">${pick.result === 'win' ? '✓' : pick.result === 'loss' ? '✗' : '⏳'}</span>
+        ${pick.points > 0 ? `<span class="profile-pick-points">+${pick.points}</span>` : ''}
+      </div>
+    `;
+  }).join('');
   
-  html += '</div>';
+  // Fill empty slots if less than 9 picks
+  const emptySlots = 9 - groupStagePicks.length;
+  for (let i = 0; i < emptySlots; i++) {
+    html += `
+      <div class="profile-pick empty">
+        <span class="profile-pick-team">-</span>
+      </div>
+    `;
+  }
+  
+  html += '</div></div>';
   container.innerHTML = html;
 }
 
