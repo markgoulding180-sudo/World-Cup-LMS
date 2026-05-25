@@ -2729,66 +2729,40 @@ a {
   text-decoration: underline;
 }
 
-/* Small flags for leaderboard - Desktop */
-.leaderboard-row .player-picks-by-round {
+/* Small flags for leaderboard - Desktop - All on one line */
+.leaderboard-row .player-picks-inline {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
   line-height: 1;
 }
 
-.leaderboard-row .pick-round-line {
+.leaderboard-row .pick-item-inline {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   line-height: 1;
 }
 
-.leaderboard-row .round-label {
-  font-size: 0.7rem;
+.leaderboard-row .round-label-inline {
+  font-size: 0.65rem;
   color: var(--text-secondary);
-  min-width: 18px;
   font-weight: 600;
   line-height: 1;
 }
 
-.leaderboard-row .round-flags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.leaderboard-row .pick-flag-tiny {
-  width: 16px !important;
-  height: 11px !important;
-  min-width: 16px !important;
-  min-height: 11px !important;
-  max-width: 16px !important;
-  max-height: 11px !important;
-  border-radius: 1px !important;
+.leaderboard-row .pick-flag-inline {
+  width: 20px !important;
+  height: 14px !important;
+  min-width: 20px !important;
+  min-height: 14px !important;
+  max-width: 20px !important;
+  max-height: 14px !important;
+  border-radius: 2px !important;
   object-fit: cover !important;
   display: inline-block !important;
-}
-
-.leaderboard-row .ko-flags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 4px;
-}
-
-.leaderboard-row .ko-pick {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  line-height: 1;
-}
-
-.leaderboard-row .round-label-mini {
-  font-size: 0.6rem;
-  color: var(--text-secondary);
-  font-weight: 600;
-  line-height: 1;
 }
 
 .player-name-link {
@@ -2905,7 +2879,7 @@ a {
   justify-content: center;
   gap: 2rem;
   margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .stat-box {
@@ -2914,6 +2888,8 @@ a {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 0.75rem;
+  flex: 1;
+  max-width: 150px;
 }
 
 .stat-box .stat-value {
@@ -3124,31 +3100,31 @@ a {
     min-width: 20px;
   }
   
-  .round-flags {
-    gap: 2px;
-  }
-  
-  .ko-flags {
+  /* Flags inline for mobile */
+  .player-picks-inline {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 8px;
+    gap: 4px;
+    margin-top: 4px;
   }
   
-  .ko-pick {
+  .pick-item-inline {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 1px;
   }
   
-  .round-label-mini {
+  .round-label-inline {
     font-size: 0.6rem;
     color: var(--text-secondary);
     font-weight: 600;
   }
   
-  .pick-flag-tiny {
-    width: 18px;
-    height: 12px;
+  .pick-flag-inline {
+    width: 18px !important;
+    height: 12px !important;
+    min-width: 18px !important;
+    min-height: 12px !important;
   }
   
   /* Stats row - 3 cards on one line */

@@ -87,53 +87,30 @@ function displayLeaderboard(leaderboard) {
     else if (position === 2) rankDisplay = '<span class="rank-medal silver"><i class="fas fa-medal"></i></span>';
     else if (position === 3) rankDisplay = '<span class="rank-medal bronze"><i class="fas fa-medal"></i></span>';
     
-    // Picks grouped by round (small flags)
+    // Picks grouped by round (small flags) - all on one line
     let picksByRoundHtml = '';
     if (player.picks_by_round && Object.keys(player.picks_by_round).length > 0) {
       const roundOrder = ['GS', 'L32', 'L16', 'QF', 'SF', 'F'];
       
-      // Group Stage on its own line
-      const gsPicks = player.picks_by_round['GS'];
-      const gsHtml = gsPicks ? `
-        <div class="pick-round-line">
-          <span class="round-label">GS:</span>
-          <span class="round-flags">
-            ${gsPicks.map(p => `
-              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}" style="width:16px;height:11px;min-width:16px;min-height:11px;object-fit:cover;">
-            `).join('')}
-          </span>
-        </div>
-      ` : '';
+      // Build all picks in order on a single line
+      let allPicksHtml = '';
       
-      // All KO rounds on one line with labels before each flag
-      const koRounds = ['L32', 'L16', 'QF', 'SF', 'F'];
-      let koHtml = '';
-      
-      koRounds.forEach(round => {
+      roundOrder.forEach(round => {
         if (player.picks_by_round[round]) {
           player.picks_by_round[round].forEach(p => {
-            koHtml += `
-              <span class="ko-pick">
-                <span class="round-label-mini">${round}</span>
-                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}" style="width:16px;height:11px;min-width:16px;min-height:11px;object-fit:cover;">
+            allPicksHtml += `
+              <span class="pick-item-inline">
+                <span class="round-label-inline">${round}</span>
+                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-inline" title="${p.team}">
               </span>
             `;
           });
         }
       });
       
-      koHtml = koHtml ? `
-        <div class="pick-round-line ko-line">
-          <span class="round-flags ko-flags">
-            ${koHtml}
-          </span>
-        </div>
-      ` : '';
-      
       picksByRoundHtml = `
-        <div class="player-picks-by-round">
-          ${gsHtml}
-          ${koHtml}
+        <div class="player-picks-inline">
+          ${allPicksHtml}
         </div>
       `;
     }
