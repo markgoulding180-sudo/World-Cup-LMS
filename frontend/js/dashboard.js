@@ -417,8 +417,18 @@ async function submitKnockoutPick(teamId) {
     });
     
     if (response.ok) {
+      const data = await response.json();
       alert(`✓ Pick submitted! You picked ${team?.name}`);
-      loadDashboard();
+      
+      // Update local state instead of reloading everything
+      if (data.pick) {
+        roundPicks.push(data.pick);
+        userPicks.push(data.pick);
+      }
+      
+      // Just re-render the pick flow
+      displayKnockoutPickFlow();
+      displayCurrentPicks(roundPicks);
     } else {
       const error = await response.json();
       alert('Error: ' + (error.error || 'Failed to submit pick'));
@@ -703,13 +713,21 @@ async function submitMatchdayPicks() {
     if (allOk) {
       selectedTeams = []; // Clear selections
       
+      // Update local state instead of reloading everything
+      const newPicks = await Promise.all(responses.map(async r => await r.json()));
+      newPicks.forEach(p => {
+        if (p.pick) roundPicks.push(p.pick);
+      });
+      
       if (currentMatchday < 3) {
         alert(`✓ Matchday ${currentMatchday} complete!\n\nMoving to Matchday ${currentMatchday + 1}...`);
       } else {
         alert(`✓ All picks submitted! Good luck!`);
       }
       
-      loadDashboard();
+      // Just re-render the pick flow, don't reload all data
+      displayMatchdayPickFlow();
+      displayCurrentPicks(roundPicks);
     } else {
       alert('Some picks failed. Please try again.');
     }
