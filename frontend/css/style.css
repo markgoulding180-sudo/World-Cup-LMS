@@ -2623,7 +2623,7 @@ a {
 }
 
 /* Small flags for leaderboard - Desktop */
-.player-picks-by-round {
+.leaderboard-row .player-picks-by-round {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2631,14 +2631,14 @@ a {
   line-height: 1;
 }
 
-.pick-round-line {
+.leaderboard-row .pick-round-line {
   display: flex;
   align-items: center;
   gap: 4px;
   line-height: 1;
 }
 
-.round-label {
+.leaderboard-row .round-label {
   font-size: 0.7rem;
   color: var(--text-secondary);
   min-width: 18px;
@@ -2646,38 +2646,38 @@ a {
   line-height: 1;
 }
 
-.round-flags {
+.leaderboard-row .round-flags {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
 }
 
-.pick-flag-tiny {
-  width: 6px !important;
-  height: 4px !important;
-  min-width: 6px !important;
-  min-height: 4px !important;
-  max-width: 6px !important;
-  max-height: 4px !important;
-  border-radius: 0px;
-  object-fit: cover;
-  display: inline-block;
+.leaderboard-row .pick-flag-tiny {
+  width: 16px !important;
+  height: 11px !important;
+  min-width: 16px !important;
+  min-height: 11px !important;
+  max-width: 16px !important;
+  max-height: 11px !important;
+  border-radius: 1px !important;
+  object-fit: cover !important;
+  display: inline-block !important;
 }
 
-.ko-flags {
+.leaderboard-row .ko-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 3px;
+  gap: 2px 4px;
 }
 
-.ko-pick {
+.leaderboard-row .ko-pick {
   display: flex;
   align-items: center;
   gap: 1px;
   line-height: 1;
 }
 
-.round-label-mini {
+.leaderboard-row .round-label-mini {
   font-size: 0.6rem;
   color: var(--text-secondary);
   font-weight: 600;
@@ -2872,28 +2872,28 @@ a {
   }
   
   /* Mobile flags - GS on line 1, KO on line 2 */
-  .player-picks-by-round {
+  .leaderboard-row .player-picks-by-round {
     margin-top: 4px;
     gap: 4px;
   }
   
-  .pick-round-line {
+  .leaderboard-row .pick-round-line {
     gap: 4px;
     flex-wrap: nowrap;
   }
   
-  .round-label {
+  .leaderboard-row .round-label {
     font-size: 0.7rem;
     min-width: 18px;
     flex-shrink: 0;
   }
   
-  .round-flags {
+  .leaderboard-row .round-flags {
     flex-wrap: nowrap;
     gap: 2px;
   }
   
-  .pick-flag-tiny {
+  .leaderboard-row .pick-flag-tiny {
     width: 18px !important;
     height: 12px !important;
     min-width: 18px !important;
@@ -2903,12 +2903,12 @@ a {
     flex-shrink: 0;
   }
   
-  .ko-flags {
+  .leaderboard-row .ko-flags {
     flex-wrap: wrap;
     gap: 4px 6px;
   }
   
-  .round-label-mini {
+  .leaderboard-row .round-label-mini {
     font-size: 0.65rem;
   }
   
