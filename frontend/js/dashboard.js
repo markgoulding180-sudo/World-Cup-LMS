@@ -1164,11 +1164,16 @@ function displayGroupResults() {
         <h4 class="group-title">Group ${groupName}</h4>
         <div class="group-teams">
           ${groupTeams.map((team, index) => `
-            <div class="group-team-row ${index < 2 ? 'qualified' : ''}">
-              <span class="team-position">${index + 1}</span>
-              <img src="${team.flag_url}" alt="${team.name}" class="group-team-flag">
-              <span class="team-name">${team.name}</span>
-              <span class="team-points">${team.group_points || 0} pts</span>
+            <div class="team-card ${index < 2 ? 'qualified' : ''}">
+              <div class="team-card-flag">
+                <img src="${team.flag_url}" alt="${team.name}">
+              </div>
+              <div class="team-card-name">
+                ${team.name}
+              </div>
+              <div class="team-card-points">
+                ${team.group_points || 0} pts
+              </div>
             </div>
           `).join('')}
         </div>
