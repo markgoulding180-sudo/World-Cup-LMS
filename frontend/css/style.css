@@ -2622,27 +2622,26 @@ a {
   text-decoration: underline;
 }
 
-/* Small flags for leaderboard - VERY SMALL */
+/* Small flags for leaderboard - Desktop */
 .player-picks-by-round {
   display: flex;
   flex-direction: column;
-  gap: 0px;
-  margin-top: 1px;
+  gap: 1px;
+  margin-top: 2px;
   line-height: 1;
 }
 
 .pick-round-line {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 3px;
   line-height: 1;
-  height: 12px;
 }
 
 .round-label {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   color: var(--text-secondary);
-  min-width: 12px;
+  min-width: 16px;
   font-weight: 600;
   line-height: 1;
 }
@@ -2650,13 +2649,13 @@ a {
 .round-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0px;
+  gap: 2px;
 }
 
 .pick-flag-tiny {
-  width: 6px !important;
-  height: 4px !important;
-  border-radius: 0px;
+  width: 12px;
+  height: 8px;
+  border-radius: 1px;
   object-fit: cover;
   display: inline-block;
 }
@@ -2664,18 +2663,18 @@ a {
 .ko-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0px 1px;
+  gap: 2px 4px;
 }
 
 .ko-pick {
   display: flex;
   align-items: center;
-  gap: 0px;
+  gap: 1px;
   line-height: 1;
 }
 
 .round-label-mini {
-  font-size: 0.4rem;
+  font-size: 0.55rem;
   color: var(--text-secondary);
   font-weight: 600;
   line-height: 1;
@@ -2868,27 +2867,32 @@ a {
     text-align: right;
   }
   
-  /* Small flags on mobile */
+  /* Mobile flags - 3x bigger than current */
   .player-picks-by-round {
-    margin-top: 1px;
+    margin-top: 3px;
+    gap: 2px;
   }
   
   .pick-round-line {
-    gap: 1px;
+    gap: 4px;
   }
   
   .round-label {
-    font-size: 0.55rem;
-    min-width: 12px;
+    font-size: 0.75rem;
+    min-width: 20px;
   }
   
   .pick-flag-tiny {
-    width: 8px;
-    height: 6px;
+    width: 18px;
+    height: 12px;
+  }
+  
+  .ko-flags {
+    gap: 3px 6px;
   }
   
   .round-label-mini {
-    font-size: 0.45rem;
+    font-size: 0.7rem;
   }
   
   .col-pick,
