@@ -2282,8 +2282,8 @@ a {
   padding: 0.75rem 1rem;
   align-items: start;
   background: var(--bg-card);
-  border: 5px solid #00ffff;
-  border-radius: 0.5rem;
+  border: 2px solid #00ffff;
+  border-radius: 1rem;
   margin-bottom: 0.5rem;
   transition: background 0.2s;
 }
@@ -2876,8 +2876,8 @@ a {
     gap: 0.5rem;
     padding: 0.75rem;
     background: var(--bg-card);
-    border: 5px solid #00ffff;
-    border-radius: 0.5rem;
+    border: 2px solid #00ffff;
+    border-radius: 1rem;
     margin-bottom: 0.5rem;
     width: 100%;
     box-sizing: border-box;
