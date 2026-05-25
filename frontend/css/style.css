@@ -2734,6 +2734,26 @@ a {
   margin-top: 0.5rem;
 }
 
+/* Warning banner for used teams still in tournament */
+.used-teams-warning {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--accent-red);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.used-teams-warning i {
+  color: var(--accent-red);
+  margin-right: 0.5rem;
+}
+
+.used-teams-warning small {
+  color: var(--text-secondary);
+}
+
 /* Submitted pick display */
 .submitted-pick-display {
   display: flex;

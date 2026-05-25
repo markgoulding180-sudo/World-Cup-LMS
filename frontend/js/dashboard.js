@@ -279,14 +279,31 @@ function displayKnockoutPickFlow() {
   // Get all teams already used by this user in ANY round
   const usedTeamIds = new Set(userPicks.map(p => p.team_id));
   
+  // Check if any used teams are still in this round
+  const usedTeamsInRound = roundTeams.filter(t => usedTeamIds.has(t.id));
+  
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const roundName = roundNames[currentRound.round_number] || currentRound.name;
+  
+  // Build warning banner for used teams still in tournament
+  let warningBanner = '';
+  if (usedTeamsInRound.length > 0) {
+    const teamNames = usedTeamsInRound.map(t => t.name).join(', ');
+    warningBanner = `
+      <div class="used-teams-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>You already used:</strong> ${teamNames}
+        <br><small>These teams are still in the tournament but you cannot pick them again</small>
+      </div>
+    `;
+  }
   
   let html = `
     <div class="knockout-pick-flow">
       <div class="knockout-header">
         <h3>${roundName}</h3>
         <p class="knockout-instruction">Pick <strong>ONE</strong> team to win their match</p>
+        ${warningBanner}
         <p class="used-teams-note"><i class="fas fa-info-circle"></i> Teams greyed out were used in previous rounds</p>
       </div>
       
