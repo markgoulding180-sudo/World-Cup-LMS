@@ -719,8 +719,11 @@ async function submitMatchdayPicks() {
         if (p.pick) roundPicks.push(p.pick);
       });
       
+      // Update current matchday based on picks made
+      determineCurrentMatchday();
+      
       if (currentMatchday < 3) {
-        alert(`✓ Matchday ${currentMatchday} complete!\n\nMoving to Matchday ${currentMatchday + 1}...`);
+        alert(`✓ Matchday ${currentMatchday - 1} complete!\n\nMoving to Matchday ${currentMatchday}...`);
       } else {
         alert(`✓ All picks submitted! Good luck!`);
       }
