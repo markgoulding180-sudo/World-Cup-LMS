@@ -63,7 +63,6 @@ module.exports = async (req, res) => {
 
     // Calculate stats
     const totalPlayers = entries?.length || 0;
-    const activePlayers = entries?.filter(e => e.status === 'active').length || 0;
     
     // Calculate prize pool (£30 per player)
     const entryFee = 30;
@@ -125,11 +124,16 @@ module.exports = async (req, res) => {
     const roundNames = { 1: 'Group Stage', 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
     const currentRoundName = roundNames[maxRound] || 'Group Stage';
     
+    // Calculate active/eliminated from the computed status
+    const activePlayers = leaderboard?.filter(p => p.status === 'active').length || 0;
+    const eliminatedPlayers = leaderboard?.filter(p => p.status === 'eliminated').length || 0;
+    
     return res.status(200).json({
       success: true,
       stats: {
         total_players: totalPlayers,
         active_players: activePlayers,
+        eliminated_players: eliminatedPlayers,
         prize_pool: prizePool,
         current_round: currentRoundName
       },

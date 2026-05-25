@@ -144,7 +144,7 @@ function displayLeaderboard(leaderboard) {
           <span class="col-rank">${rankDisplay}</span>
           <span class="col-player">
             <a href="player.html?user=${encodeURIComponent(player.username)}" class="player-name-link">
-              <strong>${player.display_name || player.username}</strong>
+              <strong class="${isEliminated ? 'eliminated-name' : ''}">${player.display_name || player.username}</strong>
             </a>
           </span>
           <span class="col-points"><span class="points-badge">${totalPoints}</span></span>
