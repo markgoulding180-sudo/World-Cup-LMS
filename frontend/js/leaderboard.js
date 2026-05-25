@@ -108,18 +108,44 @@ function displayLeaderboard(leaderboard) {
     let picksByRoundHtml = '';
     if (player.picks_by_round && Object.keys(player.picks_by_round).length > 0) {
       const roundOrder = ['GS', 'L32', 'L16', 'QF', 'SF', 'F'];
+      
+      // Group Stage on its own line
+      const gsPicks = player.picks_by_round['GS'];
+      const gsHtml = gsPicks ? `
+        <div class="pick-round-line">
+          <span class="round-label">GS:</span>
+          <span class="round-flags">
+            ${gsPicks.map(p => `
+              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+            `).join('')}
+          </span>
+        </div>
+      ` : '';
+      
+      // All KO rounds on one line in order
+      const koRounds = ['L32', 'L16', 'QF', 'SF', 'F'];
+      const koPicks = [];
+      koRounds.forEach(round => {
+        if (player.picks_by_round[round]) {
+          player.picks_by_round[round].forEach(p => koPicks.push(p));
+        }
+      });
+      
+      const koHtml = koPicks.length > 0 ? `
+        <div class="pick-round-line ko-line">
+          <span class="round-label">KO:</span>
+          <span class="round-flags">
+            ${koPicks.map(p => `
+              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+            `).join('')}
+          </span>
+        </div>
+      ` : '';
+      
       picksByRoundHtml = `
         <div class="player-picks-by-round">
-          ${roundOrder.filter(r => player.picks_by_round[r]).map(round => `
-            <div class="pick-round-line">
-              <span class="round-label">${round}:</span>
-              <span class="round-flags">
-                ${player.picks_by_round[round].map(p => `
-                  <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
-                `).join('')}
-              </span>
-            </div>
-          `).join('')}
+          ${gsHtml}
+          ${koHtml}
         </div>
       `;
     }
