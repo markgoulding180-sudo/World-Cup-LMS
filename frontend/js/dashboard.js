@@ -1120,6 +1120,147 @@ function displayRoundMatches(matches, currentRound) {
   container.innerHTML = html;
 }
 
+function displayGroupResults() {
+  const container = document.getElementById('group-results');
+  if (!container) return;
+  
+  // Group teams by their group_name
+  const teamsByGroup = {};
+  allTeams.forEach(team => {
+    if (team.group_name) {
+      if (!teamsByGroup[team.group_name]) {
+        teamsByGroup[team.group_name] = [];
+      }
+      teamsByGroup[team.group_name].push(team);
+    }
+  });
+  
+  // Sort groups alphabetically
+  const sortedGroups = Object.keys(teamsByGroup).sort();
+  
+  if (sortedGroups.length === 0) {
+    container.innerHTML = '<p class="text-secondary">No group data available.</p>';
+    return;
+  }
+  
+  let html = '<div class="groups-grid">';
+  
+  sortedGroups.forEach(groupName => {
+    const groupTeams = teamsByGroup[groupName];
+    
+    // Sort teams by points (descending), then goal difference, then goals scored
+    groupTeams.sort((a, b) => {
+      if ((b.group_points || 0) !== (a.group_points || 0)) {
+        return (b.group_points || 0) - (a.group_points || 0);
+      }
+      if ((b.goal_difference || 0) !== (a.goal_difference || 0)) {
+        return (b.goal_difference || 0) - (a.goal_difference || 0);
+      }
+      return (b.goals_scored || 0) - (a.goals_scored || 0);
+    });
+    
+    html += `
+      <div class="group-card">
+        <h4 class="group-title">Group ${groupName}</h4>
+        <div class="group-teams">
+          ${groupTeams.map((team, index) => `
+            <div class="group-team-row ${index < 2 ? 'qualified' : ''}">
+              <span class="team-position">${index + 1}</span>
+              <img src="${team.flag_url}" alt="${team.name}" class="group-team-flag">
+              <span class="team-name">${team.name}</span>
+              <span class="team-points">${team.group_points || 0} pts</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function displayKnockoutGrid() {
+  const container = document.getElementById('knockout-grid');
+  if (!container) return;
+  
+  // Get all teams that qualified for knockout (have qualified_for_ko flag or are top 2 in groups + 8 best 3rd place)
+  // For now, we'll show a placeholder structure
+  
+  let html = '<div class="knockout-bracket">';
+  
+  html += `
+    <div class="knockout-rounds">
+      <div class="knockout-round">
+        <h4>Round of 32</h4>
+        <p class="knockout-info">Top 2 from each group + 8 best 3rd place teams</p>
+        <div class="ko-teams-grid" id="r32-teams">
+          <p class="text-secondary">Teams will be determined after Group Stage</p>
+        </div>
+      </div>
+      
+      <div class="knockout-round">
+        <h4>Round of 16</h4>
+        <div class="ko-teams-grid" id="r16-teams">
+          <p class="text-secondary">Winners from Round of 32</p>
+        </div>
+      </div>
+      
+      <div class="knockout-round">
+        <h4>Quarter Finals</h4>
+        <div class="ko-teams-grid" id="qf-teams">
+          <p class="text-secondary">Winners from Round of 16</p>
+        </div>
+      </div>
+      
+      <div class="knockout-round">
+        <h4>Semi Finals</h4>
+        <div class="ko-teams-grid" id="sf-teams">
+          <p class="text-secondary">Winners from Quarter Finals</p>
+        </div>
+      </div>
+      
+      <div class="knockout-round final">
+        <h4>Final</h4>
+        <div class="ko-teams-grid" id="f-teams">
+          <p class="text-secondary">Winners from Semi Finals</p>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  html += '</div>';
+  container.innerHTML = html;
+  
+  // Load qualified teams if available
+  loadQualifiedTeams();
+}
+
+async function loadQualifiedTeams() {
+  try {
+    const response = await fetch('/api/qualified-teams');
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Update Round of 32 teams
+      if (data.r32 && data.r32.length > 0) {
+        const r32Container = document.getElementById('r32-teams');
+        if (r32Container) {
+          r32Container.innerHTML = data.r32.map(team => `
+            <div class="ko-team-item">
+              <img src="${team.flag_url}" alt="${team.name}" class="ko-team-flag">
+              <span class="ko-team-name">${team.name}</span>
+              <span class="ko-team-source">${team.qualified_from || ''}</span>
+            </div>
+          `).join('');
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Could not load qualified teams:', e);
+  }
+}
+
 function switchTab(tabName) {
   // Hide all tabs
   document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
@@ -1128,6 +1269,13 @@ function switchTab(tabName) {
   // Show selected tab
   document.getElementById(`tab-content-${tabName}`).style.display = 'block';
   document.getElementById(`tab-${tabName}`).classList.add('active');
+  
+  // Load content for specific tabs
+  if (tabName === 'groups') {
+    displayGroupResults();
+  } else if (tabName === 'knockout') {
+    displayKnockoutGrid();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);

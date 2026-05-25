@@ -43,12 +43,20 @@
       <div class="section-tabs">
         <button class="tab-btn active" onclick="switchTab('picks')" id="tab-picks">Your Picks</button>
         <button class="tab-btn" onclick="switchTab('matches')" id="tab-matches">Matches</button>
+        <button class="tab-btn" onclick="switchTab('groups')" id="tab-groups">Group Results</button>
+        <button class="tab-btn" onclick="switchTab('knockout')" id="tab-knockout">Knockout Grid</button>
       </div>
       <div id="tab-content-picks" class="tab-content active">
         <div id="current-pick">Loading...</div>
       </div>
       <div id="tab-content-matches" class="tab-content" style="display: none;">
         <div id="round-matches">Loading matches...</div>
+      </div>
+      <div id="tab-content-groups" class="tab-content" style="display: none;">
+        <div id="group-results">Loading group standings...</div>
+      </div>
+      <div id="tab-content-knockout" class="tab-content" style="display: none;">
+        <div id="knockout-grid">Loading knockout grid...</div>
       </div>
     </div>
 
