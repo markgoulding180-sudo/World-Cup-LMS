@@ -318,41 +318,135 @@ async function simRegisterUsers() {
 }
 
 // Run a simulation — reuses existing users, clears game data, runs full tournament
+// BROKEN INTO STEPS to avoid Vercel 10s timeout (18 API calls, each under 2 seconds)
 async function runSimulation() {
+  const simLives = parseInt(document.getElementById('sim-lives-select')?.value) || 5;
   const statusDiv = document.getElementById('sim-run-status');
+  const steps = [
+    { action: 'sim_init', name: 'Initializing simulation...', track: false },
+    { action: 'sim_group_picks', matchday: 1, name: 'Matchday 1 picks...', track: true, stage: 'Matchday 1' },
+    { action: 'sim_group_results', matchday: 1, name: 'Matchday 1 results...', track: false },
+    { action: 'sim_group_picks', matchday: 2, name: 'Matchday 2 picks...', track: true, stage: 'Matchday 2' },
+    { action: 'sim_group_results', matchday: 2, name: 'Matchday 2 results...', track: false },
+    { action: 'sim_group_picks', matchday: 3, name: 'Matchday 3 picks...', track: true, stage: 'Matchday 3' },
+    { action: 'sim_group_results', matchday: 3, name: 'Matchday 3 results...', track: false },
+    { action: 'sim_create_r32', name: 'Creating Round of 32...', track: false },
+    { action: 'sim_ko_round', round: 2, name: 'Round of 32...', track: true, stage: 'Round of 32' },
+    { action: 'sim_advance', from: 2, name: 'Advancing to R16...', track: false },
+    { action: 'sim_ko_round', round: 3, name: 'Round of 16...', track: true, stage: 'Round of 16' },
+    { action: 'sim_advance', from: 3, name: 'Advancing to QF...', track: false },
+    { action: 'sim_ko_round', round: 4, name: 'Quarter Finals...', track: true, stage: 'Quarter Finals' },
+    { action: 'sim_advance', from: 4, name: 'Advancing to SF...', track: false },
+    { action: 'sim_ko_round', round: 5, name: 'Semi Finals...', track: true, stage: 'Semi Finals' },
+    { action: 'sim_advance', from: 5, name: 'Advancing to Final...', track: false },
+    { action: 'sim_ko_round', round: 6, name: 'Final...', track: true, stage: 'Final' },
+    { action: 'sim_finalize', name: 'Finalizing...', track: false }
+  ];
 
-  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Running simulation... (30-60 seconds, please wait)</p>';
+  let summary = null;
+  let simMeta = null;
+  const participationData = []; // Track participation per stage
 
-  try {
-    const response = await fetch('/api/reset-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'sim_run', admin_pin: '1234' })
-    });
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    statusDiv.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Step ${i + 1}/${steps.length}: ${step.name}</p>`;
 
-    // Debug: log raw response if not OK
-    if (!response.ok) {
-      const rawText = await response.text();
-      console.error('API Error Response:', rawText);
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>API Error ${response.status}:</strong></p><pre style="font-size: 0.75rem; overflow: auto; max-height: 200px; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 0.25rem;">${rawText.substring(0, 1000)}</pre>`;
+    try {
+      const body = { action: step.action, sim_lives: simLives, admin_pin: '1234' };
+      if (step.matchday) body.matchday = step.matchday;
+      if (step.round) body.round_number = step.round;
+      if (step.from) body.from_round = step.from;
+
+      const response = await fetch('/api/reset-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      // Debug: log raw response if not OK
+      if (!response.ok) {
+        const rawText = await response.text();
+        console.error(`API Error at step ${i + 1}:`, rawText);
+        statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>Step ${i + 1} Error ${response.status}:</strong></p><pre style="font-size: 0.75rem; overflow: auto; max-height: 200px; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 0.25rem;">${rawText.substring(0, 1000)}</pre>`;
+        return;
+      }
+
+      const data = await response.json();
+
+      // Capture sim metadata from init step
+      if (step.action === 'sim_init') {
+        console.log('Sim init response:', data);
+        if (!data.simNumber) {
+          console.error('simNumber missing from init response!');
+          statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: Init step failed - no sim number returned</p>`;
+          return;
+        }
+        simMeta = { 
+          sim_number: data.simNumber, 
+          total_users: data.totalUsers, 
+          sim_lives: data.simLives 
+        };
+        console.log('simMeta set:', simMeta);
+      }
+
+      // Track participation data from pick steps
+      if (step.track && data.participation) {
+        participationData.push({
+          stage: step.stage,
+          ...data.participation
+        });
+      }
+
+      // Add metadata to finalize step
+      if (step.action === 'sim_finalize') {
+        console.log('Finalize step - simMeta:', simMeta);
+        if (!simMeta) {
+          statusDiv.innerHTML = '<p style="color: var(--accent-red);">Error: Simulation metadata not found. Please try again.</p>';
+          return;
+        }
+        const finalBody = { 
+          action: 'sim_finalize', 
+          admin_pin: '1234',
+          sim_number: simMeta.sim_number,
+          total_users: simMeta.total_users,
+          sim_lives: simMeta.sim_lives,
+          participation_data: participationData
+        };
+        console.log('Finalize body:', finalBody);
+        // Send the request with metadata
+        const finalResponse = await fetch('/api/reset-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(finalBody)
+        });
+        if (!finalResponse.ok) {
+          const rawText = await finalResponse.text();
+          statusDiv.innerHTML = `<p style="color: var(--accent-red);"><strong>Finalize Error:</strong></p><pre style="font-size: 0.75rem;">${rawText.substring(0, 500)}</pre>`;
+          return;
+        }
+        const finalData = await finalResponse.json();
+        if (finalData.summary) {
+          summary = finalData.summary;
+          // Add participation data to summary for display
+          summary.participationByStage = participationData;
+        }
+        continue;
+      }
+
+      if (data.summary) summary = data.summary;
+    } catch (error) {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error at step ${i + 1}: ${error.message}</p>`;
       return;
     }
+  }
 
-    const data = await response.json();
-
-    if (response.ok && data.summary) {
-      // Add to local history
-      simHistory.push({ summary: data.summary, sim_number: data.summary.simNumber, total_users: data.summary.totalUsers, winner: data.summary.winner, final_top5: data.summary.finalTop5 });
-      currentSimIndex = simHistory.length - 1;
-      renderSimResult(simHistory[currentSimIndex]);
-      updateSimNav();
-      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Sim #${data.summary.simNumber} complete!</p>`;
-      loadAdminData();
-    } else {
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data?.error || 'Simulation timed out. Try fewer users.'}</p>`;
-    }
-  } catch (error) {
-    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  if (summary) {
+    simHistory.push({ summary, sim_number: summary.simNumber, total_users: summary.totalUsers, winner: summary.winner, final_top5: summary.finalTop5 });
+    currentSimIndex = simHistory.length - 1;
+    renderSimResult(simHistory[currentSimIndex]);
+    updateSimNav();
+    statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Sim #${summary.simNumber} complete! Winner: ${summary.winner}</p>`;
+    loadAdminData();
   }
 }
 
@@ -363,6 +457,7 @@ function renderSimResult(sim) {
 
   const s = sim.summary || sim;
   const stages = s.survivorsPerStage || [];
+  const participation = s.participationByStage || [];
 
   // Find stage with most points awarded
   let bestStage = { stage: 'N/A', pointsAwarded: 0 };
@@ -380,6 +475,72 @@ function renderSimResult(sim) {
         <td style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">${top5Html}</td>
       </tr>`;
   }).join('');
+
+  // Build participation table
+  const participationHtml = participation.length > 0 ? `
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+          <th style="padding: 0.4rem 0.6rem; text-align: left;">Stage</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center;">Eligible</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center; color: #22c55e;">Picked</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center; color: #ef4444;">Couldn't Pick</th>
+          <th style="padding: 0.4rem 0.6rem; text-align: center;">Pick Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${participation.map(p => `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 0.4rem 0.6rem;">${p.stage}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center;">${p.totalEligible}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center; color: #22c55e;">${p.couldPick}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center; color: ${p.couldNotPick > 0 ? '#ef4444' : 'inherit'};">${p.couldNotPick}</td>
+            <td style="padding: 0.4rem 0.6rem; text-align: center; font-weight: bold;">${p.pickRate}%</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(239,68,68,0.1); border-radius: 0.4rem; border-left: 3px solid #ef4444;">
+      <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+        <strong style="color: #ef4444;">⚠️ Team Exhaustion:</strong> 
+        Players who "Couldn't Pick" had no valid teams remaining (all previously used).
+        ${participation.filter(p => p.couldNotPick > 0).length} rounds had players excluded due to team exhaustion.
+      </p>
+    </div>
+  ` : '';
+
+  // Most picked teams
+  const mostPickedTeams = s.mostPickedTeams || [];
+  const teamsHtml = mostPickedTeams.length > 0 ? `
+    <div style="margin-top: 1rem;">
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">Most Picked Teams:</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        ${mostPickedTeams.map((t, i) => `
+          <span style="background: rgba(255,215,0,${0.1 + (0.05 * (10-i))}); padding: 0.3rem 0.6rem; border-radius: 0.3rem; font-size: 0.75rem; border: 1px solid rgba(255,215,0,0.3);">
+            ${i+1}. ${t.name} (${t.count}x)
+          </span>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
+  // Pick stats
+  const pickStatsHtml = s.totalPicksMade ? `
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem;">
+      <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary);">Total Picks</div>
+        <div style="font-size: 1rem; font-weight: bold;">${s.totalPicksMade}</div>
+      </div>
+      <div style="background: rgba(34,197,94,0.1); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
+        <div style="font-size: 0.7rem; color: #22c55e;">Wins</div>
+        <div style="font-size: 1rem; font-weight: bold; color: #22c55e;">${s.winningPicks}</div>
+      </div>
+      <div style="background: rgba(239,68,68,0.1); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
+        <div style="font-size: 0.7rem; color: #ef4444;">Losses</div>
+        <div style="font-size: 1rem; font-weight: bold; color: #ef4444;">${s.losingPicks}</div>
+      </div>
+    </div>
+  ` : '';
 
   const finalTop5 = s.finalTop5 || [];
   const finalTop5Html = finalTop5.map((p, i) => 
@@ -403,10 +564,16 @@ function renderSimResult(sim) {
         <div style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.4rem; text-align: center;">
           <div style="font-size: 0.75rem; color: var(--text-secondary);">Winner</div>
           <div style="font-size: 1rem; font-weight: bold; color: gold;">${sim.winner || s.winner}</div>
+          <div style="font-size: 0.75rem; color: var(--accent-green);">${s.winnerPoints || 0} pts</div>
         </div>
       </div>
-      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">Final Standings:</p>
-      <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 0.4rem; margin-bottom: 1rem;">
+      
+      ${participationHtml}
+      ${pickStatsHtml}
+      ${teamsHtml}
+      
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 1rem 0 0.5rem;">Final Standings:</p>
+      <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 0.4rem; margin-bottom: 1rem; max-height: 200px; overflow-y: auto;">
         ${finalTop5Html}
       </div>
       <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">

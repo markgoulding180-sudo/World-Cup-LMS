@@ -783,5 +783,362 @@ module.exports = async (req, res) => {
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // STEP-BY-STEP SIMULATION ACTIONS (avoid Vercel 10s timeout)
+  // ═══════════════════════════════════════════════════════════
+
+  // ── SIM_INIT: Clear game data, reset users with lives ──────
+  if (action === 'sim_init') {
+    const { sim_lives = 5 } = req.body;
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      if (!tournament) return res.status(400).json({ error: 'No tournament found' });
+      const { data: allUsers } = await supabase.from('users').select('id, display_name');
+      if (!allUsers?.length) return res.status(400).json({ error: 'No users found' });
+
+      // Clear game data
+      await supabase.from('picks').delete().neq('id', FAKE_ID);
+      await supabase.from('tournament_entries').delete().neq('id', FAKE_ID);
+      const { data: koRounds } = await supabase.from('rounds').select('id').gte('round_number', 2);
+      for (const r of koRounds || []) await supabase.from('matches').delete().eq('round_id', r.id);
+      await supabase.from('matches').update({ status: 'upcoming', home_score: null, away_score: null, result: null }).in('matchday', [1, 2, 3]);
+
+      // Re-enter users
+      await supabase.from('tournament_entries').insert(allUsers.map(u => ({ tournament_id: tournament.id, user_id: u.id, status: 'active', lives_remaining: sim_lives, max_lives: sim_lives })));
+
+      // Get sim number
+      let simNumber = 1;
+      try {
+        const { data: sims, error: countError } = await supabase.from('simulations').select('sim_number').order('sim_number', { ascending: false }).limit(1);
+        if (!countError && sims && sims.length > 0) {
+          simNumber = sims[0].sim_number + 1;
+        }
+      } catch (e) {
+        console.log('Could not get sim count, defaulting to 1');
+      }
+
+      return res.status(200).json({ success: true, simNumber, totalUsers: allUsers.length, simLives: sim_lives });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_GROUP_PICKS: Make picks for a matchday (POINTS SYSTEM - no lives check) ─────────────
+  if (action === 'sim_group_picks') {
+    const { matchday } = req.body;
+    if (!matchday) return res.status(400).json({ error: 'matchday required' });
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', 1).single();
+      // Points system: all active entries can play (no lives check)
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
+      const totalEligible = entries.length;
+      const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('matchday', matchday);
+      const availTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
+      const userIds = entries.map(e => e.user_id);
+      const { data: allPicks } = await supabase.from('picks').select('user_id, team_id').in('user_id', userIds);
+      const upm = {};
+      allPicks?.forEach(p => { if (!upm[p.user_id]) upm[p.user_id] = new Set(); upm[p.user_id].add(p.team_id); });
+      
+      let couldPick = 0;
+      let couldNotPick = 0;
+      const picks = [];
+      
+      for (const entry of entries) {
+        const used = upm[entry.user_id] || new Set();
+        const avail = availTeams.filter(t => !used.has(t));
+        const selected = [...avail].sort(() => 0.5 - Math.random()).slice(0, 3);
+        if (selected.length > 0) couldPick++;
+        else couldNotPick++;
+        for (const teamId of selected) picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: teamId, matchday, result: 'pending' });
+      }
+      
+      for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
+      return res.status(200).json({ 
+        success: true, 
+        picksMade: picks.length,
+        participation: {
+          totalEligible,
+          couldPick,
+          couldNotPick,
+          pickRate: totalEligible > 0 ? Math.round((couldPick / totalEligible) * 100) : 0
+        }
+      });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_GROUP_RESULTS: Process results for a matchday (POINTS SYSTEM - award 2 points per win) ──────
+  if (action === 'sim_group_results') {
+    const { matchday } = req.body;
+    if (!matchday) return res.status(400).json({ error: 'matchday required' });
+    try {
+      const groupStagePoints = POINTS_STRUCTURE[1]; // 2 points for group stage
+      const { data: matches } = await supabase.from('matches').select('*').eq('matchday', matchday).eq('status', 'upcoming');
+      for (const match of matches) {
+        const hs = Math.floor(Math.random() * 4); const as = Math.floor(Math.random() * 4);
+        const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
+        const winId = result === 'H' ? match.home_team_id : result === 'A' ? match.away_team_id : null;
+        const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
+        await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
+        // Award 2 points for winning picks, 0 for losses
+        if (winId) {
+          await supabase.from('picks').update({ result: 'win', points: groupStagePoints }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
+          // Also update tournament_entries.total_points via RPC (like manual sim)
+          const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
+          for (const pick of winningPicks || []) {
+            await supabase.rpc('increment_points', { user_id: pick.user_id, points: groupStagePoints });
+          }
+        }
+        for (const lid of loseIds) await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', lid).eq('matchday', matchday).eq('result', 'pending');
+      }
+      // Points system: NO eliminations, just count total active entries
+      const { count: totalActive } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active');
+      return res.status(200).json({ success: true, eliminations: 0, survivors: totalActive || 0 });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_CREATE_R32: Create Round of 32 matches ─────────────
+  if (action === 'sim_create_r32') {
+    try {
+      const qualified = await get32QualifiedTeams();
+      const { data: r32round } = await supabase.from('rounds').select('id').eq('round_number', 2).single();
+      const r32matches = [];
+      for (let i = 0; i < qualified.length - 1; i += 2) {
+        r32matches.push({ round_id: r32round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      }
+      await supabase.from('matches').insert(r32matches);
+      return res.status(200).json({ success: true, teamsQualified: qualified.length, matchesCreated: r32matches.length });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_KO_ROUND: Picks + Results for a KO round (POINTS SYSTEM - no eliminations) ───────────
+  if (action === 'sim_ko_round') {
+    const { round_number } = req.body;
+    if (!round_number || round_number < 2 || round_number > 6) return res.status(400).json({ error: 'round_number 2-6 required' });
+    try {
+      const { data: tournament } = await supabase.from('tournaments').select('id').single();
+      const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
+      
+      // Get ALL active entries (points system - no lives check)
+      const { data: entries } = await supabase.from('tournament_entries').select('user_id').eq('status', 'active');
+      const totalEligible = entries.length;
+      
+      const { data: matches } = await supabase.from('matches').select('home_team_id, away_team_id').eq('round_id', round.id);
+      const userIds = entries.map(e => e.user_id);
+      const { data: allPicks } = await supabase.from('picks').select('user_id, team_id').in('user_id', userIds);
+      const upm = {};
+      allPicks?.forEach(p => { if (!upm[p.user_id]) upm[p.user_id] = new Set(); upm[p.user_id].add(p.team_id); });
+      const avail = matches.flatMap(m => [m.home_team_id, m.away_team_id]);
+      
+      // Track who can pick vs who can't (team exhaustion only)
+      let couldPick = 0;
+      let couldNotPick = 0;
+      const picks = [];
+      
+      for (const entry of entries) {
+        const used = upm[entry.user_id] || new Set();
+        const a = avail.filter(t => !used.has(t));
+        if (a.length > 0) {
+          couldPick++;
+          picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: a[Math.floor(Math.random() * a.length)], matchday: null, result: 'pending' });
+        } else {
+          couldNotPick++;
+        }
+      }
+      
+      for (let i = 0; i < picks.length; i += 100) await supabase.from('picks').insert(picks.slice(i, i + 100));
+
+      // Results (points system - award points based on round)
+      const pointsForRound = POINTS_STRUCTURE[round_number] || 2;
+      const { data: koMatches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
+      for (const match of koMatches) {
+        let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
+        if (hs === as) { hs > 0 ? as-- : hs++; }
+        const result = hs > as ? 'H' : 'A';
+        const winId = result === 'H' ? match.home_team_id : match.away_team_id;
+        const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
+        await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
+        // Award points for winning picks
+        await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
+        await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+        // Also update tournament_entries.total_points via RPC (like manual sim)
+        const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+        for (const pick of winningPicks || []) {
+          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
+        }
+      }
+      
+      // Points system: count all active entries (no eliminations)
+      const { count: totalActive } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('status', 'active');
+      
+      return res.status(200).json({ 
+        success: true, 
+        eliminations: 0, 
+        survivors: totalActive || 0,
+        participation: {
+          totalEligible,
+          couldPick,
+          couldNotPick,
+          pickRate: totalEligible > 0 ? Math.round((couldPick / totalEligible) * 100) : 0
+        }
+      });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_ADVANCE: Create next round matches ─────────────────
+  if (action === 'sim_advance') {
+    const { from_round } = req.body;
+    if (!from_round || from_round < 2 || from_round > 5) return res.status(400).json({ error: 'from_round 2-5 required' });
+    try {
+      const { data: fromRound } = await supabase.from('rounds').select('id').eq('round_number', from_round).single();
+      const { data: nextRound } = await supabase.from('rounds').select('id').eq('round_number', from_round + 1).single();
+      const { data: finished } = await supabase.from('matches').select('home_team_id, away_team_id, result').eq('round_id', fromRound.id).eq('status', 'finished');
+      const winners = finished.map(m => m.result === 'H' ? m.home_team_id : m.away_team_id);
+      const newMatches = [];
+      for (let i = 0; i < winners.length - 1; i += 2) {
+        newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      }
+      if (newMatches.length > 0) await supabase.from('matches').insert(newMatches);
+      return res.status(200).json({ success: true, matchesCreated: newMatches.length });
+    } catch (error) { return res.status(500).json({ error: error.message }); }
+  }
+
+  // ── SIM_FINALIZE: Save detailed simulation results ────────
+  if (action === 'sim_finalize') {
+    // Extract with defaults to prevent null constraint errors
+    const sim_number = req.body?.sim_number || 1;
+    const sim_lives = req.body?.sim_lives || 5;
+    const total_users = req.body?.total_users || 50;
+    const participation_data = req.body?.participation_data || [];
+    console.log('SIM_FINALIZE received:', { sim_number, sim_lives, total_users, participation_data_length: participation_data?.length });
+    try {
+      // Get all entries (simulation users)
+      const { data: allEntries } = await supabase.from('tournament_entries')
+        .select('user_id, users:user_id(display_name, email)')
+        .eq('status', 'active');
+      
+      // Get ALL picks to calculate total points per player
+      const { data: allPicks } = await supabase.from('picks')
+        .select('user_id, points');
+      
+      // Calculate total points per user from picks
+      const userPoints = {};
+      allPicks?.forEach(pick => {
+        userPoints[pick.user_id] = (userPoints[pick.user_id] || 0) + (pick.points || 0);
+      });
+      
+      // Build entries with calculated points
+      const entriesWithPoints = allEntries?.map(e => ({
+        ...e,
+        total_points: userPoints[e.user_id] || 0
+      })) || [];
+      
+      // Filter to only simulation users with points > 0
+      const validEntries = entriesWithPoints
+        .filter(e => e.users?.email?.includes('@wc2026.test') && e.total_points > 0)
+        .sort((a, b) => b.total_points - a.total_points);
+      
+      const winner = validEntries?.[0]?.users?.display_name || 'No winner';
+      
+      // Get ALL picks with team and round details for every player
+      const { data: allPicksDetailed } = await supabase.from('picks')
+        .select('user_id, team_id, round_id, matchday, result, points, teams:team_id(name), rounds:round_id(name, round_number)')
+        .order('round_id');
+      
+      // Organize picks by player
+      const playerPicks = {};
+      allPicksDetailed?.forEach(pick => {
+        if (!playerPicks[pick.user_id]) {
+          playerPicks[pick.user_id] = {
+            userId: pick.user_id,
+            displayName: entriesWithPoints?.find(e => e.user_id === pick.user_id)?.users?.display_name || 'Unknown',
+            totalPoints: userPoints[pick.user_id] || 0,
+            picks: []
+          };
+        }
+        playerPicks[pick.user_id].picks.push({
+          round: pick.rounds?.name || 'Unknown',
+          roundNumber: pick.rounds?.round_number,
+          matchday: pick.matchday,
+          team: pick.teams?.name || 'Unknown',
+          result: pick.result,
+          points: pick.points || 0
+        });
+      });
+
+      // Calculate team usage frequency
+      const teamUsage = {};
+      allPicks?.forEach(pick => {
+        const teamName = pick.teams?.name;
+        if (teamName) {
+          teamUsage[teamName] = (teamUsage[teamName] || 0) + 1;
+        }
+      });
+      const mostPickedTeams = Object.entries(teamUsage)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }));
+
+      // Build comprehensive summary (using validEntries for leaderboard)
+      const summary = {
+        simNumber: sim_number,
+        totalUsers: total_users,
+        sim_lives: sim_lives,
+        winner,
+        winnerPoints: validEntries?.[0]?.total_points || 0,
+        finalSurvivors: validEntries?.length || 0,
+        teamsQualifiedForR32: 32,
+        participationByStage: participation_data,
+        finalLeaderboard: validEntries?.map((e, i) => ({ 
+          rank: i + 1,
+          name: e.users?.display_name, 
+          points: e.total_points 
+        })) || [],
+        mostPickedTeams,
+        playerDetails: Object.values(playerPicks),
+        totalPicksMade: allPicksDetailed?.length || 0,
+        winningPicks: allPicksDetailed?.filter(p => p.result === 'win').length || 0,
+        losingPicks: allPicksDetailed?.filter(p => p.result === 'loss').length || 0
+      };
+
+      console.log('Inserting simulation:', { sim_number, total_users, sim_lives });
+      
+      // Check if this sim_number already exists to prevent duplicates
+      const { data: existingSim } = await supabase.from('simulations').select('id').eq('sim_number', sim_number).limit(1);
+      if (existingSim && existingSim.length > 0) {
+        console.log('Simulation with sim_number', sim_number, 'already exists, updating instead');
+        const { error: updateError } = await supabase.from('simulations').update({ 
+          total_users, 
+          lives_setting: sim_lives, 
+          winner, 
+          final_survivors: validEntries?.length || 0, 
+          summary 
+        }).eq('sim_number', sim_number);
+        
+        if (updateError) {
+          console.error('Failed to update simulation:', updateError);
+          return res.status(500).json({ error: 'Failed to update simulation: ' + updateError.message });
+        }
+      } else {
+        const { error: insertError } = await supabase.from('simulations').insert({ 
+          sim_number, 
+          total_users, 
+          lives_setting: sim_lives, 
+          winner, 
+          final_survivors: validEntries?.length || 0, 
+          summary 
+        });
+        
+        if (insertError) {
+          console.error('Failed to save simulation:', insertError);
+          return res.status(500).json({ error: 'Failed to save simulation: ' + insertError.message });
+        }
+      }
+
+      return res.status(200).json({ success: true, summary });
+    } catch (error) { 
+      console.error('Sim finalize error:', error);
+      return res.status(500).json({ error: error.message }); 
+    }
+  }
+
   return res.status(400).json({ error: 'Invalid action.' });
 };
