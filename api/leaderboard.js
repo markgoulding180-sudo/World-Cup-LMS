@@ -65,6 +65,10 @@ module.exports = async (req, res) => {
     const totalPlayers = entries?.length || 0;
     const activePlayers = entries?.filter(e => e.status === 'active').length || 0;
 
+    // Find the highest round number that has picks (to determine current round)
+    const allRoundNumbers = picks?.map(p => p.rounds?.round_number || 1) || [];
+    const maxRound = Math.max(...allRoundNumbers, 1);
+    
     // Build leaderboard data - sorted by points already from DB query
     const leaderboard = entries?.map((entry, index) => {
       const userPicks = picks?.filter(p => p.user_id === entry.user_id) || [];
@@ -73,9 +77,11 @@ module.exports = async (req, res) => {
       // Group picks by round
       const roundNames = { 1: 'GS', 2: 'L32', 3: 'L16', 4: 'QF', 5: 'SF', 6: 'F' };
       const picksByRound = {};
+      const userRoundNumbers = new Set();
       
       userPicks.forEach(p => {
         const roundNum = p.rounds?.round_number || 1;
+        userRoundNumbers.add(roundNum);
         const roundLabel = roundNames[roundNum] || 'GS';
         if (!picksByRound[roundLabel]) {
           picksByRound[roundLabel] = [];
@@ -88,11 +94,16 @@ module.exports = async (req, res) => {
         });
       });
       
+      // Determine if player is eliminated (missed the most recent round)
+      // If maxRound > 1 and player has no pick in maxRound, they're out
+      const hasPickInMaxRound = userRoundNumbers.has(maxRound);
+      const isEliminated = maxRound > 1 && !hasPickInMaxRound;
+      
       return {
         position: index + 1,
         username: entry.users?.username || 'Unknown',
         display_name: entry.users?.display_name || 'Unknown',
-        status: entry.status,
+        status: isEliminated ? 'eliminated' : entry.status,
         total_points: entry.total_points || 0,
         wins: wins,
         entered_at: entry.entered_at,
