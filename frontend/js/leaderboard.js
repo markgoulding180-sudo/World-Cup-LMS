@@ -104,6 +104,18 @@ function displayLeaderboard(leaderboard) {
       `;
     }
     
+    // All picks flags for mobile view
+    let allPicksHtml = '';
+    if (player.all_picks && player.all_picks.length > 0) {
+      allPicksHtml = `
+        <div class="player-picks-flags">
+          ${player.all_picks.map(p => `
+            <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+          `).join('')}
+        </div>
+      `;
+    }
+    
     html += `
       <div class="leaderboard-row ${isEliminated ? 'eliminated' : ''} ${position <= 3 ? 'top-three' : ''}">
         <div class="col-rank">${rankDisplay}</div>
@@ -111,6 +123,7 @@ function displayLeaderboard(leaderboard) {
           <div class="player-info">
             <strong>${player.display_name || player.username}</strong>
             <span class="username">@${player.username}</span>
+            ${allPicksHtml}
           </div>
         </div>
         <div class="col-points">

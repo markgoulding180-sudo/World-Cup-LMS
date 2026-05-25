@@ -54,6 +54,14 @@ module.exports = async (req, res) => {
       const userPicks = picks?.filter(p => p.user_id === entry.user_id) || [];
       const wins = userPicks.filter(p => p.result === 'win').length;
       
+      // Get all picks with flags for display
+      const allPicks = userPicks.map(p => ({
+        team: p.teams?.name,
+        flag: p.teams?.flag_url,
+        result: p.result,
+        points: p.points
+      }));
+      
       return {
         position: index + 1,
         username: entry.users?.username || 'Unknown',
@@ -67,7 +75,8 @@ module.exports = async (req, res) => {
           flag: userPicks[0].teams?.flag_url,
           result: userPicks[0].result,
           points: userPicks[0].points
-        } : null
+        } : null,
+        all_picks: allPicks
       };
     });
 

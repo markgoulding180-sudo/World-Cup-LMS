@@ -2330,6 +2330,22 @@ a {
   flex-direction: column;
 }
 
+/* Tiny flags for all picks in leaderboard */
+.player-picks-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.pick-flag-tiny {
+  width: 18px;
+  height: 12px;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
 .col-player .player-info strong {
   color: var(--text-primary);
 }
@@ -2474,37 +2490,61 @@ a {
   
   .leaderboard-row {
     display: grid;
-    grid-template-columns: 40px 1fr 60px 50px;
-    grid-template-rows: 1fr;
-    gap: 0.25rem;
-    padding: 0.75rem 0.5rem;
-    align-items: center;
+    grid-template-columns: 45px 1fr 55px 45px;
+    grid-template-rows: auto;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    align-items: start;
   }
   
   .col-rank {
-    font-size: 0.9rem;
+    font-size: 1rem;
+    padding-top: 0.25rem;
   }
   
   .col-player {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    min-width: 0;
+  }
+  
+  .col-player .player-info {
+    white-space: normal;
+    overflow: visible;
+  }
+  
+  .col-player .player-info strong {
+    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   
   .col-points {
-    font-size: 0.9rem;
+    font-size: 1rem;
     text-align: right;
+    padding-top: 0.25rem;
   }
   
   .col-wins {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     text-align: right;
+    padding-top: 0.25rem;
   }
   
   .col-pick,
   .col-status {
     display: none;
+  }
+  
+  /* Tiny flags for mobile */
+  .player-picks-flags {
+    margin-top: 6px;
+    gap: 4px;
+  }
+  
+  .pick-flag-tiny {
+    width: 22px;
+    height: 15px;
   }
   
   /* Stats row - 3 cards on one line */
