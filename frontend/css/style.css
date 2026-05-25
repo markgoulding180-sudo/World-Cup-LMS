@@ -2843,73 +2843,98 @@ a {
   
   .leaderboard-row {
     display: grid;
-    grid-template-columns: 40px 1fr 60px 50px;
-    grid-template-rows: 1fr;
-    gap: 0.25rem;
+    grid-template-columns: 45px 1fr 70px 60px;
+    grid-template-rows: auto auto;
+    gap: 0.5rem;
     padding: 0.75rem 0.5rem;
     align-items: center;
   }
   
   .col-rank {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
+    grid-row: 1;
   }
   
   .col-player {
-    font-size: 0.85rem;
+    font-size: 1rem;
+    grid-row: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   
+  .col-player .player-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .col-player .player-picks-by-round {
+    width: 100%;
+    margin-top: 6px;
+  }
+  
   .col-points {
-    font-size: 0.9rem;
+    font-size: 1rem;
     text-align: right;
+    grid-row: 1;
   }
   
   .col-wins {
-    font-size: 0.8rem;
+    font-size: 1rem;
     text-align: right;
+    grid-row: 1;
   }
   
-  /* Mobile flags - GS on line 1, KO on line 2 */
+  .col-status {
+    display: none;
+  }
+  
+  .mobile-hide {
+    display: none;
+  }
+  
+  /* Mobile flags - Line 2: GS, Line 3: KO */
   .leaderboard-row .player-picks-by-round {
-    margin-top: 4px;
-    gap: 4px;
+    margin-top: 8px;
+    gap: 6px;
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
   
   .leaderboard-row .pick-round-line {
-    gap: 4px;
-    flex-wrap: nowrap;
+    gap: 6px;
+    flex-wrap: wrap;
   }
   
   .leaderboard-row .round-label {
-    font-size: 0.7rem;
-    min-width: 18px;
-    flex-shrink: 0;
+    font-size: 0.75rem;
+    min-width: 20px;
   }
   
   .leaderboard-row .round-flags {
-    flex-wrap: nowrap;
-    gap: 2px;
+    flex-wrap: wrap;
+    gap: 3px;
   }
   
   .leaderboard-row .pick-flag-tiny {
-    width: 18px !important;
-    height: 12px !important;
-    min-width: 18px !important;
-    min-height: 12px !important;
-    max-width: 18px !important;
-    max-height: 12px !important;
-    flex-shrink: 0;
+    width: 20px !important;
+    height: 14px !important;
+    min-width: 20px !important;
+    min-height: 14px !important;
+    max-width: 20px !important;
+    max-height: 14px !important;
   }
   
   .leaderboard-row .ko-flags {
     flex-wrap: wrap;
-    gap: 4px 6px;
+    gap: 4px 8px;
   }
   
   .leaderboard-row .round-label-mini {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
   }
   
   .col-pick,

@@ -146,7 +146,7 @@ function displayLeaderboard(leaderboard) {
             <a href="player.html?user=${encodeURIComponent(player.username)}" class="player-name-link">
               <strong>${player.display_name || player.username}</strong>
             </a>
-            <span class="username">@${player.username}</span>
+            <span class="username mobile-hide">@${player.username}</span>
             ${picksByRoundHtml}
           </div>
         </div>
