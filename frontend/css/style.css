@@ -2855,14 +2855,17 @@ a {
   body, html {
     max-width: 100%;
     overflow-x: hidden;
+    margin: 0;
+    padding: 0;
   }
   
   .container {
-    padding: 0 0.5rem;
+    padding: 0 1rem;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     overflow-x: hidden;
     box-sizing: border-box;
+    margin: 0 auto;
   }
   
   .leaderboard-section {
