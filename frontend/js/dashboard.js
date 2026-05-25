@@ -785,44 +785,79 @@ function displayCurrentPicks(picks) {
     }
   }
   
-  // Default: Show Group Stage picks in 3x3 grid
+  // Default: Show Group Stage picks organized by matchday
   let html = `
     <div class="current-pick-card">
       <h3>Your Group Stage Picks</h3>
       <p>Total: ${picksMade} / 9 picks</p>
-      <div class="profile-picks group-stage-grid">
   `;
   
-  // Show all group stage picks in 3x3 grid (same as player profile)
-  html += groupStagePicks.map(pick => {
-    const match = allMatches.find(m => 
-      (m.home_team_id === pick.team_id || m.away_team_id === pick.team_id)
-    );
-    const matchDate = match ? new Date(match.match_time) : null;
-    const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-    const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  // Group picks by matchday
+  const picksByMatchday = { 1: [], 2: [], 3: [] };
+  groupStagePicks.forEach(pick => {
+    const matchday = pick.matchday || 1;
+    if (picksByMatchday[matchday]) {
+      picksByMatchday[matchday].push(pick);
+    }
+  });
+  
+  // Display each matchday
+  [1, 2, 3].forEach(matchday => {
+    const matchdayPicks = picksByMatchday[matchday];
     
-    return `
-      <div class="profile-pick ${pick.result}">
-        <img src="${pick.teams?.flag_url}" alt="${pick.teams?.name}" class="profile-pick-flag">
-        <span class="profile-pick-team">${pick.teams?.name}</span>
-        <span class="profile-pick-result">${pick.result === 'win' ? '✓' : pick.result === 'loss' ? '✗' : '⏳'}</span>
-        ${pick.points > 0 ? `<span class="profile-pick-points">+${pick.points}</span>` : ''}
-      </div>
-    `;
-  }).join('');
-  
-  // Fill empty slots if less than 9 picks
-  const emptySlots = 9 - groupStagePicks.length;
-  for (let i = 0; i < emptySlots; i++) {
+    // Get matchday date from first pick's match
+    let matchdayDate = '';
+    if (matchdayPicks.length > 0) {
+      const firstPick = matchdayPicks[0];
+      const match = allMatches.find(m => 
+        (m.home_team_id === firstPick.team_id || m.away_team_id === firstPick.team_id) &&
+        m.matchday === matchday
+      );
+      if (match) {
+        const date = new Date(match.match_time);
+        matchdayDate = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+      }
+    }
+    
     html += `
-      <div class="profile-pick empty">
-        <span class="profile-pick-team">-</span>
-      </div>
+      <div class="matchday-section">
+        <div class="matchday-header-card">
+          <h4>Matchday ${matchday}</h4>
+          <span class="matchday-date">${matchdayDate}</span>
+        </div>
+        <div class="matchday-picks-grid">
     `;
-  }
+    
+    if (matchdayPicks.length === 0) {
+      html += '<p class="no-picks-yet">No picks yet</p>';
+    } else {
+      html += matchdayPicks.map(pick => {
+        const match = allMatches.find(m => 
+          (m.home_team_id === pick.team_id || m.away_team_id === pick.team_id) &&
+          m.matchday === matchday
+        );
+        const matchDate = match ? new Date(match.match_time) : null;
+        const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+        const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        return `
+          <div class="matchday-pick-card ${pick.result}">
+            <img src="${pick.teams?.flag_url}" alt="${pick.teams?.name}" class="matchday-pick-flag">
+            <div class="matchday-pick-info">
+              <span class="matchday-pick-team">${pick.teams?.name}</span>
+              <span class="matchday-pick-time">${dateStr} @ ${timeStr}</span>
+            </div>
+            <span class="matchday-pick-result">${pick.result === 'win' ? '✓' : pick.result === 'loss' ? '✗' : '⏳'}</span>
+            ${pick.points > 0 ? `<span class="matchday-pick-points">+${pick.points}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+    
+    html += '</div></div>';
+  });
   
-  html += '</div></div>';
+  html += '</div>';
   container.innerHTML = html;
 }
 
