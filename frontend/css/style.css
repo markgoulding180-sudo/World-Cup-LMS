@@ -36,6 +36,15 @@ body.dashboard-page {
   min-height: 100vh;
 }
 
+/* Mobile: show right side of background image */
+@media (max-width: 768px) {
+  body.dashboard-page {
+    background: 
+      linear-gradient(rgba(10, 14, 39, 0.88), rgba(10, 14, 39, 0.92)),
+      url('../images/dashboard-bg.png') right center/cover no-repeat fixed;
+  }
+}
+
 /* Navigation */
 .navbar {
   background: var(--bg-secondary);
