@@ -99,7 +99,7 @@ function displayLeaderboard(leaderboard) {
           <span class="round-label">GS:</span>
           <span class="round-flags">
             ${gsPicks.map(p => `
-              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+              <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}" style="width:16px;height:11px;min-width:16px;min-height:11px;object-fit:cover;">
             `).join('')}
           </span>
         </div>
@@ -115,7 +115,7 @@ function displayLeaderboard(leaderboard) {
             koHtml += `
               <span class="ko-pick">
                 <span class="round-label-mini">${round}</span>
-                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}">
+                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-tiny" title="${p.team}" style="width:16px;height:11px;min-width:16px;min-height:11px;object-fit:cover;">
               </span>
             `;
           });
