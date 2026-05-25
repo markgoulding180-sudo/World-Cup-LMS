@@ -20,22 +20,6 @@ module.exports = async (req, res) => {
       process.env.SUPABASE_SECRET
     );
 
-    // Get all tournament entries with user info
-    // Sort by total_points (desc), then wins (desc), then entered_at (asc) for tiebreaker
-    const { data: entries, error } = await supabase
-      .from('tournament_entries')
-      .select(`
-        *,
-        users:user_id(username, display_name)
-      `)
-      .order('total_points', { ascending: false })
-      .order('wins', { ascending: false })
-      .order('entered_at', { ascending: true });
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
     // Get current tournament ID
     const { data: tournament } = await supabase
       .from('tournaments')
@@ -45,6 +29,26 @@ module.exports = async (req, res) => {
       .single();
     
     const tournamentId = tournament?.id;
+    
+    if (!tournamentId) {
+      return res.status(200).json({ success: true, stats: { total_players: 0, active_players: 0 }, leaderboard: [] });
+    }
+
+    // Get tournament entries for current tournament only
+    const { data: entries, error } = await supabase
+      .from('tournament_entries')
+      .select(`
+        *,
+        users:user_id(username, display_name)
+      `)
+      .eq('tournament_id', tournamentId)
+      .order('total_points', { ascending: false })
+      .order('wins', { ascending: false })
+      .order('entered_at', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
 
     // Get all picks for current tournament only
     const { data: picks } = await supabase
