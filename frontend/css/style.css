@@ -2852,9 +2852,15 @@ a {
     border-right: none;
   }
   
+  body, html {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
   .container {
     padding: 0 0.5rem;
-    max-width: 100%;
+    width: 100%;
+    max-width: 100vw;
     overflow-x: hidden;
     box-sizing: border-box;
   }
@@ -2862,7 +2868,11 @@ a {
   .leaderboard-section {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    padding: 0;
+  }
+  
+  #leaderboard-list {
+    width: 100%;
   }
   
   .leaderboard-row {
@@ -2874,11 +2884,8 @@ a {
     border: 3px solid #00ffff;
     border-radius: 0.5rem;
     margin-bottom: 0.5rem;
-    width: calc(100% - 1rem);
-    max-width: calc(100% - 1rem);
+    width: 100%;
     box-sizing: border-box;
-    margin-left: auto;
-    margin-right: auto;
   }
   
   .mobile-row-1 {
@@ -2886,12 +2893,12 @@ a {
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    justify-content: space-between;
   }
   
   .mobile-row-1 .col-rank {
     font-size: 1rem;
     flex-shrink: 0;
+    min-width: 30px;
   }
   
   .mobile-row-1 .col-player {
@@ -2906,11 +2913,14 @@ a {
   .mobile-row-1 .col-points {
     font-size: 0.9rem;
     flex-shrink: 0;
+    margin-left: auto;
   }
   
   .mobile-row-1 .col-wins {
     font-size: 0.9rem;
     flex-shrink: 0;
+    min-width: 40px;
+    text-align: right;
   }
   
   .mobile-row-2 {
