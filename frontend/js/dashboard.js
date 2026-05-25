@@ -78,7 +78,23 @@ async function loadDashboard() {
           displayKnockoutWaitingState(openRound);
         } else {
           currentRound = openRound;
-          displayKnockoutPickFlow();
+          
+          // Check if user has any eligible teams in this round
+          const usedTeamIds = new Set(userPicks.map(p => p.team_id));
+          const roundTeamIds = new Set();
+          roundMatches.forEach(m => {
+            roundTeamIds.add(m.home_team_id);
+            roundTeamIds.add(m.away_team_id);
+          });
+          
+          // Check if there are any teams in this round that user hasn't used
+          const hasEligibleTeams = Array.from(roundTeamIds).some(teamId => !usedTeamIds.has(teamId));
+          
+          if (!hasEligibleTeams) {
+            displayEliminatedState(openRound);
+          } else {
+            displayKnockoutPickFlow();
+          }
         }
       } else {
         displayMatchdayPickFlow();
@@ -200,6 +216,32 @@ async function displayKnockoutWaitingState(round) {
         The ${roundNames[round.round_number]} fixtures will be available once the previous round completes.
         <br>Check back soon!
       </p>
+    </div>
+  `;
+}
+
+function displayEliminatedState(round) {
+  const container = document.getElementById('available-teams');
+  const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  const roundName = roundNames[round.round_number] || round.name;
+  
+  container.innerHTML = `
+    <div class="eliminated-state" style="text-align: center; padding: 2rem 1rem; background: rgba(239, 68, 68, 0.1); border: 2px solid var(--accent-red); border-radius: 1rem;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">😔</div>
+      <h2 style="margin-bottom: 0.5rem; color: var(--accent-red);">You're Out!</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+        Sorry, you have no eligible teams left in the World Cup.
+      </p>
+      <p style="color: var(--text-secondary); font-size: 0.9rem;">
+        All the teams you picked earlier have been eliminated or you've already used all remaining teams.
+        <br><br>
+        <strong>Thanks for playing!</strong>
+      </p>
+      <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <p style="color: var(--text-secondary); font-size: 0.8rem;">
+          Check the leaderboard to see your final position.
+        </p>
+      </div>
     </div>
   `;
 }
