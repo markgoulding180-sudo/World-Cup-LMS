@@ -2282,7 +2282,7 @@ a {
   padding: 0.75rem 1rem;
   align-items: start;
   background: var(--bg-card);
-  border: 2px solid #00ffff;
+  border: 2px solid #2a3066;
   border-radius: 1rem;
   margin-bottom: 0.5rem;
   transition: background 0.2s;
@@ -2310,7 +2310,7 @@ a {
 
 .leaderboard-row.eliminated {
   opacity: 0.6;
-  border-color: var(--accent-red);
+  border-color: #5a3066;
 }
 
 .col-rank {
@@ -2974,7 +2974,7 @@ a {
     gap: 0.5rem;
     padding: 0.75rem;
     background: var(--bg-card);
-    border: 2px solid #00ffff;
+    border: 2px solid #2a3066;
     border-radius: 1rem;
     margin-bottom: 0.5rem;
     width: 100%;
@@ -3017,7 +3017,7 @@ a {
   }
   
   .mobile-row-2 {
-    width: 100%;
+    display: none;
   }
   
   .mobile-row-1 {
