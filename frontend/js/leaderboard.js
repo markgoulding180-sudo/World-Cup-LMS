@@ -87,34 +87,6 @@ function displayLeaderboard(leaderboard) {
     else if (position === 2) rankDisplay = '<span class="rank-medal silver"><i class="fas fa-medal"></i></span>';
     else if (position === 3) rankDisplay = '<span class="rank-medal bronze"><i class="fas fa-medal"></i></span>';
     
-    // Picks grouped by round (small flags) - all on one line
-    let picksByRoundHtml = '';
-    if (player.picks_by_round && Object.keys(player.picks_by_round).length > 0) {
-      const roundOrder = ['GS', 'L32', 'L16', 'QF', 'SF', 'F'];
-      
-      // Build all picks in order on a single line
-      let allPicksHtml = '';
-      
-      roundOrder.forEach(round => {
-        if (player.picks_by_round[round]) {
-          player.picks_by_round[round].forEach(p => {
-            allPicksHtml += `
-              <span class="pick-item-inline">
-                <span class="round-label-inline">${round}</span>
-                <img src="${p.flag || ''}" alt="${p.team}" class="pick-flag-inline" title="${p.team}">
-              </span>
-            `;
-          });
-        }
-      });
-      
-      picksByRoundHtml = `
-        <div class="player-picks-inline">
-          ${allPicksHtml}
-        </div>
-      `;
-    }
-    
     html += `
       <div class="leaderboard-row ${isEliminated ? 'eliminated' : ''} ${position <= 3 ? 'top-three' : ''}">
         <div class="mobile-row-1">
@@ -123,12 +95,10 @@ function displayLeaderboard(leaderboard) {
             <a href="player.html?user=${encodeURIComponent(player.username)}" class="player-name-link">
               <strong class="${isEliminated ? 'eliminated-name' : ''}">${player.display_name || player.username}</strong>
             </a>
+            <span class="click-to-see-picks">(click to see picks)</span>
           </span>
           <span class="col-points"><span class="points-badge">${totalPoints}</span></span>
           <span class="col-wins"><span class="wins-badge">${wins}</span></span>
-        </div>
-        <div class="mobile-row-2">
-          ${picksByRoundHtml}
         </div>
         <div class="col-status desktop-only">
           ${isEliminated ? 

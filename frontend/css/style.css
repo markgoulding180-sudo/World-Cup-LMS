@@ -2783,6 +2783,13 @@ a {
   color: #ff6b6b;
 }
 
+.click-to-see-picks {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-left: 0.5rem;
+  font-style: italic;
+}
+
 .col-player .username {
   font-size: 0.8rem;
   color: var(--text-secondary);
