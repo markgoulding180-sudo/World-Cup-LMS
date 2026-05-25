@@ -2265,7 +2265,7 @@ a {
 
 .leaderboard-header {
   display: grid;
-  grid-template-columns: 60px 1fr 80px 70px 80px;
+  grid-template-columns: 60px 1fr 80px 70px 150px 80px;
   gap: 0.5rem;
   padding: 1rem;
   background: var(--bg-secondary);
@@ -2277,10 +2277,10 @@ a {
 
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 60px 1fr 80px 70px 80px;
+  grid-template-columns: 60px 1fr 80px 70px 150px 80px;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  align-items: start;
+  padding: 1rem;
+  align-items: center;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.2s;
 }
@@ -2771,30 +2771,19 @@ a {
   
   .leaderboard-row {
     display: grid;
-    grid-template-columns: 40px 1fr 50px 40px;
-    grid-template-rows: auto;
-    gap: 0.4rem;
-    padding: 0.6rem 0.5rem;
-    align-items: start;
+    grid-template-columns: 40px 1fr 60px 50px;
+    grid-template-rows: 1fr;
+    gap: 0.25rem;
+    padding: 0.75rem 0.5rem;
+    align-items: center;
   }
   
   .col-rank {
     font-size: 0.9rem;
-    padding-top: 0.2rem;
   }
   
   .col-player {
     font-size: 0.85rem;
-    min-width: 0;
-  }
-  
-  .col-player .player-info {
-    white-space: normal;
-    overflow: visible;
-  }
-  
-  .col-player .player-info strong {
-    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2803,13 +2792,11 @@ a {
   .col-points {
     font-size: 0.9rem;
     text-align: right;
-    padding-top: 0.2rem;
   }
   
   .col-wins {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     text-align: right;
-    padding-top: 0.2rem;
   }
   
   .col-pick,
