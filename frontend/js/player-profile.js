@@ -55,10 +55,12 @@ function displayPlayerProfile(player, stats) {
   roundOrder.forEach(round => {
     const picks = player.picks_by_round?.[round];
     if (picks && picks.length > 0) {
+      // Group Stage gets special grid class
+      const picksClass = round === 'GS' ? 'profile-picks group-stage-grid' : 'profile-picks';
       picksHtml += `
         <div class="profile-round">
           <h4>${roundNames[round]}</h4>
-          <div class="profile-picks">
+          <div class="${picksClass}">
             ${picks.map(p => `
               <div class="profile-pick ${p.result}">
                 <img src="${p.flag || ''}" alt="${p.team}" class="profile-pick-flag">

@@ -2421,6 +2421,17 @@ a {
   gap: 1rem;
 }
 
+/* Group Stage 3x3 grid */
+.profile-picks.group-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.profile-picks.group-stage-grid .profile-pick {
+  min-width: 0;
+}
+
 .profile-pick {
   display: flex;
   align-items: center;
@@ -2510,7 +2521,33 @@ a {
     min-width: auto;
     font-size: 0.9rem;
   }
-}
+  
+  /* Group Stage 3x3 grid on mobile */
+  .profile-picks.group-stage-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .profile-picks.group-stage-grid .profile-pick {
+    padding: 0.5rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.25rem;
+  }
+  
+  .profile-picks.group-stage-grid .profile-pick-flag {
+    width: 28px;
+    height: 20px;
+  }
+  
+  .profile-picks.group-stage-grid .profile-pick-team {
+    font-size: 0.75rem;
+  }
+  
+  .profile-picks.group-stage-grid .profile-pick-result,
+  .profile-picks.group-stage-grid .profile-pick-points {
+    font-size: 0.75rem;
+  }
 
 /* Picks grouped by round in leaderboard */
 .player-picks-by-round {
