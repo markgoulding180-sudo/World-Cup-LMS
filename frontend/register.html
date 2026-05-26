@@ -52,6 +52,14 @@
           <small class="form-hint">Contact site owner for admin PIN</small>
         </div>
         
+        <!-- Remember Me / Auto-login -->
+        <div class="form-group remember-toggle">
+          <label class="checkbox-label">
+            <input type="checkbox" id="remember-me" checked>
+            <span>Keep me logged in</span>
+          </label>
+        </div>
+        
         <button type="submit" class="btn btn-primary btn-block">Register</button>
       </form>
       <p class="text-center mt-3">
@@ -79,6 +87,7 @@
       const password = document.getElementById('password').value;
       const isAdmin = document.getElementById('is-admin').checked;
       const adminPin = document.getElementById('admin-pin').value;
+      const rememberMe = document.getElementById('remember-me').checked;
       
       try {
         const response = await fetch('/api/auth', {
@@ -98,8 +107,15 @@
         const data = await response.json();
         
         if (response.ok) {
-          alert(data.message);
-          window.location.href = 'login.html';
+          // Auto-login if "Keep me logged in" is checked
+          if (rememberMe && data.session) {
+            localStorage.setItem('wc_lms_token', data.session.access_token);
+            localStorage.setItem('wc_lms_user', JSON.stringify(data.user));
+            window.location.href = 'dashboard.html';
+          } else {
+            alert('Registration successful! Please login.');
+            window.location.href = 'login.html';
+          }
         } else {
           alert(data.error || 'Registration failed');
         }

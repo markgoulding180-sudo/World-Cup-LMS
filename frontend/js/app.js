@@ -14,10 +14,11 @@ if (typeof window !== 'undefined' && window.supabase) {
 
 // Auth state
 let currentUser = null;
-let authToken = localStorage.getItem('wc_lms_token') || null;
+// Check localStorage first, then sessionStorage
+let authToken = localStorage.getItem('wc_lms_token') || sessionStorage.getItem('wc_lms_token') || null;
 
-// Load user from localStorage
-const storedUser = localStorage.getItem('wc_lms_user');
+// Load user from storage (localStorage first, then sessionStorage)
+const storedUser = localStorage.getItem('wc_lms_user') || sessionStorage.getItem('wc_lms_user');
 if (storedUser) {
   try {
     currentUser = JSON.parse(storedUser);
@@ -75,10 +76,12 @@ async function validateSession() {
 
 async function loginUser(credentials) {
   try {
+    const { rememberMe = true, ...authCredentials } = credentials;
+    
     const response = await fetch(`${API_BASE}/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', ...credentials })
+      body: JSON.stringify({ action: 'login', ...authCredentials })
     });
 
     const data = await response.json();
@@ -88,9 +91,16 @@ async function loginUser(credentials) {
     }
 
     authToken = data.session.access_token;
-    localStorage.setItem('wc_lms_token', authToken);
     currentUser = data.user;
-    localStorage.setItem('wc_lms_user', JSON.stringify(currentUser));
+    
+    // Store in localStorage if rememberMe is checked, otherwise use sessionStorage
+    if (rememberMe) {
+      localStorage.setItem('wc_lms_token', authToken);
+      localStorage.setItem('wc_lms_user', JSON.stringify(currentUser));
+    } else {
+      sessionStorage.setItem('wc_lms_token', authToken);
+      sessionStorage.setItem('wc_lms_user', JSON.stringify(currentUser));
+    }
     
     return { success: true };
   } catch (error) {
@@ -121,8 +131,11 @@ async function registerUser(userData) {
 function logout() {
   authToken = null;
   currentUser = null;
+  // Clear both storage types
   localStorage.removeItem('wc_lms_token');
   localStorage.removeItem('wc_lms_user');
+  sessionStorage.removeItem('wc_lms_token');
+  sessionStorage.removeItem('wc_lms_user');
   window.location.href = '/login.html';
 }
 
@@ -149,8 +162,9 @@ function initLoginPage() {
     
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
+    const rememberMe = document.getElementById('remember-me')?.checked ?? true;
     
-    const result = await loginUser({ email, password });
+    const result = await loginUser({ email, password, rememberMe });
     
     if (result.success) {
       window.location.href = '/dashboard.html';

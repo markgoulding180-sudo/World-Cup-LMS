@@ -125,10 +125,28 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: 'Failed to create profile: ' + profileError.message });
       }
 
+      // Auto-sign in the user after registration
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Auto-login after registration failed:', signInError);
+        // Still return success but without session - user will need to login manually
+        return res.status(200).json({
+          success: true,
+          message: userIsAdmin ? 'Admin registration successful - please login' : 'Registration successful - please login',
+          is_admin: userIsAdmin
+        });
+      }
+
       return res.status(200).json({
         success: true,
         message: userIsAdmin ? 'Admin registration successful' : 'Registration successful',
-        is_admin: userIsAdmin
+        is_admin: userIsAdmin,
+        session: signInData.session,
+        user: signInData.user
       });
 
     } catch (error) {
