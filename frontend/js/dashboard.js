@@ -1239,57 +1239,96 @@ function displayGroupResults() {
 function displayKnockoutGrid() {
   const container = document.getElementById('knockout-grid');
   if (!container) return;
-  
-  // Get all teams that qualified for knockout (have qualified_for_ko flag or are top 2 in groups + 8 best 3rd place)
-  // For now, we'll show a placeholder structure
-  
-  let html = '<div class="knockout-bracket">';
-  
-  html += `
-    <div class="knockout-rounds">
-      <div class="knockout-round">
-        <h4>Round of 32</h4>
-        <p class="knockout-info">Top 2 from each group + 8 best 3rd place teams</p>
-        <div class="ko-teams-grid" id="r32-teams">
-          <p class="text-secondary">Teams will be determined after Group Stage</p>
+
+  const roundConfig = [
+    { number: 2, name: 'Round of 32', cols: 4, slots: 16 },
+    { number: 3, name: 'Round of 16', cols: 4, slots: 8 },
+    { number: 4, name: 'Quarter Finals', cols: 4, slots: 4 },
+    { number: 5, name: 'Semi Finals', cols: 2, slots: 2 },
+    { number: 6, name: 'Final', cols: 1, slots: 1 },
+  ];
+
+  function buildMatchCard(m) {
+    const home = allTeams.find(t => t.id === m.home_team_id);
+    const away = allTeams.find(t => t.id === m.away_team_id);
+    const hasScore = m.home_score !== null && m.home_score !== undefined;
+    const finished = m.status === 'finished';
+    const live = m.status === 'live';
+    const homeWon = finished && m.home_score > m.away_score;
+    const awayWon = finished && m.away_score > m.home_score;
+    const dateStr = m.match_time ? new Date(m.match_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+    const timeStr = m.match_time ? new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+    return `
+      <div style="background:rgba(17,25,54,0.8);border:1px solid ${live ? '#22c55e' : '#2a3066'};border-radius:7px;overflow:hidden;${live ? 'box-shadow:0 0 8px rgba(34,197,94,0.2);' : ''}">
+        <div style="font-size:0.6rem;color:#8b92b9;text-align:center;padding:0.22rem 0.4rem;border-bottom:1px solid #2a3066;background:#0d1230;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
+          ${dateStr} ${timeStr}
+          ${live ? '<span style="background:#22c55e;color:#0a0e27;font-size:0.5rem;padding:1px 4px;border-radius:3px;font-weight:700;">LIVE</span>' : ''}
         </div>
-      </div>
-      
-      <div class="knockout-round">
-        <h4>Round of 16</h4>
-        <div class="ko-teams-grid" id="r16-teams">
-          <p class="text-secondary">Winners from Round of 32</p>
+        <div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;${homeWon ? 'background:rgba(34,197,94,0.1);' : finished && !homeWon ? 'opacity:0.45;' : ''}">
+          ${home ? `<img src="${home.flag_url}" alt="${home.name}" style="width:26px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : '<div style="width:26px;height:17px;background:#2a3066;border-radius:2px;flex-shrink:0;"></div>'}
+          <span style="font-size:0.72rem;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${home?.name || 'TBD'}</span>
+          ${hasScore ? `<span style="font-size:0.85rem;font-weight:700;color:${homeWon ? '#22c55e' : '#fff'};">${m.home_score}</span>` : ''}
         </div>
-      </div>
-      
-      <div class="knockout-round">
-        <h4>Quarter Finals</h4>
-        <div class="ko-teams-grid" id="qf-teams">
-          <p class="text-secondary">Winners from Round of 16</p>
+        <div style="height:1px;background:#2a3066;"></div>
+        <div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;${awayWon ? 'background:rgba(34,197,94,0.1);' : finished && !awayWon ? 'opacity:0.45;' : ''}">
+          ${away ? `<img src="${away.flag_url}" alt="${away.name}" style="width:26px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : '<div style="width:26px;height:17px;background:#2a3066;border-radius:2px;flex-shrink:0;"></div>'}
+          <span style="font-size:0.72rem;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${away?.name || 'TBD'}</span>
+          ${hasScore ? `<span style="font-size:0.85rem;font-weight:700;color:${awayWon ? '#22c55e' : '#fff'};">${m.away_score}</span>` : ''}
         </div>
-      </div>
-      
-      <div class="knockout-round">
-        <h4>Semi Finals</h4>
-        <div class="ko-teams-grid" id="sf-teams">
-          <p class="text-secondary">Winners from Quarter Finals</p>
+      </div>`;
+  }
+
+  function buildPlaceholder(label) {
+    return `
+      <div style="background:rgba(17,25,54,0.4);border:1px solid #2a3066;border-radius:7px;overflow:hidden;opacity:0.4;">
+        <div style="font-size:0.6rem;color:#8b92b9;text-align:center;padding:0.22rem 0.4rem;border-bottom:1px solid #2a3066;background:#0d1230;">${label}</div>
+        <div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;">
+          <div style="width:26px;height:17px;background:#2a3066;border-radius:2px;flex-shrink:0;"></div>
+          <span style="font-size:0.72rem;color:#8b92b9;font-style:italic;">TBD</span>
         </div>
-      </div>
-      
-      <div class="knockout-round final">
-        <h4>Final</h4>
-        <div class="ko-teams-grid" id="f-teams">
-          <p class="text-secondary">Winners from Semi Finals</p>
+        <div style="height:1px;background:#2a3066;"></div>
+        <div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;">
+          <div style="width:26px;height:17px;background:#2a3066;border-radius:2px;flex-shrink:0;"></div>
+          <span style="font-size:0.72rem;color:#8b92b9;font-style:italic;">TBD</span>
         </div>
-      </div>
-    </div>
-  `;
-  
+      </div>`;
+  }
+
+  const prevRoundLabel = { 2: 'Group Stage', 3: 'R32 winner', 4: 'R16 winner', 5: 'QF winner', 6: 'SF winner' };
+
+  let html = '<div style="display:flex;flex-direction:column;gap:1rem;">';
+
+  roundConfig.forEach(({ number, name, cols, slots }) => {
+    const isFinal = number === 6;
+    const isSF = number === 5;
+    const roundMatches = allMatches.filter(m => m.rounds?.round_number === number);
+
+    let cardsHtml = '';
+    if (roundMatches.length > 0) {
+      roundMatches.forEach(m => { cardsHtml += buildMatchCard(m); });
+    } else {
+      for (let i = 0; i < slots; i++) {
+        cardsHtml += buildPlaceholder(prevRoundLabel[number]);
+      }
+    }
+
+    const innerWidth = isFinal ? 'max-width:260px;margin:0 auto;' : '';
+
+    html += `
+      <div style="background:rgba(26,31,77,0.5);border:1px solid ${isFinal ? '#ffd700' : '#2a3066'};border-radius:10px;padding:1rem;${isFinal ? 'background:rgba(255,215,0,0.04);' : ''}">
+        <h4 style="color:#ffd700;margin:0 0 0.75rem;font-size:${isFinal ? '1rem' : '0.8rem'};text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a3066;padding-bottom:0.4rem;text-align:${isFinal ? 'center' : 'left'};">
+          ${isFinal ? '🏆 ' : ''}${name}
+        </h4>
+        <div style="${innerWidth}">
+          <div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:0.5rem;">
+            ${cardsHtml}
+          </div>
+        </div>
+      </div>`;
+  });
+
   html += '</div>';
   container.innerHTML = html;
-  
-  // Load qualified teams if available
-  loadQualifiedTeams();
 }
 
 async function loadQualifiedTeams() {
