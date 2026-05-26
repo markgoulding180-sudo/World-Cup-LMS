@@ -1280,6 +1280,15 @@ a {
   border-radius: 1rem;
 }
 
+/* All Picks Complete with background image */
+.all-picks-complete.with-bg {
+  background: 
+    linear-gradient(rgba(26, 31, 77, 0.92), rgba(26, 31, 77, 0.95)),
+    url('../images/dashboard-bg.png') center/cover no-repeat;
+  background-size: 200%;
+  background-position: center;
+}
+
 .all-picks-complete i {
   font-size: 4rem;
   color: var(--accent-green);
@@ -1983,6 +1992,13 @@ a {
   /* All picks complete message */
   .all-picks-complete {
     padding: 1rem;
+  }
+  
+  .all-picks-complete.with-bg {
+    background: 
+      linear-gradient(rgba(26, 31, 77, 0.92), rgba(26, 31, 77, 0.95)),
+      url('../images/dashboard-bg-mobile.png') center/cover no-repeat;
+    background-size: 200%;
   }
   
   .all-picks-complete i {

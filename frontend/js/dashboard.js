@@ -463,7 +463,7 @@ function displayMatchdayPickFlow() {
   
   if (currentMatchday > 3) {
     container.innerHTML = `
-      <div class="all-picks-complete">
+      <div class="all-picks-complete with-bg">
         <i class="fas fa-check-circle"></i>
         <h3>All Picks Submitted!</h3>
         <p>You have made all 9 picks for the Group Stage (3 per matchday).</p>
