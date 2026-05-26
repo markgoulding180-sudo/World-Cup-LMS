@@ -1026,6 +1026,15 @@ function updateStatusCard(data) {
           `<p class="round-text"><i class="fas fa-play-circle"></i> ${currentRound.name}</p>` :
           `<p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>`
         }
+        
+        <!-- Eligible Teams Mini Grid -->
+        <div class="eligible-teams-mini">
+          <div class="eligible-teams-mini-header">
+            <span class="eligible-teams-mini-title"><i class="fas fa-flag"></i> Eligible Teams Left</span>
+            <span class="eligible-teams-mini-count" id="eligible-mini-count">Loading...</span>
+          </div>
+          <div class="eligible-teams-mini-grid" id="eligible-mini-grid">Loading...</div>
+        </div>
       </div>
     `;
   }
@@ -1398,12 +1407,6 @@ function switchTab(tabName) {
 }
 
 function displayEligibleTeams() {
-  const section = document.getElementById('eligible-teams-section');
-  const countDiv = document.getElementById('eligible-teams-count');
-  const gridDiv = document.getElementById('eligible-teams-grid');
-  
-  if (!section || !countDiv || !gridDiv) return;
-  
   // Get teams already picked by user
   const usedTeamIds = new Set(userPicks.map(p => p.team_id));
   
@@ -1440,38 +1443,29 @@ function displayEligibleTeams() {
   const totalTeams = allTeams.length;
   const usedCount = usedTeamIds.size;
   
-  // Show section if user has entered tournament
-  const statusDiv = document.getElementById('player-status');
-  const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
+  // Update mini grid in status card
+  const miniCount = document.getElementById('eligible-mini-count');
+  const miniGrid = document.getElementById('eligible-mini-grid');
   
-  if (!isEntered) {
-    section.style.display = 'none';
-    return;
+  if (miniCount) {
+    miniCount.textContent = `${totalEligible}/${totalTeams}`;
   }
   
-  section.style.display = 'block';
-  
-  // Display count
-  countDiv.innerHTML = `
-    <span class="eligible-count-number">${totalEligible}</span>
-    <span class="eligible-count-total">/ ${totalTeams}</span>
-    <span class="eligible-count-label">teams available to pick</span>
-    <span class="eligible-count-used">(${usedCount} used)</span>
-  `;
-  
-  // Display eligible teams in a grid (4 per row on desktop, 3 on mobile)
-  if (eligibleTeams.length === 0) {
-    gridDiv.innerHTML = '<p class="no-eligible-teams">No eligible teams remaining!</p>';
-  } else {
-    gridDiv.innerHTML = eligibleTeams.map(team => {
-      const isEligibleThisRound = eligibleInCurrentRound.some(t => t.id === team.id);
-      return `
-        <div class="eligible-team-item ${isEligibleThisRound ? 'available-now' : 'available-later'}" title="${team.name} (${team.group_name || 'N/A'})">
-          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
-          <span class="eligible-team-code">${team.code}</span>
-        </div>
-      `;
-    }).join('');
+  if (miniGrid) {
+    if (eligibleTeams.length === 0) {
+      miniGrid.innerHTML = '<span class="no-eligible-mini">No teams left!</span>';
+    } else {
+      // Show first 12 teams (3 rows of 4 on desktop, 4 rows of 3 on mobile)
+      const teamsToShow = eligibleTeams.slice(0, 12);
+      miniGrid.innerHTML = teamsToShow.map(team => {
+        const isEligibleThisRound = eligibleInCurrentRound.some(t => t.id === team.id);
+        return `
+          <div class="eligible-mini-item ${isEligibleThisRound ? 'available-now' : ''}" title="${team.name}">
+            <img src="${team.flag_url}" alt="${team.code}" class="eligible-mini-flag">
+          </div>
+        `;
+      }).join('') + (eligibleTeams.length > 12 ? `<div class="eligible-mini-more">+${eligibleTeams.length - 12}</div>` : '');
+    }
   }
 }
 

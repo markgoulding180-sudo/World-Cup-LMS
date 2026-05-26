@@ -1324,102 +1324,87 @@ a {
   margin-bottom: 1rem;
 }
 
-/* Eligible Teams Section */
-.eligible-teams-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
-  padding: 1.5rem;
+/* Eligible Teams Mini (in Status Card) */
+.eligible-teams-mini {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
 }
 
-.eligible-teams-section h2 {
+.eligible-teams-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.eligible-teams-mini-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.eligible-teams-mini-title i {
   color: var(--accent-gold);
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
+  margin-right: 0.35rem;
 }
 
-.eligible-teams-count {
-  text-align: center;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
-}
-
-.eligible-count-number {
-  font-size: 2rem;
+.eligible-teams-mini-count {
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--accent-green);
+  background: rgba(34, 197, 94, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
 }
 
-.eligible-count-total {
-  font-size: 1.25rem;
-  color: var(--text-secondary);
-}
-
-.eligible-count-label {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-left: 0.5rem;
-}
-
-.eligible-count-used {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-left: 0.5rem;
-}
-
-.eligible-teams-grid {
+.eligible-teams-mini-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
 }
 
-.eligible-team-item {
+.eligible-mini-item {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  padding: 0.75rem 0.5rem;
+  padding: 0.35rem;
   background: var(--bg-secondary);
-  border: 2px solid var(--border-color);
-  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.35rem;
   transition: all 0.2s;
 }
 
-.eligible-team-item.available-now {
+.eligible-mini-item.available-now {
   border-color: var(--accent-green);
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(34, 197, 94, 0.15);
 }
 
-.eligible-team-item.available-later {
-  opacity: 0.6;
-}
-
-.eligible-team-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.eligible-team-flag {
-  width: 40px;
-  height: 28px;
+.eligible-mini-flag {
+  width: 28px;
+  height: 20px;
   object-fit: cover;
-  border-radius: 0.25rem;
-  margin-bottom: 0.25rem;
+  border-radius: 0.15rem;
 }
 
-.eligible-team-code {
+.eligible-mini-more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 0.35rem;
 }
 
-.no-eligible-teams {
-  text-align: center;
+.no-eligible-mini {
+  font-size: 0.875rem;
   color: var(--accent-red);
   font-style: italic;
-  padding: 1rem;
   grid-column: 1 / -1;
+  text-align: center;
 }
 
 /* Matchday Picks Section in Current Picks */
@@ -2162,27 +2147,23 @@ a {
     min-height: 50px;
   }
   
-  /* Eligible Teams - Mobile: 3 columns */
-  .eligible-teams-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+  /* Eligible Teams Mini - Mobile: 4 columns */
+  .eligible-teams-mini-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35rem;
   }
   
-  .eligible-team-flag {
-    width: 32px;
-    height: 22px;
+  .eligible-mini-flag {
+    width: 24px;
+    height: 16px;
   }
   
-  .eligible-team-code {
-    font-size: 0.7rem;
+  .eligible-teams-mini-title {
+    font-size: 0.8rem;
   }
   
-  .eligible-count-number {
-    font-size: 1.5rem;
-  }
-  
-  .eligible-count-total {
-    font-size: 1rem;
+  .eligible-teams-mini-count {
+    font-size: 0.8rem;
   }
   
   /* Match picker mobile */
