@@ -3964,18 +3964,24 @@ a {
    GROUP RESULTS & KNOCKOUT GRID
    ============================================ */
 
-/* Group Results Grid - 4 per row on desktop */
-.groups-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+/* GROUP RESULTS - DESKTOP 4-COLUMN GRID */
+#group-results .groups-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
   gap: 1rem;
-  margin-top: 1rem;
   width: 100%;
 }
 
-/* Ensure group sections fill the grid properly */
-.group-section {
-  min-width: 0;
+@media (max-width: 1024px) {
+  #group-results .groups-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  #group-results .groups-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Group Section - contains group card and qualifiers card */

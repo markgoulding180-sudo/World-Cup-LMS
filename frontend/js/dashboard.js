@@ -1164,7 +1164,7 @@ function displayGroupResults() {
     return;
   }
   
-  let html = '<div class="groups-grid">';
+  let html = '<div class="groups-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;width:100%;">';
   
   sortedGroups.forEach(groupName => {
     const groupTeams = teamsByGroup[groupName];
