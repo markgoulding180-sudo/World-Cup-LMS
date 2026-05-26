@@ -191,20 +191,39 @@ module.exports = async (req, res) => {
         ? [homeTeamId, awayTeamId]
         : [result === 'H' ? awayTeamId : homeTeamId];
 
+      // Get matchday for filtering (Group Stage has multiple matchdays)
+      const matchday = dbMatch.matchday;
+
       // Mark winning picks and award points
       if (winningTeamId) {
-        await supabase
+        let winUpdateQuery = supabase
           .from('picks')
           .update({ result: 'win', points: pointsForWin })
           .eq('team_id', winningTeamId)
+          .eq('round_id', dbMatch.round_id)
           .eq('result', 'pending');
+        
+        // Add matchday filter for Group Stage (round 1)
+        if (roundNumber === 1 && matchday) {
+          winUpdateQuery = winUpdateQuery.eq('matchday', matchday);
+        }
+        
+        await winUpdateQuery;
 
         // Update tournament entries with points and wins
-        const { data: winningPicks } = await supabase
+        let winningPicksQuery = supabase
           .from('picks')
           .select('user_id')
           .eq('team_id', winningTeamId)
+          .eq('round_id', dbMatch.round_id)
           .eq('result', 'win');
+        
+        // Add matchday filter for Group Stage (round 1)
+        if (roundNumber === 1 && matchday) {
+          winningPicksQuery = winningPicksQuery.eq('matchday', matchday);
+        }
+        
+        const { data: winningPicks } = await winningPicksQuery;
 
         for (const pick of winningPicks || []) {
           picksProcessed++;
@@ -220,11 +239,19 @@ module.exports = async (req, res) => {
 
       // Mark losing picks (0 points)
       for (const losingTeamId of losingTeamIds) {
-        await supabase
+        let lossUpdateQuery = supabase
           .from('picks')
           .update({ result: 'loss', points: 0 })
           .eq('team_id', losingTeamId)
+          .eq('round_id', dbMatch.round_id)
           .eq('result', 'pending');
+        
+        // Add matchday filter for Group Stage (round 1)
+        if (roundNumber === 1 && matchday) {
+          lossUpdateQuery = lossUpdateQuery.eq('matchday', matchday);
+        }
+        
+        await lossUpdateQuery;
       }
     }
 

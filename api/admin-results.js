@@ -73,17 +73,44 @@ module.exports = async (req, res) => {
     const roundNumber = match.rounds?.round_number || 1;
     const pointsForWin = POINTS_STRUCTURE[roundNumber] || 2;
 
+    // Get matchday for filtering picks (Group Stage has multiple matchdays)
+    const matchday = match.matchday;
+
     if (result === 'D') {
-      await supabase.from('picks').update({ result: 'loss', points: 0 })
+      let homeQuery = supabase.from('picks').update({ result: 'loss', points: 0 })
         .eq('team_id', match.home_team_id).eq('round_id', matchRoundId).eq('result', 'pending');
-      await supabase.from('picks').update({ result: 'loss', points: 0 })
+      let awayQuery = supabase.from('picks').update({ result: 'loss', points: 0 })
         .eq('team_id', match.away_team_id).eq('round_id', matchRoundId).eq('result', 'pending');
+      
+      // Add matchday filter for Group Stage (round 1)
+      if (roundNumber === 1 && matchday) {
+        homeQuery = homeQuery.eq('matchday', matchday);
+        awayQuery = awayQuery.eq('matchday', matchday);
+      }
+      
+      await homeQuery;
+      await awayQuery;
     } else {
-      await supabase.from('picks').update({ result: 'win', points: pointsForWin })
+      let winQuery = supabase.from('picks').update({ result: 'win', points: pointsForWin })
         .eq('team_id', winningTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
+      
+      // Add matchday filter for Group Stage (round 1)
+      if (roundNumber === 1 && matchday) {
+        winQuery = winQuery.eq('matchday', matchday);
+      }
+      
+      await winQuery;
+      
       const losingTeamId = result === 'H' ? match.away_team_id : match.home_team_id;
-      await supabase.from('picks').update({ result: 'loss', points: 0 })
+      let lossQuery = supabase.from('picks').update({ result: 'loss', points: 0 })
         .eq('team_id', losingTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
+      
+      // Add matchday filter for Group Stage (round 1)
+      if (roundNumber === 1 && matchday) {
+        lossQuery = lossQuery.eq('matchday', matchday);
+      }
+      
+      await lossQuery;
     }
 
     const losingTeamIds = result === 'D'
@@ -94,12 +121,19 @@ module.exports = async (req, res) => {
 
     // Award points to winners
     if (winningTeamId) {
-      const { data: winningPicks } = await supabase
+      let winningPicksQuery = supabase
         .from('picks')
         .select('user_id')
         .eq('result', 'win')
         .eq('team_id', winningTeamId)
         .eq('round_id', match.round_id);
+      
+      // Add matchday filter for Group Stage (round 1)
+      if (roundNumber === 1 && matchday) {
+        winningPicksQuery = winningPicksQuery.eq('matchday', matchday);
+      }
+      
+      const { data: winningPicks } = await winningPicksQuery;
 
       for (const pick of winningPicks || []) {
         await supabase.rpc('increment_points', { 
