@@ -103,6 +103,7 @@ async function loadDashboard() {
       displayCurrentPicks(roundPicks);
       displayRoundMatches(allMatches, currentRound);
       displayTournamentHistory();
+      displayEligibleTeams();
     }
     
   } catch (error) {
@@ -1393,6 +1394,84 @@ function switchTab(tabName) {
     displayGroupResults();
   } else if (tabName === 'knockout') {
     displayKnockoutGrid();
+  }
+}
+
+function displayEligibleTeams() {
+  const section = document.getElementById('eligible-teams-section');
+  const countDiv = document.getElementById('eligible-teams-count');
+  const gridDiv = document.getElementById('eligible-teams-grid');
+  
+  if (!section || !countDiv || !gridDiv) return;
+  
+  // Get teams already picked by user
+  const usedTeamIds = new Set(userPicks.map(p => p.team_id));
+  
+  // Get eligible teams (not picked yet)
+  const eligibleTeams = allTeams.filter(t => !usedTeamIds.has(t.id));
+  
+  // Get current round info
+  let eligibleInCurrentRound = [];
+  if (currentRound) {
+    if (currentRound.round_number === 1) {
+      // Group Stage - teams playing in current matchday
+      const matchdayMatches = allMatches.filter(m => 
+        m.round_id === currentRound.id && m.matchday === currentMatchday
+      );
+      const matchdayTeamIds = new Set();
+      matchdayMatches.forEach(m => {
+        matchdayTeamIds.add(m.home_team_id);
+        matchdayTeamIds.add(m.away_team_id);
+      });
+      eligibleInCurrentRound = eligibleTeams.filter(t => matchdayTeamIds.has(t.id));
+    } else {
+      // Knockout - teams playing in this round
+      const roundMatches = allMatches.filter(m => m.round_id === currentRound.id);
+      const roundTeamIds = new Set();
+      roundMatches.forEach(m => {
+        roundTeamIds.add(m.home_team_id);
+        roundTeamIds.add(m.away_team_id);
+      });
+      eligibleInCurrentRound = eligibleTeams.filter(t => roundTeamIds.has(t.id));
+    }
+  }
+  
+  const totalEligible = eligibleTeams.length;
+  const totalTeams = allTeams.length;
+  const usedCount = usedTeamIds.size;
+  
+  // Show section if user has entered tournament
+  const statusDiv = document.getElementById('player-status');
+  const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
+  
+  if (!isEntered) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  // Display count
+  countDiv.innerHTML = `
+    <span class="eligible-count-number">${totalEligible}</span>
+    <span class="eligible-count-total">/ ${totalTeams}</span>
+    <span class="eligible-count-label">teams available to pick</span>
+    <span class="eligible-count-used">(${usedCount} used)</span>
+  `;
+  
+  // Display eligible teams in a grid (4 per row on desktop, 3 on mobile)
+  if (eligibleTeams.length === 0) {
+    gridDiv.innerHTML = '<p class="no-eligible-teams">No eligible teams remaining!</p>';
+  } else {
+    gridDiv.innerHTML = eligibleTeams.map(team => {
+      const isEligibleThisRound = eligibleInCurrentRound.some(t => t.id === team.id);
+      return `
+        <div class="eligible-team-item ${isEligibleThisRound ? 'available-now' : 'available-later'}" title="${team.name} (${team.group_name || 'N/A'})">
+          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
+          <span class="eligible-team-code">${team.code}</span>
+        </div>
+      `;
+    }).join('');
   }
 }
 
