@@ -4338,3 +4338,38 @@ a {
     border-radius: 2px !important;
   }
 }
+
+/* ── MOBILE TOURNAMENT HISTORY FIX ── */
+@media (max-width: 768px) {
+  /* Group stage pick cards - 2 columns on mobile */
+  #tab-content-groups .group-teams,
+  #tab-content-picks .group-teams {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  
+  /* Knockout round cards - stack vertically on mobile */
+  #tab-content-picks > div > div > div[style*="display:flex"][style*="align-items:center"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  
+  /* Pick cards container - full width on mobile */
+  #tab-content-picks > div > div > div > div[style*="flex:1"] {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+  
+  /* Individual pick cards - prevent overflow */
+  #tab-content-picks > div > div > div > div > div[style*="border-left:3px solid"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Points display - align to right */
+  #tab-content-picks > div > div > div > div[style*="text-align:right"] {
+    align-self: flex-end !important;
+  }
+}

@@ -942,26 +942,31 @@ function displayTournamentHistory() {
 
       html += `
         <div style="background:${cardBg};border:1px solid ${cardBorder};border-radius:10px;padding:0.85rem 1rem;">
-          <div style="display:flex;align-items:center;gap:0.75rem;">
-            <span style="font-size:${isFinal ? '1.3rem' : '1rem'};">${roundIcon}</span>
-            <span style="font-weight:600;font-size:${isFinal ? '1rem' : '0.9rem'};color:${isFinal ? '#ffd700' : '#fff'};flex-shrink:0;">${round.name}</span>
-
-            <div style="flex:1;display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center;">
-              ${hasPicks ? roundPicks.map(pick => `
-                <div style="display:flex;align-items:center;gap:0.4rem;background:rgba(255,255,255,0.06);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.3rem 0.6rem;">
-                  <img src="${pick.teams?.flag_url}" alt="" style="width:26px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0;">
-                  <span style="font-size:0.78rem;font-weight:500;white-space:nowrap;">${pick.teams?.name}</span>
-                  ${pick.result === 'win' ? `<span style="font-size:0.72rem;font-weight:700;color:#22c55e;">+${pick.points}</span>` : resultIcon(pick.result)}
-                </div>
-              `).join('') : `<span style="font-size:0.78rem;color:#8b92b9;font-style:italic;">${isUpcoming ? 'Not started' : 'No pick yet'}</span>`}
+          <!-- Header row with icon, name, and points -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;margin-bottom:${hasPicks ? '0.75rem' : '0'};padding-bottom:${hasPicks ? '0.6rem' : '0'};border-bottom:${hasPicks ? '1px solid #2a3066' : 'none'};">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <span style="font-size:${isFinal ? '1.3rem' : '1rem'};">${roundIcon}</span>
+              <span style="font-weight:600;font-size:${isFinal ? '1rem' : '0.9rem'};color:${isFinal ? '#ffd700' : '#fff'};">${round.name}</span>
             </div>
-
-            <div style="text-align:right;flex-shrink:0;min-width:55px;">
+            <div style="text-align:right;">
               ${hasPicks
                 ? `<span style="font-size:1rem;font-weight:700;color:${isFinal ? '#ffd700' : '#fff'};">${totalPoints} pts</span>`
                 : `<span style="font-size:0.75rem;color:#8b92b9;">${round.picksRequired} pick</span>`}
             </div>
           </div>
+          
+          <!-- Pick cards - stacked on mobile, inline on desktop -->
+          ${hasPicks ? `
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+              ${roundPicks.map(pick => `
+                <div style="display:flex;align-items:center;gap:0.4rem;background:rgba(255,255,255,0.06);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.3rem 0.6rem;flex:1;min-width:140px;max-width:100%;box-sizing:border-box;">
+                  <img src="${pick.teams?.flag_url}" alt="" style="width:26px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0;">
+                  <span style="font-size:0.78rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${pick.teams?.name}</span>
+                  ${pick.result === 'win' ? `<span style="font-size:0.72rem;font-weight:700;color:#22c55e;flex-shrink:0;">+${pick.points}</span>` : resultIcon(pick.result)}
+                </div>
+              `).join('')}
+            </div>
+          ` : `<span style="font-size:0.78rem;color:#8b92b9;font-style:italic;">${isUpcoming ? 'Not started' : 'No pick yet'}</span>`}
         </div>
       `;
     }
