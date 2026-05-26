@@ -864,8 +864,7 @@ function displayCurrentPicks(picks) {
 function displayTournamentHistory() {
   const container = document.getElementById('tournament-history');
   if (!container) return;
-  
-  // Define all rounds
+
   const allRounds = [
     { number: 1, name: 'Group Stage', picksRequired: 9 },
     { number: 2, name: 'Round of 32', picksRequired: 1 },
@@ -874,19 +873,28 @@ function displayTournamentHistory() {
     { number: 5, name: 'Semi Finals', picksRequired: 1 },
     { number: 6, name: 'Final', picksRequired: 1 }
   ];
-  
-  // Group picks by round
+
   const picksByRound = {};
   userPicks.forEach(pick => {
-    const roundNumber = pick.rounds?.round_number || 0;
-    if (!picksByRound[roundNumber]) {
-      picksByRound[roundNumber] = [];
-    }
-    picksByRound[roundNumber].push(pick);
+    const rn = pick.rounds?.round_number || 0;
+    if (!picksByRound[rn]) picksByRound[rn] = [];
+    picksByRound[rn].push(pick);
   });
-  
-  let html = '<div class="tournament-history">';
-  
+
+  function resultBorderColor(result) {
+    if (result === 'win') return '#22c55e';
+    if (result === 'loss') return '#ef4444';
+    return '#2a3066';
+  }
+
+  function resultIcon(result) {
+    if (result === 'win') return '<i class="fas fa-check-circle" style="color:#22c55e;font-size:0.8rem;"></i>';
+    if (result === 'loss') return '<i class="fas fa-times-circle" style="color:#ef4444;font-size:0.8rem;"></i>';
+    return '<i class="fas fa-clock" style="color:#8b92b9;font-size:0.8rem;"></i>';
+  }
+
+  let html = '<div style="display:flex;flex-direction:column;gap:1rem;">';
+
   allRounds.forEach(round => {
     const roundPicks = picksByRound[round.number] || [];
     const hasPicks = roundPicks.length > 0;
@@ -896,64 +904,69 @@ function displayTournamentHistory() {
     const totalPoints = roundPicks.reduce((sum, p) => sum + (p.points || 0), 0);
     const wins = roundPicks.filter(p => p.result === 'win').length;
     const isUpcoming = !hasPicks && !isCurrentRound;
-    
-    // Group Stage gets special 3x3 grid layout
+
+    const cardBorder = isFinal ? '#ffd700' : isCurrentRound ? '#9333ea' : '#2a3066';
+    const cardBg = isFinal ? 'rgba(255,215,0,0.04)' : isCurrentRound ? 'rgba(147,51,234,0.06)' : 'rgba(26,31,77,0.5)';
+
     if (isGroupStage) {
       html += `
-        <div class="history-card-themed ${isCurrentRound ? 'current' : ''}">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <h3 style="margin: 0; font-size: 1.1rem;">
-              ${isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i> ' : ''}
-              ${round.name}
+        <div style="background:${cardBg};border:1px solid ${cardBorder};border-radius:10px;padding:1rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;border-bottom:1px solid #2a3066;padding-bottom:0.6rem;">
+            <h3 style="margin:0;font-size:1rem;color:#fff;display:flex;align-items:center;gap:0.5rem;">
+              ${isCurrentRound ? '<i class="fas fa-play-circle" style="color:#9333ea;"></i>' : hasPicks ? '<i class="fas fa-check-circle" style="color:#22c55e;"></i>' : '<i class="fas fa-clock" style="color:#8b92b9;"></i>'}
+              Group Stage
             </h3>
-            <div style="text-align: right;">
-              <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-gold);">${totalPoints} pts</span>
-              <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">${wins} wins</span>
+            <div style="text-align:right;">
+              <div style="font-size:1.1rem;font-weight:700;color:#ffd700;">${totalPoints} pts</div>
+              <div style="font-size:0.75rem;color:#8b92b9;">${wins} wins</div>
             </div>
           </div>
-          
-          <div class="round-picks-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
+          ${hasPicks ? `
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
             ${roundPicks.map(pick => `
-              <div class="history-pick-themed ${pick.result || 'pending'}">
-                <img src="${pick.teams?.flag_url}" alt="" style="width: 24px; height: 16px; object-fit: cover; border-radius: 0.125rem;">
-                <span style="font-size: 0.65rem; line-height: 1.1;">${pick.teams?.name}</span>
-                ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
+              <div style="background:rgba(255,255,255,0.05);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.45rem 0.6rem;display:flex;align-items:center;gap:0.5rem;">
+                <img src="${pick.teams?.flag_url}" alt="" style="width:28px;height:18px;object-fit:cover;border-radius:2px;flex-shrink:0;">
+                <span style="font-size:0.73rem;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pick.teams?.name}</span>
+                ${pick.result === 'win' ? `<span style="font-size:0.7rem;font-weight:700;color:#22c55e;flex-shrink:0;">+${pick.points}</span>` : resultIcon(pick.result)}
               </div>
             `).join('')}
-          </div>
+          </div>` : `<p style="color:#8b92b9;font-size:0.85rem;font-style:italic;margin:0;">No picks yet</p>`}
         </div>
       `;
     } else {
-      // Knockout rounds get horizontal row layout
+      const roundIcon = isFinal ? '🏆' : isCurrentRound
+        ? '<i class="fas fa-play-circle" style="color:#9333ea;"></i>'
+        : hasPicks
+        ? '<i class="fas fa-check-circle" style="color:#22c55e;"></i>'
+        : '<i class="fas fa-clock" style="color:#8b92b9;"></i>';
+
       html += `
-        <div class="history-card-themed ${isCurrentRound ? 'current' : ''} ${isFinal ? 'final' : ''}">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-              ${isFinal ? '<span style="font-size: 1.5rem;">🏆</span>' : isCurrentRound ? '<i class="fas fa-play-circle" style="color: #9333ea;"></i>' : isUpcoming ? '<i class="fas fa-clock" style="color: var(--text-secondary);"></i>' : '<i class="fas fa-check-circle" style="color: var(--accent-green);"></i>'}
-              <span style="font-weight: 600; ${isFinal ? 'color: var(--accent-gold); font-size: 1.1rem;' : ''}">${round.name}</span>
+        <div style="background:${cardBg};border:1px solid ${cardBorder};border-radius:10px;padding:0.85rem 1rem;">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span style="font-size:${isFinal ? '1.3rem' : '1rem'};">${roundIcon}</span>
+            <span style="font-weight:600;font-size:${isFinal ? '1rem' : '0.9rem'};color:${isFinal ? '#ffd700' : '#fff'};flex-shrink:0;">${round.name}</span>
+
+            <div style="flex:1;display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center;">
+              ${hasPicks ? roundPicks.map(pick => `
+                <div style="display:flex;align-items:center;gap:0.4rem;background:rgba(255,255,255,0.06);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.3rem 0.6rem;">
+                  <img src="${pick.teams?.flag_url}" alt="" style="width:26px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0;">
+                  <span style="font-size:0.78rem;font-weight:500;white-space:nowrap;">${pick.teams?.name}</span>
+                  ${pick.result === 'win' ? `<span style="font-size:0.72rem;font-weight:700;color:#22c55e;">+${pick.points}</span>` : resultIcon(pick.result)}
+                </div>
+              `).join('') : `<span style="font-size:0.78rem;color:#8b92b9;font-style:italic;">${isUpcoming ? 'Not started' : 'No pick yet'}</span>`}
             </div>
-            
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div class="round-teams-row" style="display: flex; gap: 0.3rem; ${!hasPicks ? 'opacity: 0.5;' : ''}">
-                ${hasPicks ? roundPicks.map(pick => `
-                  <div class="history-pick-mini-themed ${pick.result || 'pending'}">
-                    <img src="${pick.teams?.flag_url}" alt="" style="width: 16px; height: 12px; object-fit: cover; border-radius: 0.125rem;">
-                    <span style="font-size: 0.7rem; white-space: nowrap;">${pick.teams?.name}</span>
-                    ${pick.result === 'win' ? `<span style="color: var(--accent-green); font-weight: bold; font-size: 0.65rem;">+${pick.points}</span>` : ''}
-                  </div>
-                `).join('') : `<span style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic;">Not started</span>`}
-              </div>
-              
-              <div style="text-align: right; min-width: 60px;">
-                ${hasPicks ? `<span style="font-size: 1rem; font-weight: bold; color: ${isFinal ? 'var(--accent-gold)' : 'var(--text-primary)'};">${totalPoints} pts</span>` : `<span style="font-size: 0.8rem; color: var(--text-secondary);">${round.picksRequired} pick${round.picksRequired > 1 ? 's' : ''}</span>`}
-              </div>
+
+            <div style="text-align:right;flex-shrink:0;min-width:55px;">
+              ${hasPicks
+                ? `<span style="font-size:1rem;font-weight:700;color:${isFinal ? '#ffd700' : '#fff'};">${totalPoints} pts</span>`
+                : `<span style="font-size:0.75rem;color:#8b92b9;">${round.picksRequired} pick</span>`}
             </div>
           </div>
         </div>
       `;
     }
   });
-  
+
   html += '</div>';
   container.innerHTML = html;
 }
