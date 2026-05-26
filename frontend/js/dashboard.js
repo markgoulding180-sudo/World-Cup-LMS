@@ -1169,10 +1169,15 @@ function displayGroupResults() {
   sortedGroups.forEach(groupName => {
     const groupTeams = teamsByGroup[groupName];
     
-    // Sort teams by points (descending), then goal difference, then goals scored
+    // Calculate actual group stage points for each team
+    groupTeams.forEach(team => {
+      team.calculated_points = calculateTeamGroupPoints(team.id);
+    });
+    
+    // Sort teams by calculated points (descending), then goal difference, then goals scored
     groupTeams.sort((a, b) => {
-      if ((b.group_points || 0) !== (a.group_points || 0)) {
-        return (b.group_points || 0) - (a.group_points || 0);
+      if ((b.calculated_points || 0) !== (a.calculated_points || 0)) {
+        return (b.calculated_points || 0) - (a.calculated_points || 0);
       }
       if ((b.goal_difference || 0) !== (a.goal_difference || 0)) {
         return (b.goal_difference || 0) - (a.goal_difference || 0);
@@ -1195,7 +1200,7 @@ function displayGroupResults() {
               <div class="group-team-item ${index < 2 ? 'qualified' : ''}" style="display:grid;grid-template-columns:36px 1fr 45px;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;background:rgba(255,255,255,0.04);border-radius:0.375rem;border:1px solid var(--border-color);border-left:3px solid ${index < 2 ? 'var(--accent-green)' : 'transparent'};">
                 <img src="${team.flag_url}" alt="${team.name}" style="width:36px;height:24px;object-fit:cover;border-radius:3px;display:block;">
                 <span style="font-size:0.78rem;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${team.name}</span>
-                <span style="font-size:0.72rem;font-weight:700;color:var(--accent-gold);text-align:right;">${team.group_points || 0}pts</span>
+                <span style="font-size:0.72rem;font-weight:700;color:var(--accent-gold);text-align:right;">${team.calculated_points || 0}pts</span>
               </div>
             `).join('')}
           </div>
