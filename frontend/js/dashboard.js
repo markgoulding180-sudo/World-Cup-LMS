@@ -922,9 +922,9 @@ function displayTournamentHistory() {
             </div>
           </div>
           ${hasPicks ? `
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
+          <div class="gs-picks-grid">
             ${roundPicks.map(pick => `
-              <div style="background:rgba(255,255,255,0.05);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.45rem 0.6rem;display:flex;align-items:center;gap:0.5rem;">
+              <div class="gs-pick-item" style="background:rgba(255,255,255,0.05);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.45rem 0.6rem;display:flex;align-items:center;gap:0.5rem;">
                 <img src="${pick.teams?.flag_url}" alt="" style="width:28px;height:18px;object-fit:cover;border-radius:2px;flex-shrink:0;">
                 <span style="font-size:0.73rem;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pick.teams?.name}</span>
                 ${pick.result === 'win' ? `<span style="font-size:0.7rem;font-weight:700;color:#22c55e;flex-shrink:0;">+${pick.points}</span>` : resultIcon(pick.result)}
