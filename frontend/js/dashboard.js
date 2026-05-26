@@ -1192,16 +1192,10 @@ function displayGroupResults() {
           <h4 class="group-title">Group ${groupName}</h4>
           <div class="group-teams">
             ${groupTeams.map((team, index) => `
-              <div class="group-team-item ${index < 2 ? 'qualified' : ''}">
-                <div class="team-mini-card flag-card">
-                  <img src="${team.flag_url}" alt="${team.name}">
-                </div>
-                <div class="team-mini-card name-card">
-                  ${team.name}
-                </div>
-                <div class="team-mini-card points-card">
-                  ${team.group_points || 0} pts
-                </div>
+              <div class="group-team-item ${index < 2 ? 'qualified' : ''}" style="display:grid;grid-template-columns:36px 1fr 45px;align-items:center;gap:0.4rem;padding:0.4rem 0.5rem;background:rgba(255,255,255,0.04);border-radius:0.375rem;border:1px solid var(--border-color);border-left:3px solid ${index < 2 ? 'var(--accent-green)' : 'transparent'};">
+                <img src="${team.flag_url}" alt="${team.name}" style="width:36px;height:24px;object-fit:cover;border-radius:3px;display:block;">
+                <span style="font-size:0.78rem;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${team.name}</span>
+                <span style="font-size:0.72rem;font-weight:700;color:var(--accent-gold);text-align:right;">${team.group_points || 0}pts</span>
               </div>
             `).join('')}
           </div>
@@ -1212,24 +1206,24 @@ function displayGroupResults() {
           <h5 class="qualifiers-title">Qualifiers</h5>
           <div class="qualifiers-list">
             ${firstPlace ? `
-              <div class="qualifier-item first">
-                <span class="qualifier-position">1st</span>
-                <img src="${firstPlace.flag_url}" alt="${firstPlace.name}" class="qualifier-flag">
-                <span class="qualifier-name">${firstPlace.name}</span>
+              <div class="qualifier-item first" style="display:grid;grid-template-columns:28px 28px 1fr;align-items:center;gap:0.4rem;padding:0.35rem 0.5rem;background:rgba(34,197,94,0.08);border-radius:0.375rem;border-left:3px solid var(--accent-green);">
+                <span style="font-size:0.72rem;font-weight:700;color:var(--accent-green);">1st</span>
+                <img src="${firstPlace.flag_url}" alt="${firstPlace.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;">
+                <span style="font-size:0.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${firstPlace.name}</span>
               </div>
             ` : ''}
             ${secondPlace ? `
-              <div class="qualifier-item second">
-                <span class="qualifier-position">2nd</span>
-                <img src="${secondPlace.flag_url}" alt="${secondPlace.name}" class="qualifier-flag">
-                <span class="qualifier-name">${secondPlace.name}</span>
+              <div class="qualifier-item second" style="display:grid;grid-template-columns:28px 28px 1fr;align-items:center;gap:0.4rem;padding:0.35rem 0.5rem;background:rgba(34,197,94,0.08);border-radius:0.375rem;border-left:3px solid var(--accent-green);">
+                <span style="font-size:0.72rem;font-weight:700;color:var(--accent-green);">2nd</span>
+                <img src="${secondPlace.flag_url}" alt="${secondPlace.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;">
+                <span style="font-size:0.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${secondPlace.name}</span>
               </div>
             ` : ''}
             ${thirdPlace ? `
-              <div class="qualifier-item third">
-                <span class="qualifier-position">3rd</span>
-                <img src="${thirdPlace.flag_url}" alt="${thirdPlace.name}" class="qualifier-flag">
-                <span class="qualifier-name">${thirdPlace.name}</span>
+              <div class="qualifier-item third" style="display:grid;grid-template-columns:28px 28px 1fr;align-items:center;gap:0.4rem;padding:0.35rem 0.5rem;background:rgba(255,193,7,0.06);border-radius:0.375rem;border-left:3px solid #ffc107;">
+                <span style="font-size:0.72rem;font-weight:700;color:#ffc107;">3rd</span>
+                <img src="${thirdPlace.flag_url}" alt="${thirdPlace.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;">
+                <span style="font-size:0.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${thirdPlace.name}</span>
               </div>
             ` : ''}
           </div>
