@@ -66,7 +66,11 @@ module.exports = async (req, res) => {
 
       let query = supabase
         .from('picks')
-        .select('*, teams:team_id(name, flag_url, code), rounds:round_id(name, round_number)')
+        .select(`
+          *,
+          teams:team_id(name, flag_url, code),
+          rounds:round_id(name, round_number)
+        `)
         .eq('user_id', user.id);
 
       if (tournament_id) query = query.eq('tournament_id', tournament_id);
@@ -160,11 +164,29 @@ module.exports = async (req, res) => {
 
       if (error) return res.status(500).json({ error: error.message });
 
+      // Fetch the pick with joined team/round data for the response
+      const { data: pickWithJoins, error: fetchError } = await supabase
+        .from('picks')
+        .select(`
+          *,
+          teams:team_id(name, flag_url, code),
+          rounds:round_id(name, round_number)
+        `)
+        .eq('id', data[0].id)
+        .single();
+
+      if (fetchError) {
+        // If fetch fails, return basic pick data
+        console.error('Failed to fetch pick with joins:', fetchError);
+      }
+
+      const pickToReturn = pickWithJoins || data[0];
+
       // For knockout rounds, just return success
       if (isKnockoutRound) {
         return res.status(200).json({
           success: true,
-          pick: data[0],
+          pick: pickToReturn,
           roundComplete: true
         });
       }
@@ -182,7 +204,7 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        pick: data[0],
+        pick: pickToReturn,
         matchdayComplete: isMatchdayComplete,
         picksInMatchday: matchdayPicks?.length || 1,
         nextMatchday: isMatchdayComplete && matchday < 3 ? matchday + 1 : null
