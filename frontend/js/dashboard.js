@@ -275,18 +275,16 @@ function displayKnockoutPickFlow() {
   // Check if user already has a pick for this round
   const existingPick = roundPicks.find(p => p.round_id === currentRound.id);
   if (existingPick) {
-    const team = allTeams.find(t => t.id === existingPick.team_id);
+    const result = existingPick.result || 'pending';
+    const resultIcon = result === 'win' ? '🏆' : result === 'loss' ? '❌' : '✅';
+    const resultText = result === 'win' ? 'Result: WIN!' : result === 'loss' ? 'Result: Lost' : 'Awaiting result';
+    const resultColor = result === 'win' ? 'var(--accent-green)' : result === 'loss' ? 'var(--accent-red)' : 'var(--accent-gold)';
     container.innerHTML = `
       <div style="text-align:center;padding:1.5rem 1rem;">
-        <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
+        <div style="font-size:2rem;margin-bottom:0.5rem;">${resultIcon}</div>
         <h3 style="color:var(--accent-green);margin-bottom:0.25rem;">${currentRound.name} Pick Submitted</h3>
-        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem;">
-          You picked <strong style="color:#fff;">${team?.name || existingPick.teams?.name}</strong>
-        </p>
-        <p style="font-size:0.8rem;color:var(--text-secondary);">
-          <i class="fas fa-arrow-down" style="color:var(--accent-gold);"></i>
-          See <strong style="color:var(--accent-gold);">Your Picks</strong> tab below for result
-        </p>
+        <p style="font-size:0.85rem;color:${resultColor};margin-top:0.5rem;">${resultText}</p>
+        <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.4rem;">See <strong style="color:var(--accent-gold);">Your Picks</strong> tab for details</p>
       </div>
     `;
     return;
@@ -800,16 +798,22 @@ function displayCurrentPicks(picks) {
       const matchDate = match ? new Date(match.match_time) : null;
       const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
       
+      const result = currentRoundPick.result || 'pending';
+      const points = currentRoundPick.points || 0;
+      const borderClass = result === 'win' ? 'animated-border-win' : result === 'loss' ? 'animated-border-loss' : 'animated-border-pending';
+      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts` : result === 'loss' ? '❌ Eliminated' : '⏳ Awaiting result';
+      const resultColor = result === 'win' ? '#22c55e' : result === 'loss' ? '#ef4444' : '#ffd700';
+      
       container.innerHTML = `
         <div class="current-pick-card">
           <h3>Your ${currentRound.name} Pick</h3>
-          <div class="current-knockout-pick">
-            <img src="${team?.flag_url || ''}" alt="${team?.name}" class="current-pick-flag">
-            <div class="current-pick-details">
-              <span class="current-pick-team">${team?.name || currentRoundPick.teams?.name}</span>
-              <span class="current-pick-match">${dateStr}</span>
+          <div class="pick-result-wrapper ${borderClass}">
+            <div class="pick-result-inner">
+              <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:60px;height:42px;object-fit:cover;border-radius:0.4rem;margin-bottom:0.5rem;">
+              <div style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">${team?.name || currentRoundPick.teams?.name}</div>
+              <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">${dateStr}</div>
+              <div style="font-size:1rem;font-weight:700;color:${resultColor};letter-spacing:0.03em;">${resultLabel}</div>
             </div>
-            <span class="current-pick-status ${currentRoundPick.result}">${currentRoundPick.result}</span>
           </div>
         </div>
       `;

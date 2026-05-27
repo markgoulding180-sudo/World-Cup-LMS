@@ -4544,3 +4544,73 @@ a {
     align-self: flex-end !important;
   }
 }
+
+/* ── Animated Pick Result Border ── */
+@keyframes spin-border {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pick-result-wrapper {
+  position: relative;
+  border-radius: 0.85rem;
+  padding: 3px;
+  overflow: hidden;
+  margin: 0.75rem auto;
+  max-width: 320px;
+}
+
+/* The spinning gradient sits behind via a pseudo-element */
+.pick-result-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  border-radius: 50%;
+  animation: spin-border 2.5s linear infinite;
+  z-index: 0;
+}
+
+.animated-border-win::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #22c55e 60deg,
+    #86efac 90deg,
+    #22c55e 120deg,
+    transparent 180deg
+  );
+}
+
+.animated-border-loss::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #ef4444 60deg,
+    #fca5a5 90deg,
+    #ef4444 120deg,
+    transparent 180deg
+  );
+  animation-duration: 3s;
+}
+
+.animated-border-pending::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #ffd700 60deg,
+    #fef08a 90deg,
+    #ffd700 120deg,
+    transparent 180deg
+  );
+  animation-duration: 4s;
+}
+
+.pick-result-inner {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-card);
+  border-radius: 0.65rem;
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
