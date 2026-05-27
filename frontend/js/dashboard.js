@@ -276,38 +276,17 @@ function displayKnockoutPickFlow() {
   const existingPick = roundPicks.find(p => p.round_id === currentRound.id);
   if (existingPick) {
     const team = allTeams.find(t => t.id === existingPick.team_id);
-    const result = existingPick.result || 'pending';
-    const points = existingPick.points || 0;
-    
-    let resultHtml = '';
-    if (result === 'win') {
-      resultHtml = `<div class="pick-result-display win"><i class="fas fa-trophy"></i> WIN! +${points} points</div>`;
-    } else if (result === 'loss') {
-      resultHtml = `<div class="pick-result-display loss"><i class="fas fa-times-circle"></i> Lost</div>`;
-    } else {
-      resultHtml = `<div class="pick-result-display pending"><i class="fas fa-clock"></i> Pending result</div>`;
-    }
-    
     container.innerHTML = `
-      <div class="matchday-flow">
-        <div class="matchday-header">
-          <h3>${currentRound.name}</h3>
-          <div class="matchday-progress">
-            <span class="picks-count">1</span>
-            <span class="picks-total">/ 1 pick selected</span>
-          </div>
-        </div>
-        <div class="matchday-progress-bar">
-          <div class="progress-fill" style="width:100%"></div>
-        </div>
-        <div style="text-align:center;padding:1.5rem 1rem;">
-          <p style="color:var(--accent-green);font-size:0.9rem;margin-bottom:1rem;"><i class="fas fa-check-circle"></i> Pick submitted for this round</p>
-          <div style="display:inline-flex;align-items:center;gap:0.75rem;background:var(--bg-secondary);border:2px solid var(--accent-green);border-radius:0.75rem;padding:0.75rem 1.25rem;">
-            <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:44px;height:30px;object-fit:cover;border-radius:0.25rem;">
-            <span style="font-size:1rem;font-weight:600;">${team?.name || existingPick.teams?.name}</span>
-          </div>
-          ${resultHtml}
-        </div>
+      <div style="text-align:center;padding:1.5rem 1rem;">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
+        <h3 style="color:var(--accent-green);margin-bottom:0.25rem;">${currentRound.name} Pick Submitted</h3>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem;">
+          You picked <strong style="color:#fff;">${team?.name || existingPick.teams?.name}</strong>
+        </p>
+        <p style="font-size:0.8rem;color:var(--text-secondary);">
+          <i class="fas fa-arrow-down" style="color:var(--accent-gold);"></i>
+          See <strong style="color:var(--accent-gold);">Your Picks</strong> tab below for result
+        </p>
       </div>
     `;
     return;
@@ -491,11 +470,16 @@ function displayMatchdayPickFlow() {
   
   if (currentMatchday > 3) {
     container.innerHTML = `
-      <div class="all-picks-complete" style="text-align: center; padding: 3rem 2rem; background: linear-gradient(rgba(10, 14, 39, 0.88), rgba(10, 14, 39, 0.92)), url('images/dashboard-bg.png') center/cover no-repeat; background-size: 200%; border: 2px solid #22c55e; border-radius: 1rem;">
-        <i class="fas fa-check-circle" style="font-size: 4rem; color: #22c55e; margin-bottom: 1rem;"></i>
-        <h3 style="color: #22c55e; margin-bottom: 0.5rem;">All Picks Submitted!</h3>
-        <p style="color: #8b92b9;">You have made all 9 picks for the Group Stage (3 per matchday).</p>
-        <p style="color: #8b92b9;">Good luck!</p>
+      <div style="text-align:center;padding:1.5rem 1rem;">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
+        <h3 style="color:var(--accent-green);margin-bottom:0.25rem;">All Group Stage Picks In!</h3>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem;">
+          9/9 picks submitted across 3 matchdays.
+        </p>
+        <p style="font-size:0.8rem;color:var(--text-secondary);">
+          <i class="fas fa-arrow-down" style="color:var(--accent-gold);"></i>
+          See <strong style="color:var(--accent-gold);">Your Picks</strong> tab below for results
+        </p>
       </div>
     `;
     return;
