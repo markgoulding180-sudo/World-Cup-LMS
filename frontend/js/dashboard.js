@@ -452,6 +452,11 @@ async function submitKnockoutPick(teamId) {
       displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
+      
+      // Scroll back to Make Your Pick section
+      setTimeout(() => {
+        document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } else {
       const error = await response.json();
       alert('Error: ' + (error.error || 'Failed to submit pick'));
@@ -751,6 +756,11 @@ async function submitMatchdayPicks() {
       displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
+      
+      // Scroll back to Make Your Pick section
+      setTimeout(() => {
+        document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } else {
       alert('Some picks failed. Please try again.');
     }
