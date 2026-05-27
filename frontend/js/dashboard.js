@@ -789,36 +789,42 @@ function displayCurrentPicks(picks) {
     return;
   }
   
-  // Show current round pick if in knockout stage
-  if (currentRound && currentRound.round_number >= 2 && knockoutPicks.length > 0) {
-    const currentRoundPick = knockoutPicks.find(p => p.round_id === currentRound.id);
-    if (currentRoundPick) {
-      const team = allTeams.find(t => t.id === currentRoundPick.team_id);
-      const match = allMatches.find(m => m.home_team_id === currentRoundPick.team_id || m.away_team_id === currentRoundPick.team_id);
+  // Show knockout picks if any exist
+  if (knockoutPicks.length > 0) {
+    // Build cards for every knockout pick made so far, most recent first
+    const sortedKOPicks = [...knockoutPicks].sort((a, b) => (b.rounds?.round_number || 0) - (a.rounds?.round_number || 0));
+    
+    let html = '<div class="current-pick-card">';
+    
+    sortedKOPicks.forEach(koPick => {
+      const team = allTeams.find(t => t.id === koPick.team_id);
+      const match = allMatches.find(m => m.home_team_id === koPick.team_id || m.away_team_id === koPick.team_id);
       const matchDate = match ? new Date(match.match_time) : null;
       const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
       
-      const result = currentRoundPick.result || 'pending';
-      const points = currentRoundPick.points || 0;
+      const result = koPick.result || 'pending';
+      const points = koPick.points || 0;
       const borderClass = result === 'win' ? 'animated-border-win' : result === 'loss' ? 'animated-border-loss' : 'animated-border-pending';
       const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts` : result === 'loss' ? '❌ Eliminated' : '⏳ Awaiting result';
       const resultColor = result === 'win' ? '#22c55e' : result === 'loss' ? '#ef4444' : '#ffd700';
+      const roundName = koPick.rounds?.name || 'Knockout';
       
-      container.innerHTML = `
-        <div class="current-pick-card">
-          <h3>Your ${currentRound.name} Pick</h3>
-          <div class="pick-result-wrapper ${borderClass}">
-            <div class="pick-result-inner">
-              <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:60px;height:42px;object-fit:cover;border-radius:0.4rem;margin-bottom:0.5rem;">
-              <div style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">${team?.name || currentRoundPick.teams?.name}</div>
-              <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">${dateStr}</div>
-              <div style="font-size:1rem;font-weight:700;color:${resultColor};letter-spacing:0.03em;">${resultLabel}</div>
-            </div>
+      html += `
+        <h3 style="margin-bottom:0.5rem;">Your ${roundName} Pick</h3>
+        <div class="pick-result-wrapper ${borderClass}">
+          <div class="pick-result-inner">
+            <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:60px;height:42px;object-fit:cover;border-radius:0.4rem;margin-bottom:0.5rem;">
+            <div style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">${team?.name || koPick.teams?.name}</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">${dateStr}</div>
+            <div style="font-size:1rem;font-weight:700;color:${resultColor};letter-spacing:0.03em;">${resultLabel}</div>
           </div>
         </div>
       `;
-      return;
-    }
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    return;
   }
   
   // Default: Show Group Stage picks organized by matchday
@@ -1438,82 +1444,95 @@ function displayEligibleTeams() {
   const tabDiv = document.getElementById('eligible-teams-tab');
   if (!tabDiv) return;
   
-  // Get teams already picked by user
   const usedTeamIds = new Set(userPicks.map(p => p.team_id));
-  
-  // Get eligible teams (not picked yet)
   const eligibleTeams = allTeams.filter(t => !usedTeamIds.has(t.id));
   
-  // Get current round info - which teams are available THIS round
-  let eligibleInCurrentRound = [];
+  // Work out which teams are playing THIS round/matchday
+  let availableNowIds = new Set();
   if (currentRound) {
     if (currentRound.round_number === 1) {
       const matchdayMatches = allMatches.filter(m => 
         m.round_id === currentRound.id && m.matchday === currentMatchday
       );
-      const matchdayTeamIds = new Set();
       matchdayMatches.forEach(m => {
-        matchdayTeamIds.add(m.home_team_id);
-        matchdayTeamIds.add(m.away_team_id);
+        availableNowIds.add(m.home_team_id);
+        availableNowIds.add(m.away_team_id);
       });
-      eligibleInCurrentRound = eligibleTeams.filter(t => matchdayTeamIds.has(t.id));
     } else {
       const roundMatches = allMatches.filter(m => m.round_id === currentRound.id);
-      const roundTeamIds = new Set();
       roundMatches.forEach(m => {
-        roundTeamIds.add(m.home_team_id);
-        roundTeamIds.add(m.away_team_id);
+        availableNowIds.add(m.home_team_id);
+        availableNowIds.add(m.away_team_id);
       });
-      eligibleInCurrentRound = eligibleTeams.filter(t => roundTeamIds.has(t.id));
     }
   }
   
-  const totalEligible = eligibleTeams.length;
-  const totalTeams = allTeams.length;
-  const usedCount = usedTeamIds.size;
-  
-  // Check if user has entered
   const statusDiv = document.getElementById('player-status');
   const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
-  
   if (!isEntered) {
     tabDiv.innerHTML = '<p style="color:var(--text-secondary);padding:1rem;text-align:center;">Enter the tournament to see your eligible teams.</p>';
     return;
   }
   
+  const totalTeams = allTeams.length;
+  const usedCount = usedTeamIds.size;
+  
+  const nowTeams = eligibleTeams.filter(t => availableNowIds.has(t.id));
+  const laterTeams = eligibleTeams.filter(t => !availableNowIds.has(t.id));
+  
+  function flagCards(teams) {
+    return teams.map(team => `
+      <div class="eligible-team-item" title="${team.name}">
+        <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
+        <span class="eligible-team-code">${team.code}</span>
+      </div>
+    `).join('');
+  }
+  
+  const roundLabel = currentRound?.round_number === 1
+    ? `Matchday ${currentMatchday}`
+    : currentRound?.name || 'This Round';
+  
   let html = `
-    <div style="padding:1rem 0;">
-      <div style="text-align:center;margin-bottom:1rem;padding:0.75rem;background:var(--bg-secondary);border-radius:0.5rem;">
-        <span style="font-size:1.75rem;font-weight:700;color:var(--accent-green);">${totalEligible}</span>
-        <span style="font-size:1.1rem;color:var(--text-secondary);"> / ${totalTeams}</span>
-        <span style="font-size:0.85rem;color:var(--text-secondary);margin-left:0.4rem;">teams available to pick</span>
-        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.4rem;">(${usedCount} used)</span>
+    <div style="padding:0.75rem 0;">
+      <div style="text-align:center;margin-bottom:1rem;padding:0.6rem;background:var(--bg-secondary);border-radius:0.5rem;">
+        <span style="font-size:1.6rem;font-weight:700;color:var(--accent-green);">${eligibleTeams.length}</span>
+        <span style="font-size:1rem;color:var(--text-secondary);"> / ${totalTeams} teams remaining</span>
+        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.5rem;">(${usedCount} already used)</span>
       </div>
   `;
   
-  if (eligibleTeams.length === 0) {
-    html += '<p style="text-align:center;color:var(--accent-red);font-style:italic;padding:1rem;">No eligible teams remaining!</p>';
-  } else {
-    html += '<div class="eligible-teams-flex">';
-    html += eligibleTeams.map(team => {
-      const isEligibleThisRound = eligibleInCurrentRound.some(t => t.id === team.id);
-      return `
-        <div class="eligible-team-item ${isEligibleThisRound ? 'available-now' : 'available-later'}" title="${team.name} (${team.group_name || 'N/A'})">
-          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
-          <span class="eligible-team-code">${team.code}</span>
+  // Section 1: Available NOW
+  if (nowTeams.length > 0) {
+    html += `
+      <div style="margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--accent-green);display:inline-block;flex-shrink:0;"></span>
+          <span style="font-size:0.85rem;font-weight:600;color:var(--accent-green);">Pick these now — playing in ${roundLabel} (${nowTeams.length} teams)</span>
         </div>
-      `;
-    }).join('');
-    html += '</div>';
+        <div class="eligible-teams-flex">
+          ${flagCards(nowTeams)}
+        </div>
+      </div>
+    `;
   }
   
-  html += `
-    <p style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.75rem;text-align:center;">
-      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(34,197,94,0.3);border:1px solid var(--accent-green);margin-right:4px;"></span>Available this round &nbsp;
-      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--bg-secondary);border:1px solid var(--border-color);margin-right:4px;opacity:0.6;"></span>Available later
-    </p>
-  </div>`;
+  // Section 2: Save for later
+  if (laterTeams.length > 0) {
+    html += `
+      <div>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--border-color);display:inline-block;flex-shrink:0;"></span>
+          <span style="font-size:0.85rem;color:var(--text-secondary);">Save for later rounds — not playing ${roundLabel} (${laterTeams.length} teams)</span>
+        </div>
+        <div class="eligible-teams-flex" style="opacity:0.55;">
+          ${flagCards(laterTeams)}
+        </div>
+      </div>
+    `;
+  }
   
+  html += '</div>';
   tabDiv.innerHTML = html;
 }
 
