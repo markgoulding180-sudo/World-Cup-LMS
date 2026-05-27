@@ -8,6 +8,7 @@ let roundPicks = [];
 let currentRound = null;
 let tournamentId = null;
 let selectedTeams = []; // Track selected teams for current matchday
+let isWaitingForNextRound = false; // True when group stage is complete, waiting for knockout draw
 
 async function loadDashboard() {
   const token = localStorage.getItem('wc_lms_token');
@@ -135,6 +136,7 @@ function determineCurrentMatchday() {
 }
 
 function displayWaitingState() {
+  isWaitingForNextRound = true;
   const container = document.getElementById('available-teams');
   container.innerHTML = `
     <div class="waiting-state" style="text-align: center; padding: 3rem 1rem;">
@@ -277,26 +279,35 @@ function displayKnockoutPickFlow() {
     const result = existingPick.result || 'pending';
     const points = existingPick.points || 0;
     
-    // Determine result display
     let resultHtml = '';
     if (result === 'win') {
       resultHtml = `<div class="pick-result-display win"><i class="fas fa-trophy"></i> WIN! +${points} points</div>`;
     } else if (result === 'loss') {
       resultHtml = `<div class="pick-result-display loss"><i class="fas fa-times-circle"></i> Lost</div>`;
     } else {
-      resultHtml = `<div class="pick-result-display pending"><i class="fas fa-clock"></i> Pending</div>`;
+      resultHtml = `<div class="pick-result-display pending"><i class="fas fa-clock"></i> Pending result</div>`;
     }
     
     container.innerHTML = `
-      <div class="pick-submitted ${result}">
-        <i class="fas fa-check-circle"></i>
-        <h3>Pick Submitted!</h3>
-        <div class="submitted-pick-display">
-          <img src="${team?.flag_url || ''}" alt="${team?.name}" class="submitted-flag">
-          <span class="submitted-team-name">${team?.name || existingPick.teams?.name}</span>
+      <div class="matchday-flow">
+        <div class="matchday-header">
+          <h3>${currentRound.name}</h3>
+          <div class="matchday-progress">
+            <span class="picks-count">1</span>
+            <span class="picks-total">/ 1 pick selected</span>
+          </div>
         </div>
-        ${resultHtml}
-        <p class="submitted-round">${currentRound.name}</p>
+        <div class="matchday-progress-bar">
+          <div class="progress-fill" style="width:100%"></div>
+        </div>
+        <div style="text-align:center;padding:1.5rem 1rem;">
+          <p style="color:var(--accent-green);font-size:0.9rem;margin-bottom:1rem;"><i class="fas fa-check-circle"></i> Pick submitted for this round</p>
+          <div style="display:inline-flex;align-items:center;gap:0.75rem;background:var(--bg-secondary);border:2px solid var(--accent-green);border-radius:0.75rem;padding:0.75rem 1.25rem;">
+            <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:44px;height:30px;object-fit:cover;border-radius:0.25rem;">
+            <span style="font-size:1rem;font-weight:600;">${team?.name || existingPick.teams?.name}</span>
+          </div>
+          ${resultHtml}
+        </div>
       </div>
     `;
     return;
@@ -328,7 +339,6 @@ function displayKnockoutPickFlow() {
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const roundName = roundNames[currentRound.round_number] || currentRound.name;
   
-  // Build warning banner for used teams still in tournament
   let warningBanner = '';
   if (usedTeamsInRound.length > 0) {
     const teamNames = usedTeamsInRound.map(t => t.name).join(', ');
@@ -342,15 +352,24 @@ function displayKnockoutPickFlow() {
   }
   
   let html = `
-    <div class="knockout-pick-flow">
-      <div class="knockout-header">
+    <div class="matchday-flow">
+      <div class="matchday-header">
         <h3>${roundName}</h3>
-        <p class="knockout-instruction">Pick <strong>ONE</strong> team to win their match</p>
-        ${warningBanner}
-        <p class="used-teams-note"><i class="fas fa-info-circle"></i> Teams greyed out were used in previous rounds</p>
+        <div class="matchday-progress">
+          <span class="picks-count">0</span>
+          <span class="picks-total">/ 1 pick selected</span>
+        </div>
       </div>
-      
-      <div class="knockout-matches">
+      <div class="matchday-progress-bar">
+        <div class="progress-fill" style="width:0%"></div>
+      </div>
+      <p class="matchday-instruction">
+        Pick <strong>ONE</strong> team to win their match.
+        <br><small>Each team can only be used once across the whole tournament.</small>
+      </p>
+      ${warningBanner}
+      <p class="used-teams-note"><i class="fas fa-info-circle"></i> Teams greyed out were used in previous rounds</p>
+      <div class="match-picker-list">
   `;
   
   roundMatches.forEach(m => {
@@ -365,21 +384,26 @@ function displayKnockoutPickFlow() {
     const awayUsed = usedTeamIds.has(m.away_team_id);
     
     html += `
-      <div class="knockout-match-card">
-        <div class="match-header">
-          <span class="match-date">${dateStr} @ ${timeStr}</span>
+      <div class="match-picker-card">
+        <div class="match-picker-header">
+          <span class="match-picker-date">${dateStr} @ ${timeStr}</span>
+          <span class="match-picker-group">${currentRound.name}</span>
         </div>
-        <div class="match-teams">
-          <div class="match-team ${homeUsed ? 'used' : ''}" ${homeUsed ? '' : `onclick="submitKnockoutPick('${m.home_team_id}')"`}>
-            <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="team-flag">
-            <span class="team-name">${homeTeam?.name || 'TBD'}</span>
-            ${homeUsed ? '<span class="used-badge"><i class="fas fa-ban"></i> Used</span>' : '<button class="pick-btn">Pick</button>'}
+        <div class="match-picker-teams">
+          <div class="match-picker-team ${homeUsed ? 'picked' : ''}" 
+               ${homeUsed ? '' : `onclick="submitKnockoutPick('${m.home_team_id}')"`}
+               style="cursor:${homeUsed ? 'not-allowed' : 'pointer'};">
+            <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="match-picker-flag">
+            <span class="match-picker-team-name">${homeTeam?.name || 'TBD'}</span>
+            ${homeUsed ? '<span style="font-size:0.7rem;color:var(--text-secondary);"><i class="fas fa-ban"></i> Used</span>' : '<button class="pick-btn" style="pointer-events:none;">Pick</button>'}
           </div>
-          <span class="match-vs">VS</span>
-          <div class="match-team ${awayUsed ? 'used' : ''}" ${awayUsed ? '' : `onclick="submitKnockoutPick('${m.away_team_id}')"`}>
-            <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="team-flag">
-            <span class="team-name">${awayTeam?.name || 'TBD'}</span>
-            ${awayUsed ? '<span class="used-badge"><i class="fas fa-ban"></i> Used</span>' : '<button class="pick-btn">Pick</button>'}
+          <span class="match-picker-vs">VS</span>
+          <div class="match-picker-team ${awayUsed ? 'picked' : ''}"
+               ${awayUsed ? '' : `onclick="submitKnockoutPick('${m.away_team_id}')"`}
+               style="cursor:${awayUsed ? 'not-allowed' : 'pointer'};">
+            <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="match-picker-flag">
+            <span class="match-picker-team-name">${awayTeam?.name || 'TBD'}</span>
+            ${awayUsed ? '<span style="font-size:0.7rem;color:var(--text-secondary);"><i class="fas fa-ban"></i> Used</span>' : '<button class="pick-btn" style="pointer-events:none;">Pick</button>'}
           </div>
         </div>
       </div>
@@ -398,10 +422,6 @@ async function submitKnockoutPick(teamId) {
   const token = localStorage.getItem('wc_lms_token');
   const team = allTeams.find(t => t.id === teamId);
   
-  if (!confirm(`Pick ${team?.name} for the ${currentRound.name}?`)) {
-    return;
-  }
-  
   try {
     const response = await fetch('/api/picks', {
       method: 'POST',
@@ -419,7 +439,7 @@ async function submitKnockoutPick(teamId) {
     
     if (response.ok) {
       const data = await response.json();
-      alert(`✓ Pick submitted! You picked ${team?.name}`);
+      alert(`✓ Pick saved! You picked ${team?.name}`);
       
       // Update local state instead of reloading everything
       if (data.pick) {
@@ -427,9 +447,11 @@ async function submitKnockoutPick(teamId) {
         userPicks.push(data.pick);
       }
       
-      // Just re-render the pick flow
+      // Re-render all affected sections
       displayKnockoutPickFlow();
       displayCurrentPicks(roundPicks);
+      displayTournamentHistory();
+      displayEligibleTeams();
     } else {
       const error = await response.json();
       alert('Error: ' + (error.error || 'Failed to submit pick'));
@@ -684,12 +706,6 @@ async function submitMatchdayPicks() {
     return;
   }
   
-  const teamNames = selectedTeams.map(id => allTeams.find(t => t.id === id)?.name).join(', ');
-  
-  if (!confirm(`Submit these picks for Matchday ${currentMatchday}?\n\n${teamNames}`)) {
-    return;
-  }
-  
   try {
     // Submit all picks
     const promises = selectedTeams.map(teamId => 
@@ -720,18 +736,21 @@ async function submitMatchdayPicks() {
         if (p.pick) roundPicks.push(p.pick);
       });
       
+      // Update userPicks too so history reflects new picks immediately
+      newPicks.forEach(p => {
+        if (p.pick) userPicks.push(p.pick);
+      });
+      
       // Update current matchday based on picks made
       determineCurrentMatchday();
       
-      if (currentMatchday < 3) {
-        alert(`✓ Matchday ${currentMatchday - 1} complete!\n\nMoving to Matchday ${currentMatchday}...`);
-      } else {
-        alert(`✓ All picks submitted! Good luck!`);
-      }
+      alert(`✓ Picks saved! Good luck!`);
       
-      // Just re-render the pick flow, don't reload all data
+      // Re-render all affected sections
       displayMatchdayPickFlow();
       displayCurrentPicks(roundPicks);
+      displayTournamentHistory();
+      displayEligibleTeams();
     } else {
       alert('Some picks failed. Please try again.');
     }
@@ -743,6 +762,24 @@ async function submitMatchdayPicks() {
 function displayCurrentPicks(picks) {
   const container = document.getElementById('current-pick');
   if (!container) return;
+  
+  // When waiting for next round: group stage is done, show message instead of picks
+  if (isWaitingForNextRound) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:2rem 1rem;">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem;">✅</div>
+        <h3 style="color:var(--accent-green);margin-bottom:0.5rem;">Group Stage Complete!</h3>
+        <p style="color:var(--text-secondary);margin-bottom:1rem;">
+          The Group Stage has finished. Waiting for the knockout round fixtures to be drawn.
+        </p>
+        <p style="font-size:0.85rem;color:var(--text-secondary);">
+          <i class="fas fa-flag" style="color:var(--accent-gold);"></i>
+          Check the <strong style="color:var(--accent-gold);">Eligible Teams</strong> tab to see which teams you still have available for the next round.
+        </p>
+      </div>
+    `;
+    return;
+  }
   
   const picksMade = picks.length;
   
@@ -1026,15 +1063,6 @@ function updateStatusCard(data) {
           `<p class="round-text"><i class="fas fa-play-circle"></i> ${currentRound.name}</p>` :
           `<p class="matchday-text">Matchday ${data.current_matchday || currentMatchday}</p>`
         }
-        
-        <!-- Eligible Teams Mini Grid -->
-        <div class="eligible-teams-mini">
-          <div class="eligible-teams-mini-header">
-            <span class="eligible-teams-mini-title"><i class="fas fa-flag"></i> Eligible Teams Left</span>
-            <span class="eligible-teams-mini-count" id="eligible-mini-count">Loading...</span>
-          </div>
-          <div class="eligible-teams-mini-grid" id="eligible-mini-grid">Loading...</div>
-        </div>
       </div>
     `;
   }
@@ -1403,21 +1431,25 @@ function switchTab(tabName) {
     displayGroupResults();
   } else if (tabName === 'knockout') {
     displayKnockoutGrid();
+  } else if (tabName === 'eligible') {
+    displayEligibleTeams();
   }
 }
 
 function displayEligibleTeams() {
+  const tabDiv = document.getElementById('eligible-teams-tab');
+  if (!tabDiv) return;
+  
   // Get teams already picked by user
   const usedTeamIds = new Set(userPicks.map(p => p.team_id));
   
   // Get eligible teams (not picked yet)
   const eligibleTeams = allTeams.filter(t => !usedTeamIds.has(t.id));
   
-  // Get current round info
+  // Get current round info - which teams are available THIS round
   let eligibleInCurrentRound = [];
   if (currentRound) {
     if (currentRound.round_number === 1) {
-      // Group Stage - teams playing in current matchday
       const matchdayMatches = allMatches.filter(m => 
         m.round_id === currentRound.id && m.matchday === currentMatchday
       );
@@ -1428,7 +1460,6 @@ function displayEligibleTeams() {
       });
       eligibleInCurrentRound = eligibleTeams.filter(t => matchdayTeamIds.has(t.id));
     } else {
-      // Knockout - teams playing in this round
       const roundMatches = allMatches.filter(m => m.round_id === currentRound.id);
       const roundTeamIds = new Set();
       roundMatches.forEach(m => {
@@ -1443,30 +1474,49 @@ function displayEligibleTeams() {
   const totalTeams = allTeams.length;
   const usedCount = usedTeamIds.size;
   
-  // Update mini grid in status card
-  const miniCount = document.getElementById('eligible-mini-count');
-  const miniGrid = document.getElementById('eligible-mini-grid');
+  // Check if user has entered
+  const statusDiv = document.getElementById('player-status');
+  const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
   
-  if (miniCount) {
-    miniCount.textContent = `${totalEligible}/${totalTeams}`;
+  if (!isEntered) {
+    tabDiv.innerHTML = '<p style="color:var(--text-secondary);padding:1rem;text-align:center;">Enter the tournament to see your eligible teams.</p>';
+    return;
   }
   
-  if (miniGrid) {
-    if (eligibleTeams.length === 0) {
-      miniGrid.innerHTML = '<span class="no-eligible-mini">No teams left!</span>';
-    } else {
-      // Show first 12 teams (3 rows of 4 on desktop, 4 rows of 3 on mobile)
-      const teamsToShow = eligibleTeams.slice(0, 12);
-      miniGrid.innerHTML = teamsToShow.map(team => {
-        const isEligibleThisRound = eligibleInCurrentRound.some(t => t.id === team.id);
-        return `
-          <div class="eligible-mini-item ${isEligibleThisRound ? 'available-now' : ''}" title="${team.name}">
-            <img src="${team.flag_url}" alt="${team.code}" class="eligible-mini-flag">
-          </div>
-        `;
-      }).join('') + (eligibleTeams.length > 12 ? `<div class="eligible-mini-more">+${eligibleTeams.length - 12}</div>` : '');
-    }
+  let html = `
+    <div style="padding:1rem 0;">
+      <div style="text-align:center;margin-bottom:1rem;padding:0.75rem;background:var(--bg-secondary);border-radius:0.5rem;">
+        <span style="font-size:1.75rem;font-weight:700;color:var(--accent-green);">${totalEligible}</span>
+        <span style="font-size:1.1rem;color:var(--text-secondary);"> / ${totalTeams}</span>
+        <span style="font-size:0.85rem;color:var(--text-secondary);margin-left:0.4rem;">teams available to pick</span>
+        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.4rem;">(${usedCount} used)</span>
+      </div>
+  `;
+  
+  if (eligibleTeams.length === 0) {
+    html += '<p style="text-align:center;color:var(--accent-red);font-style:italic;padding:1rem;">No eligible teams remaining!</p>';
+  } else {
+    html += '<div class="eligible-teams-flex">';
+    html += eligibleTeams.map(team => {
+      const isEligibleThisRound = eligibleInCurrentRound.some(t => t.id === team.id);
+      return `
+        <div class="eligible-team-item ${isEligibleThisRound ? 'available-now' : 'available-later'}" title="${team.name} (${team.group_name || 'N/A'})">
+          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
+          <span class="eligible-team-code">${team.code}</span>
+        </div>
+      `;
+    }).join('');
+    html += '</div>';
   }
+  
+  html += `
+    <p style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.75rem;text-align:center;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(34,197,94,0.3);border:1px solid var(--accent-green);margin-right:4px;"></span>Available this round &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--bg-secondary);border:1px solid var(--border-color);margin-right:4px;opacity:0.6;"></span>Available later
+    </p>
+  </div>`;
+  
+  tabDiv.innerHTML = html;
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);
