@@ -1451,6 +1451,34 @@ function switchTab(tabName) {
   }
 }
 
+function getKnockedOutTeamIds() {
+  const knockedOut = new Set();
+  
+  // Teams that lost a finished knockout match are eliminated
+  const knockoutMatches = allMatches.filter(m =>
+    m.rounds?.round_number >= 2 && m.status === 'finished' && m.result
+  );
+  knockoutMatches.forEach(m => {
+    if (m.result === 'H') knockedOut.add(m.away_team_id);
+    else if (m.result === 'A') knockedOut.add(m.home_team_id);
+  });
+  
+  // If R32 matches exist, teams NOT in R32 didn't qualify from group stage
+  const r32Matches = allMatches.filter(m => m.rounds?.round_number === 2);
+  if (r32Matches.length > 0) {
+    const r32TeamIds = new Set();
+    r32Matches.forEach(m => {
+      if (m.home_team_id) r32TeamIds.add(m.home_team_id);
+      if (m.away_team_id) r32TeamIds.add(m.away_team_id);
+    });
+    allTeams.forEach(t => {
+      if (!r32TeamIds.has(t.id)) knockedOut.add(t.id);
+    });
+  }
+  
+  return knockedOut;
+}
+
 function displayEligibleTeams() {
   const tabDiv = document.getElementById('eligible-teams-tab');
   if (!tabDiv) return;
@@ -1462,68 +1490,60 @@ function displayEligibleTeams() {
     return;
   }
 
-  // Teams picked in the CURRENT active round
-  const currentRoundPickedIds = new Set(
-    roundPicks.map(p => p.team_id)
-  );
-
-  // Teams picked in PREVIOUS (closed) rounds
+  const currentRoundPickedIds = new Set(roundPicks.map(p => p.team_id));
   const previousRoundPickedIds = new Set(
-    userPicks
-      .filter(p => !currentRoundPickedIds.has(p.team_id))
-      .map(p => p.team_id)
+    userPicks.filter(p => !currentRoundPickedIds.has(p.team_id)).map(p => p.team_id)
   );
+  const knockedOutIds = getKnockedOutTeamIds();
 
-  // Available = never picked at all
-  const availableTeams = allTeams.filter(t => 
-    !currentRoundPickedIds.has(t.id) && !previousRoundPickedIds.has(t.id)
-  );
-  const currentPickedTeams = allTeams.filter(t => currentRoundPickedIds.has(t.id));
-  const previousUsedTeams = allTeams.filter(t => previousRoundPickedIds.has(t.id));
+  const available      = allTeams.filter(t => !currentRoundPickedIds.has(t.id) && !previousRoundPickedIds.has(t.id) && !knockedOutIds.has(t.id));
+  const currentPicked  = allTeams.filter(t => currentRoundPickedIds.has(t.id));
+  const previousUsed   = allTeams.filter(t => previousRoundPickedIds.has(t.id));
+  const knockedUnused  = allTeams.filter(t => knockedOutIds.has(t.id) && !currentRoundPickedIds.has(t.id) && !previousRoundPickedIds.has(t.id));
 
   function teamCard(team, state) {
-    if (state === 'available') {
-      return `
-        <div class="eligible-team-item" title="${team.name}" style="border-color:var(--accent-green);background:rgba(34,197,94,0.08);">
-          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
-          <span class="eligible-team-code">${team.code}</span>
-        </div>
-      `;
-    }
-    if (state === 'current') {
-      return `
-        <div class="eligible-team-item" title="${team.name} — picked this round" style="border-color:#ffd700;background:rgba(255,215,0,0.1);">
-          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
-          <span class="eligible-team-code" style="color:#ffd700;">${team.code}</span>
-        </div>
-      `;
-    }
-    // previous — grey with USED stamp
-    return `
+    if (state === 'available') return `
+      <div class="eligible-team-item" title="${team.name}" style="border-color:var(--accent-green);background:rgba(34,197,94,0.08);">
+        <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
+        <span class="eligible-team-code">${team.code}</span>
+      </div>`;
+    if (state === 'current') return `
+      <div class="eligible-team-item" title="${team.name} — your pick this round" style="border-color:#ffd700;background:rgba(255,215,0,0.1);">
+        <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
+        <span class="eligible-team-code" style="color:#ffd700;">${team.code}</span>
+      </div>`;
+    if (state === 'used') return `
       <div class="eligible-team-item" title="${team.name} — used in a previous round" style="position:relative;opacity:0.4;border-color:var(--border-color);">
         <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag" style="filter:grayscale(100%);">
         <span class="eligible-team-code">${team.code}</span>
-        <span style="position:absolute;top:2px;right:2px;font-size:0.48rem;font-weight:700;background:var(--accent-red);color:#fff;padding:1px 3px;border-radius:2px;line-height:1.4;letter-spacing:0.02em;">USED</span>
-      </div>
-    `;
+        <span style="position:absolute;top:2px;right:2px;font-size:0.48rem;font-weight:700;background:var(--accent-red);color:#fff;padding:1px 3px;border-radius:2px;line-height:1.4;">USED</span>
+      </div>`;
+    // knocked out, never used
+    return `
+      <div class="eligible-team-item" title="${team.name} — knocked out" style="opacity:0.2;border-color:var(--border-color);">
+        <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag" style="filter:grayscale(100%);">
+        <span class="eligible-team-code">${team.code}</span>
+      </div>`;
   }
 
   tabDiv.innerHTML = `
     <div style="padding:0.75rem 0;">
       <div style="text-align:center;margin-bottom:1rem;padding:0.6rem;background:var(--bg-secondary);border-radius:0.5rem;">
-        <span style="font-size:1.6rem;font-weight:700;color:var(--accent-green);">${availableTeams.length}</span>
-        <span style="color:var(--text-secondary);"> / ${allTeams.length} teams available</span>
-        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.5rem;">(${previousUsedTeams.length} used in previous rounds)</span>
+        <span style="font-size:1.6rem;font-weight:700;color:var(--accent-green);">${available.length}</span>
+        <span style="color:var(--text-secondary);"> / ${allTeams.length} teams available to pick</span>
+        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.5rem;">(${previousUsed.length + currentPicked.length} used)</span>
       </div>
       <div style="display:flex;gap:1rem;justify-content:center;margin-bottom:0.75rem;font-size:0.78rem;color:var(--text-secondary);flex-wrap:wrap;">
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid var(--accent-green);margin-right:4px;background:rgba(34,197,94,0.08);"></span>Available</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid #ffd700;margin-right:4px;background:rgba(255,215,0,0.1);"></span>Picked this round</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid var(--border-color);margin-right:4px;opacity:0.4;background:var(--bg-secondary);"></span>Used (previous round)</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid var(--accent-green);background:rgba(34,197,94,0.08);margin-right:4px;vertical-align:middle;"></span>Available</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid #ffd700;background:rgba(255,215,0,0.1);margin-right:4px;vertical-align:middle;"></span>Your pick this round</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid var(--accent-red);background:rgba(239,68,68,0.1);margin-right:4px;vertical-align:middle;opacity:0.6;"></span>Used</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:2px solid var(--border-color);background:var(--bg-secondary);margin-right:4px;vertical-align:middle;opacity:0.3;"></span>Knocked out</span>
       </div>
       <div class="eligible-teams-flex">
-        ${availableTeams.map(t => teamCard(t, 'available')).join('')}
-        ${currentPickedTeams.map(t => teamCard(t, 'current')).join('')}
-        ${previousUsedTeams.map(t => teamCard(t, 'previous')).join('')}
+        ${available.map(t => teamCard(t, 'available')).join('')}
+        ${currentPicked.map(t => teamCard(t, 'current')).join('')}
+        ${previousUsed.map(t => teamCard(t, 'used')).join('')}
+        ${knockedUnused.map(t => teamCard(t, 'knocked')).join('')}
       </div>
     </div>
   `;
