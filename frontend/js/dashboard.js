@@ -1490,7 +1490,32 @@ function displayEligibleTeams() {
     return;
   }
 
-  const currentRoundPickedIds = new Set(roundPicks.map(p => p.team_id));
+  // Work out which matchdays have all results in (all matches finished)
+  const finishedMatchdays = new Set();
+  if (currentRound?.round_number === 1) {
+    [1, 2, 3].forEach(md => {
+      const mdMatches = allMatches.filter(m => m.round_id === currentRound.id && m.matchday === md);
+      if (mdMatches.length > 0 && mdMatches.every(m => m.status === 'finished')) {
+        finishedMatchdays.add(md);
+      }
+    });
+  }
+
+  // Current round picks = picks where results are NOT yet all in
+  // For knockout: all picks in the open round are "current"
+  // For group stage: only picks from unfinished matchdays are "current" (yellow)
+  const currentRoundPickedIds = new Set(
+    roundPicks
+      .filter(p => {
+        if (currentRound?.round_number === 1) {
+          return !finishedMatchdays.has(p.matchday);
+        }
+        return true; // knockout - all current round picks are yellow
+      })
+      .map(p => p.team_id)
+  );
+
+  // Previous = all other picks (closed rounds + finished matchdays)
   const previousRoundPickedIds = new Set(
     userPicks.filter(p => !currentRoundPickedIds.has(p.team_id)).map(p => p.team_id)
   );
