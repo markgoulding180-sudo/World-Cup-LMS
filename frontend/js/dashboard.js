@@ -228,23 +228,34 @@ function displayEliminatedState(round) {
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const roundName = roundNames[round.round_number] || round.name;
   
-  container.innerHTML = `
-    <div class="eliminated-state" style="text-align: center; padding: 2rem 1rem; background: rgba(239, 68, 68, 0.1); border: 2px solid var(--accent-red); border-radius: 1rem;">
-      <div style="font-size: 3rem; margin-bottom: 1rem;">😔</div>
-      <h2 style="margin-bottom: 0.5rem; color: var(--accent-red);">You're Out!</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 1rem;">
-        Sorry, you have no eligible teams left in the World Cup.
-      </p>
-      <p style="color: var(--text-secondary); font-size: 0.9rem;">
-        All the teams you picked earlier have been eliminated or you've already used all remaining teams.
-        <br><br>
-        <strong>Thanks for playing!</strong>
-      </p>
-      <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-        <p style="color: var(--text-secondary); font-size: 0.8rem;">
-          Check the leaderboard to see your final position.
+  // If they made it to the Final, congratulate them instead
+  if (round.round_number === 6) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:2rem 1rem;background:rgba(255,215,0,0.08);border:2px solid var(--accent-gold);border-radius:1rem;">
+        <div style="font-size:3rem;margin-bottom:0.75rem;">🏆</div>
+        <h2 style="color:var(--accent-gold);margin-bottom:0.5rem;">Congratulations!</h2>
+        <p style="color:var(--text-primary);font-size:1rem;margin-bottom:0.75rem;">
+          You made it all the way to the <strong>World Cup Final!</strong>
+        </p>
+        <p style="color:var(--text-secondary);font-size:0.9rem;">
+          Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see the final standings and winner.
         </p>
       </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = `
+    <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
+      <div style="font-size:3rem;margin-bottom:0.75rem;">😔</div>
+      <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">No Teams Left</h2>
+      <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
+        All the teams you can pick have been knocked out of the tournament.
+      </p>
+      <p style="color:var(--text-secondary);font-size:0.85rem;">
+        <strong>Thanks for playing!</strong><br>
+        Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see your final position.
+      </p>
     </div>
   `;
 }
@@ -805,7 +816,7 @@ function displayCurrentPicks(picks) {
       const result = koPick.result || 'pending';
       const points = koPick.points || 0;
       const borderClass = result === 'win' ? 'animated-border-win' : result === 'loss' ? 'animated-border-loss' : 'animated-border-pending';
-      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts` : result === 'loss' ? '❌ Eliminated' : '⏳ Awaiting result';
+      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts` : result === 'loss' ? '❌ Lost' : '⏳ Awaiting result';
       const resultColor = result === 'win' ? '#22c55e' : result === 'loss' ? '#ef4444' : '#ffd700';
       const roundName = koPick.rounds?.name || 'Knockout';
       
@@ -1444,29 +1455,6 @@ function displayEligibleTeams() {
   const tabDiv = document.getElementById('eligible-teams-tab');
   if (!tabDiv) return;
   
-  const usedTeamIds = new Set(userPicks.map(p => p.team_id));
-  const eligibleTeams = allTeams.filter(t => !usedTeamIds.has(t.id));
-  
-  // Work out which teams are playing THIS round/matchday
-  let availableNowIds = new Set();
-  if (currentRound) {
-    if (currentRound.round_number === 1) {
-      const matchdayMatches = allMatches.filter(m => 
-        m.round_id === currentRound.id && m.matchday === currentMatchday
-      );
-      matchdayMatches.forEach(m => {
-        availableNowIds.add(m.home_team_id);
-        availableNowIds.add(m.away_team_id);
-      });
-    } else {
-      const roundMatches = allMatches.filter(m => m.round_id === currentRound.id);
-      roundMatches.forEach(m => {
-        availableNowIds.add(m.home_team_id);
-        availableNowIds.add(m.away_team_id);
-      });
-    }
-  }
-  
   const statusDiv = document.getElementById('player-status');
   const isEntered = statusDiv && !statusDiv.querySelector('.not-entered');
   if (!isEntered) {
@@ -1474,66 +1462,41 @@ function displayEligibleTeams() {
     return;
   }
   
-  const totalTeams = allTeams.length;
-  const usedCount = usedTeamIds.size;
+  const usedTeamIds = new Set(userPicks.map(p => p.team_id));
+  const available = allTeams.filter(t => !usedTeamIds.has(t.id));
+  const used = allTeams.filter(t => usedTeamIds.has(t.id));
   
-  const nowTeams = eligibleTeams.filter(t => availableNowIds.has(t.id));
-  const laterTeams = eligibleTeams.filter(t => !availableNowIds.has(t.id));
-  
-  function flagCards(teams) {
-    return teams.map(team => `
-      <div class="eligible-team-item" title="${team.name}">
+  function teamCard(team, isUsed) {
+    if (isUsed) {
+      return `
+        <div class="eligible-team-item" title="${team.name}" style="position:relative;opacity:0.45;">
+          <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag" style="filter:grayscale(80%);">
+          <span class="eligible-team-code">${team.code}</span>
+          <span style="position:absolute;top:2px;right:2px;font-size:0.5rem;font-weight:700;background:var(--accent-red);color:#fff;padding:1px 3px;border-radius:2px;line-height:1.4;">USED</span>
+        </div>
+      `;
+    }
+    return `
+      <div class="eligible-team-item" title="${team.name}" style="border-color:var(--accent-green);background:rgba(34,197,94,0.08);">
         <img src="${team.flag_url}" alt="${team.name}" class="eligible-team-flag">
         <span class="eligible-team-code">${team.code}</span>
       </div>
-    `).join('');
+    `;
   }
   
-  const roundLabel = currentRound?.round_number === 1
-    ? `Matchday ${currentMatchday}`
-    : currentRound?.name || 'This Round';
-  
-  let html = `
+  tabDiv.innerHTML = `
     <div style="padding:0.75rem 0;">
       <div style="text-align:center;margin-bottom:1rem;padding:0.6rem;background:var(--bg-secondary);border-radius:0.5rem;">
-        <span style="font-size:1.6rem;font-weight:700;color:var(--accent-green);">${eligibleTeams.length}</span>
-        <span style="font-size:1rem;color:var(--text-secondary);"> / ${totalTeams} teams remaining</span>
-        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.5rem;">(${usedCount} already used)</span>
+        <span style="font-size:1.6rem;font-weight:700;color:var(--accent-green);">${available.length}</span>
+        <span style="color:var(--text-secondary);"> / ${allTeams.length} teams available</span>
+        <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:0.5rem;">(${used.length} used)</span>
       </div>
+      <div class="eligible-teams-flex">
+        ${available.map(t => teamCard(t, false)).join('')}
+        ${used.map(t => teamCard(t, true)).join('')}
+      </div>
+    </div>
   `;
-  
-  // Section 1: Available NOW
-  if (nowTeams.length > 0) {
-    html += `
-      <div style="margin-bottom:1rem;">
-        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
-          <span style="width:10px;height:10px;border-radius:2px;background:var(--accent-green);display:inline-block;flex-shrink:0;"></span>
-          <span style="font-size:0.85rem;font-weight:600;color:var(--accent-green);">Pick these now — playing in ${roundLabel} (${nowTeams.length} teams)</span>
-        </div>
-        <div class="eligible-teams-flex">
-          ${flagCards(nowTeams)}
-        </div>
-      </div>
-    `;
-  }
-  
-  // Section 2: Save for later
-  if (laterTeams.length > 0) {
-    html += `
-      <div>
-        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
-          <span style="width:10px;height:10px;border-radius:2px;background:var(--border-color);display:inline-block;flex-shrink:0;"></span>
-          <span style="font-size:0.85rem;color:var(--text-secondary);">Save for later rounds — not playing ${roundLabel} (${laterTeams.length} teams)</span>
-        </div>
-        <div class="eligible-teams-flex" style="opacity:0.55;">
-          ${flagCards(laterTeams)}
-        </div>
-      </div>
-    `;
-  }
-  
-  html += '</div>';
-  tabDiv.innerHTML = html;
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);
