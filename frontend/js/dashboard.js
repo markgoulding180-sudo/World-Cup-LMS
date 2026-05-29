@@ -1653,8 +1653,6 @@ function renderCountdown() {
   const pad = n => String(n).padStart(2, '0');
 
   const urgentColor = diff < 3600000 ? '#ef4444' : (isDeadline ? '#ffd700' : '#60a5fa');
-
-  const urgentColor = diff < 3600000 ? '#ef4444' : (isDeadline ? '#ffd700' : '#60a5fa');
   const borderColor = diff < 3600000 ? '#ef4444' : '#2563eb';
   const glowColor = diff < 3600000 ? 'rgba(239,68,68,0.3)' : 'rgba(37,99,235,0.3)';
 
