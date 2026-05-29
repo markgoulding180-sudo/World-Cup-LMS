@@ -106,7 +106,12 @@ module.exports = async (req, res) => {
 
       if (roundError) return res.status(500).json({ error: 'Failed to get round settings' });
 
-      // ── Deadline check: picks must be submitted before first match kicks off ──
+      // ── Manual override check: admin force-closed picks ──
+      if (round.picks_closed === true) {
+        return res.status(400).json({ 
+          error: `Picks are currently closed for ${round.name}. Please wait for the admin to re-open them.`
+        });
+      }
       const isKnockoutRound = round.round_number >= 2;
 
       // Find the earliest match time for this round/matchday

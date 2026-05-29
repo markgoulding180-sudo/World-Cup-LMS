@@ -41,18 +41,63 @@ async function loadRoundStatus() {
     const response = await fetch('/api/rounds');
     const data = await response.json();
     if (!response.ok) { container.innerHTML = `<p class="error">Error: ${data.error}</p>`; return; }
-    let html = '<div class="rounds-list">';
+    
     const select = document.getElementById('round-select');
     select.innerHTML = '<option value="">Select round...</option>';
     
+    let html = '<div class="rounds-list">';
     data.rounds?.forEach(round => {
       const statusClass = round.status === 'open' ? 'status-open' : round.status === 'closed' ? 'status-closed' : 'status-upcoming';
-      html += `<div class="round-item"><span class="round-name">${round.name}</span><span class="round-status ${statusClass}">${round.status}</span></div>`;
+      const picksForceClosedBadge = round.picks_closed ? '<span style="font-size:0.7rem;background:#ef4444;color:#fff;padding:2px 6px;border-radius:3px;margin-left:6px;">PICKS FORCED CLOSED</span>' : '';
+      const isOpen = round.status === 'open';
+
+      html += `
+        <div class="round-item" style="flex-wrap:wrap;gap:0.5rem;align-items:center;">
+          <span class="round-name">${round.name}</span>
+          <span class="round-status ${statusClass}">${round.status}</span>
+          ${picksForceClosedBadge}
+          ${isOpen ? `
+            <div style="margin-left:auto;display:flex;gap:0.4rem;flex-wrap:wrap;">
+              ${round.picks_closed 
+                ? `<button class="btn btn-sm" onclick="forcePicksOpen('${round.id}')" style="background:rgba(34,197,94,0.2);border:1px solid #22c55e;color:#22c55e;font-size:0.75rem;padding:0.25rem 0.6rem;">
+                    <i class="fas fa-lock-open"></i> Re-open Picks
+                  </button>`
+                : `<button class="btn btn-sm" onclick="forcePicksClosed('${round.id}')" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#ef4444;font-size:0.75rem;padding:0.25rem 0.6rem;">
+                    <i class="fas fa-lock"></i> Force Close Picks
+                  </button>`
+              }
+            </div>
+          ` : ''}
+        </div>`;
+
       select.innerHTML += `<option value="${round.id}">${round.name} (${round.status})</option>`;
     });
     html += '</div>';
     container.innerHTML = html;
   } catch (error) { container.innerHTML = `<p class="error">Error loading rounds</p>`; }
+}
+
+async function forcePicksClosed(roundId) {
+  if (!confirm('Force close picks for this round? Users will not be able to submit picks until you re-open them.')) return;
+  const res = await fetch('/api/rounds', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'force_close_picks', round_id: roundId })
+  });
+  const data = await res.json();
+  if (res.ok) { alert('✓ Picks forcibly closed. Round remains open.'); loadRoundStatus(); }
+  else alert('Error: ' + data.error);
+}
+
+async function forcePicksOpen(roundId) {
+  const res = await fetch('/api/rounds', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'force_open_picks', round_id: roundId })
+  });
+  const data = await res.json();
+  if (res.ok) { alert('✓ Picks re-opened.'); loadRoundStatus(); }
+  else alert('Error: ' + data.error);
 }
 
 // ─── MATCHES FOR RESULTS ENTRY ────────────────────────────

@@ -44,21 +44,56 @@ module.exports = async (req, res) => {
     }
   }
 
-  // POST - Open/close round
+  // POST - Open/close round or toggle picks
   if (req.method === 'POST') {
     try {
       const { action, round_id } = req.body || {};
-      const newStatus = action === 'open' ? 'open' : 'closed';
 
-      const { data, error } = await supabase
-        .from('rounds')
-        .update({ status: newStatus })
-        .eq('id', round_id)
-        .select();
+      // Open round - always resets picks_closed to false
+      if (action === 'open') {
+        const { data, error } = await supabase
+          .from('rounds')
+          .update({ status: 'open', picks_closed: false })
+          .eq('id', round_id)
+          .select();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ success: true, round: data[0] });
+      }
 
-      if (error) return res.status(500).json({ error: error.message });
+      // Close round
+      if (action === 'close') {
+        const { data, error } = await supabase
+          .from('rounds')
+          .update({ status: 'closed' })
+          .eq('id', round_id)
+          .select();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ success: true, round: data[0] });
+      }
 
-      return res.status(200).json({ success: true, round: data[0] });
+      // Force close picks (emergency override - keeps round open)
+      if (action === 'force_close_picks') {
+        const { data, error } = await supabase
+          .from('rounds')
+          .update({ picks_closed: true })
+          .eq('id', round_id)
+          .select();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ success: true, round: data[0], message: 'Picks forcibly closed' });
+      }
+
+      // Force open picks (undo force close)
+      if (action === 'force_open_picks') {
+        const { data, error } = await supabase
+          .from('rounds')
+          .update({ picks_closed: false })
+          .eq('id', round_id)
+          .select();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ success: true, round: data[0], message: 'Picks re-opened' });
+      }
+
+      return res.status(400).json({ error: 'Invalid action' });
 
     } catch (error) {
       return res.status(500).json({ error: error.message });
