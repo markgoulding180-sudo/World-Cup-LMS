@@ -1654,11 +1654,16 @@ function renderCountdown() {
 
   const urgentColor = diff < 3600000 ? '#ef4444' : (isDeadline ? '#ffd700' : '#60a5fa');
 
-  const daysHtml = days > 0
-    ? `<div class="countdown-unit"><span class="countdown-num">${pad(days)}</span><span class="countdown-unit-label">DAYS</span></div><div class="countdown-sep">:</div>`
-    : '';
+  const urgentColor = diff < 3600000 ? '#ef4444' : (isDeadline ? '#ffd700' : '#60a5fa');
+  const borderColor = diff < 3600000 ? '#ef4444' : '#2563eb';
+  const glowColor = diff < 3600000 ? 'rgba(239,68,68,0.3)' : 'rgba(37,99,235,0.3)';
 
-  card.innerHTML = `<div class="countdown-card"><div class="countdown-label" style="color:${urgentColor};">${isDeadline ? '⚠️ ' : '🕐 '}${label}</div><div class="countdown-digits">${daysHtml}<div class="countdown-unit"><span class="countdown-num">${pad(hours)}</span><span class="countdown-unit-label">HRS</span></div><div class="countdown-sep">:</div><div class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span><span class="countdown-unit-label">MIN</span></div><div class="countdown-sep">:</div><div class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span><span class="countdown-unit-label">SEC</span></div></div></div>`;
+  const unit = (num, lbl) => `<div style="display:flex;flex-direction:column;align-items:center;"><span style="font-family:'Courier New',monospace;font-size:2.4rem;font-weight:700;color:#fff;line-height:1;text-shadow:0 0 12px rgba(96,165,250,0.8);">${pad(num)}</span><span style="font-size:0.55rem;color:#60a5fa;letter-spacing:0.1em;text-transform:uppercase;margin-top:2px;">${lbl}</span></div>`;
+  const sep = `<span style="font-size:2rem;font-weight:700;color:#60a5fa;opacity:0.7;padding-bottom:0.9rem;">:</span>`;
+
+  const daysHtml = days > 0 ? unit(days, 'DAYS') + sep : '';
+
+  card.innerHTML = `<div style="background:linear-gradient(135deg,#1e3a5f,#0f2744);border:2px solid ${borderColor};border-radius:0.75rem;padding:0.6rem 1.5rem 0.8rem;margin:0.75rem auto 0;max-width:500px;text-align:center;box-shadow:0 0 20px ${glowColor};"><div style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${urgentColor};margin-bottom:0.4rem;">${isDeadline ? '⚠️ ' : '🕐 '}${label}</div><div style="display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.3rem;">${daysHtml}${unit(hours,'HRS')}${sep}${unit(minutes,'MIN')}${sep}${unit(seconds,'SEC')}</div></div>`;
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);
