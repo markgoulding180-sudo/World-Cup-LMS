@@ -105,9 +105,7 @@ async function loadDashboard() {
       displayRoundMatches(allMatches, currentRound);
       displayTournamentHistory();
       displayEligibleTeams();
-
-      // Start live polling (only fires if polling_enabled=true in DB)
-      startPolling();
+      startCountdown();
     }
     
   } catch (error) {
@@ -1072,6 +1070,8 @@ function updateStatusCard(data) {
             <div class="points-label">Rank</div>
           </div>
         </div>
+
+        <div id="countdown-card"></div>
         
         ${isEliminated ? 
           `<p class="eliminated-text"><i class="fas fa-times-circle"></i> Eliminated - No more picks allowed</p>` :
@@ -1577,84 +1577,98 @@ function displayEligibleTeams() {
   `;
 }
 
-document.addEventListener('DOMContentLoaded', loadDashboard);
+// ── Countdown Timer ───────────────────────────────────────────────────────────
 
-// ── Live Results Polling ──────────────────────────────────────────────────────
-// Fires on page load and every 5 minutes while the tab is visible.
-// Only runs if polling_enabled = true in the DB (set by admin).
-// Never causes a full page reload — only re-renders affected sections.
+let countdownInterval = null;
 
-let pollInterval = null;
+function startCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  renderCountdown();
+  countdownInterval = setInterval(renderCountdown, 1000);
+}
 
-async function pollForResults() {
-  const token = localStorage.getItem('wc_lms_token');
-  if (!token) return;
+function getNextDeadlineMatch() {
+  if (!allMatches || !allMatches.length || !currentRound) return null;
 
-  try {
-    const response = await fetch('/api/update-results', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    });
+  const now = new Date();
 
-    if (!response.ok) return;
-    const data = await response.json();
+  if (currentRound.round_number === 1) {
+    // Group stage: find the first upcoming match of the current matchday
+    // That is the pick deadline for that matchday
+    const matchdayMatches = allMatches
+      .filter(m => m.round_id === currentRound.id && m.matchday === currentMatchday && m.status !== 'finished')
+      .sort((a, b) => new Date(a.match_time) - new Date(b.match_time));
 
-    // update-results returns polling_disabled message or actual counts
-    if (!data.matchesUpdated && !data.picksProcessed) return;
-    if (data.matchesUpdated === 0 && data.picksProcessed === 0) return;
-
-    console.log(`[Poll] ${data.matchesUpdated} matches updated, ${data.picksProcessed} picks processed, ${data.pointsAwarded} pts awarded`);
-
-    // Re-fetch only what changed
-    const [matchesRes, picksRes] = await Promise.all([
-      fetch('/api/matches?limit=200'),
-      fetch('/api/picks', { headers: { 'Authorization': `Bearer ${token}` } })
-    ]);
-
-    if (matchesRes.ok) {
-      const d = await matchesRes.json();
-      allMatches = d.matches || [];
+    if (matchdayMatches.length > 0) {
+      const first = matchdayMatches[0];
+      const isDeadline = currentMatchday === 1; // MD1 first game = hard deadline for all group picks
+      return { match: first, isDeadline, label: isDeadline ? `DEADLINE — Matchday 1 picks close` : `Next Match — Matchday ${currentMatchday}` };
     }
-
-    if (picksRes.ok) {
-      const d = await picksRes.json();
-      userPicks = d.picks || [];
-      roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
-    }
-
-    // Re-render only the affected sections — no full page reload
-    displayCurrentPicks(roundPicks);
-    displayTournamentHistory();
-    displayEligibleTeams();
-    displayRoundMatches(allMatches, currentRound);
-
-  } catch (err) {
-    // Silent fail — polling must never break the page
-    console.log('[Poll] Error (non-fatal):', err.message);
-  }
-}
-
-function startPolling() {
-  stopPolling(); // clear any existing interval first
-  pollForResults(); // immediate check on load
-  pollInterval = setInterval(pollForResults, 5 * 60 * 1000); // then every 5 mins
-}
-
-function stopPolling() {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-  }
-}
-
-// Pause when tab is hidden to save API quota, resume when visible
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    stopPolling();
   } else {
-    startPolling();
+    // Knockout: find first upcoming match of this round
+    const roundMatches = allMatches
+      .filter(m => m.round_id === currentRound.id && m.status !== 'finished')
+      .sort((a, b) => new Date(a.match_time) - new Date(b.match_time));
+
+    if (roundMatches.length > 0) {
+      const first = roundMatches[0];
+      return { match: first, isDeadline: true, label: `DEADLINE — ${currentRound.name} picks close` };
+    }
   }
-});
+
+  return null;
+}
+
+function renderCountdown() {
+  const card = document.getElementById('countdown-card');
+  if (!card) return;
+
+  const info = getNextDeadlineMatch();
+  if (!info) {
+    card.innerHTML = '';
+    return;
+  }
+
+  const { match, isDeadline, label } = info;
+  const target = new Date(match.match_time);
+  const now = new Date();
+  const diff = target - now;
+
+  if (diff <= 0) {
+    // Deadline passed
+    card.innerHTML = `
+      <div class="countdown-card deadline-passed">
+        <div class="countdown-label" style="color:#ef4444;">⛔ Picks Closed</div>
+        <div class="countdown-sublabel">${label}</div>
+      </div>
+    `;
+    return;
+  }
+
+  const days    = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours   = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const pad = n => String(n).padStart(2, '0');
+
+  const urgentColor = diff < 3600000 ? '#ef4444' : (isDeadline ? '#ffd700' : '#60a5fa');
+
+  card.innerHTML = `
+    <div class="countdown-card">
+      <div class="countdown-label" style="color:${urgentColor};">
+        ${isDeadline ? '⚠️ ' : '🕐 '}${label}
+      </div>
+      <div class="countdown-digits">
+        ${days > 0 ? `<div class="countdown-unit"><span class="countdown-num">${pad(days)}</span><span class="countdown-unit-label">DAYS</span></div><div class="countdown-sep">:</div>` : ''}
+        <div class="countdown-unit"><span class="countdown-num">${pad(hours)}</span><span class="countdown-unit-label">HRS</span></div>
+        <div class="countdown-sep">:</div>
+        <div class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span><span class="countdown-unit-label">MIN</span></div>
+        <div class="countdown-sep">:</div>
+        <div class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span><span class="countdown-unit-label">SEC</span></div>
+      </div>
+    </div>
+  `;
+}
+
+document.addEventListener('DOMContentLoaded', loadDashboard);

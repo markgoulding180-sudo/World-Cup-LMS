@@ -106,9 +106,45 @@ module.exports = async (req, res) => {
 
       if (roundError) return res.status(500).json({ error: 'Failed to get round settings' });
 
-      // Group Stage (round 1) requires matchday 1-3
-      // Knockout rounds (round 2+) don't use matchdays
+      // ── Deadline check: picks must be submitted before first match kicks off ──
       const isKnockoutRound = round.round_number >= 2;
+
+      // Find the earliest match time for this round/matchday
+      let deadlineQuery = supabase
+        .from('matches')
+        .select('match_time')
+        .eq('round_id', round_id)
+        .order('match_time', { ascending: true })
+        .limit(1);
+
+      // For group stage, only check matches in the specific matchday
+      if (!isKnockoutRound) {
+        deadlineQuery = supabase
+          .from('matches')
+          .select('match_time')
+          .eq('round_id', round_id)
+          .eq('matchday', matchday)
+          .order('match_time', { ascending: true })
+          .limit(1);
+      }
+
+      const { data: deadlineMatch } = await deadlineQuery;
+
+      if (deadlineMatch && deadlineMatch.length > 0) {
+        const firstKickoff = new Date(deadlineMatch[0].match_time);
+        const now = new Date();
+        if (now >= firstKickoff) {
+          const dateStr = firstKickoff.toLocaleString('en-GB', {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London'
+          });
+          return res.status(400).json({
+            error: isKnockoutRound
+              ? `Pick deadline passed — ${round.name} kicked off at ${dateStr}`
+              : `Pick deadline passed — Matchday ${matchday} kicked off at ${dateStr}`
+          });
+        }
+      }
       
       if (!isKnockoutRound && (!matchday || matchday < 1 || matchday > 3)) {
         return res.status(400).json({ error: 'Valid matchday (1-3) required for Group Stage' });
