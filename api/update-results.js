@@ -66,6 +66,23 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SECRET
   );
 
+  // ── Check polling is enabled in DB before calling football-data.org ──
+  const { data: clock } = await supabase
+    .from('master_clock')
+    .select('polling_enabled')
+    .eq('id', 'current')
+    .single();
+
+  if (!clock || clock.polling_enabled !== true) {
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Polling is disabled — no results fetched.',
+      matchesUpdated: 0,
+      picksProcessed: 0,
+      pointsAwarded: 0
+    });
+  }
+
   try {
     // ── Fetch from football-data.org ──────────────────────
     const apiResponse = await fetch(FOOTBALL_DATA_URL, {

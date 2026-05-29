@@ -125,7 +125,7 @@ module.exports = async (req, res) => {
         await supabase.from('users').delete().neq('id', FAKE_ID);
       }
       
-      await supabase.from('master_clock').upsert({ id: 'current', current_round: 1, current_matchday: 1, status: 'upcoming' });
+      await supabase.from('master_clock').upsert({ id: 'current', current_round: 1, current_matchday: 1, status: 'upcoming', polling_enabled: false });
       
       // Delete auth users except admins
       const { data: { users: authUsers }, error: listError } = await supabase.auth.admin.listUsers();
@@ -227,7 +227,7 @@ module.exports = async (req, res) => {
         if (matchErr) return res.status(500).json({ error: 'Failed to insert matches: ' + matchErr.message }); 
       }
       
-      await supabase.from('master_clock').upsert({ id: 'current', current_round: 1, current_matchday: 1, status: 'active' });
+      await supabase.from('master_clock').upsert({ id: 'current', current_round: 1, current_matchday: 1, status: 'active', polling_enabled: false });
       
       return res.status(200).json({ 
         success: true, 
@@ -1137,6 +1137,53 @@ module.exports = async (req, res) => {
     } catch (error) { 
       console.error('Sim finalize error:', error);
       return res.status(500).json({ error: error.message }); 
+    }
+  }
+
+  // ── GET POLLING STATUS ──────────────────────────────────────
+  if (action === 'get_polling_status') {
+    try {
+      const { data: clock, error } = await supabase
+        .from('master_clock')
+        .select('polling_enabled')
+        .eq('id', 'current')
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ polling_enabled: clock?.polling_enabled === true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── TOGGLE POLLING ──────────────────────────────────────────
+  if (action === 'toggle_polling') {
+    try {
+      // Get current state
+      const { data: clock, error: fetchError } = await supabase
+        .from('master_clock')
+        .select('polling_enabled')
+        .eq('id', 'current')
+        .single();
+
+      if (fetchError) return res.status(500).json({ error: fetchError.message });
+
+      const newState = !(clock?.polling_enabled === true);
+
+      const { error: updateError } = await supabase
+        .from('master_clock')
+        .update({ polling_enabled: newState })
+        .eq('id', 'current');
+
+      if (updateError) return res.status(500).json({ error: updateError.message });
+
+      return res.status(200).json({ 
+        success: true, 
+        polling_enabled: newState,
+        message: `Polling is now ${newState ? 'ON' : 'OFF'}`
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
     }
   }
 

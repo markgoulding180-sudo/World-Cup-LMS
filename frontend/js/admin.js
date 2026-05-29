@@ -27,6 +27,7 @@ function showPinModal() {
 
 async function loadAdminData() {
   console.log('Admin panel loaded');
+  await loadPollingStatus();
   await loadRoundStatus();
   await loadMatchesForResults();
   await loadAllPicks();
@@ -796,4 +797,83 @@ async function simulateKnockoutResults(roundNumber) {
     }
     else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
+}
+
+// ─── POLLING TOGGLE ──────────────────────────────────────────────────────────
+// Polling state lives in the DB (master_clock.polling_enabled).
+// This affects ALL users on ALL devices immediately.
+
+async function loadPollingStatus() {
+  const btn = document.getElementById('polling-toggle-btn');
+  const statusText = document.getElementById('polling-status-text');
+  if (!btn || !statusText) return;
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_polling_status', admin_pin: ADMIN_PIN })
+    });
+    const data = await response.json();
+    const enabled = data.polling_enabled === true;
+    renderPollingButton(enabled);
+  } catch (e) {
+    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Could not load polling status';
+    btn.style.background = 'rgba(239,68,68,0.2)';
+    btn.style.borderColor = 'var(--accent-red)';
+    btn.style.color = 'var(--accent-red)';
+  }
+}
+
+function renderPollingButton(enabled) {
+  const btn = document.getElementById('polling-toggle-btn');
+  const statusText = document.getElementById('polling-status-text');
+  if (!btn) return;
+
+  if (enabled) {
+    btn.innerHTML = '<i class="fas fa-satellite-dish"></i> 🟢 Live Polling is ON — Click to turn OFF';
+    btn.style.background = 'rgba(34,197,94,0.15)';
+    btn.style.borderColor = '#22c55e';
+    btn.style.color = '#22c55e';
+    btn.style.border = '2px solid #22c55e';
+    if (statusText) statusText.textContent = 'Dashboard will auto-fetch results from football-data.org every 5 minutes for all users.';
+  } else {
+    btn.innerHTML = '<i class="fas fa-satellite-dish"></i> 🔴 Live Polling is OFF — Click to turn ON';
+    btn.style.background = 'rgba(239,68,68,0.15)';
+    btn.style.borderColor = '#ef4444';
+    btn.style.color = '#ef4444';
+    btn.style.border = '2px solid #ef4444';
+    if (statusText) statusText.textContent = 'Polling is OFF — safe to run simulations. Turn ON when real tournament is live.';
+  }
+}
+
+async function togglePolling() {
+  const statusDiv = document.getElementById('polling-status');
+  const btn = document.getElementById('polling-toggle-btn');
+  if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+  try {
+    const response = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle_polling', admin_pin: ADMIN_PIN })
+    });
+    const data = await response.json();
+
+    if (response.ok) {
+      renderPollingButton(data.polling_enabled);
+      if (statusDiv) {
+        statusDiv.innerHTML = `<p style="color:${data.polling_enabled ? '#22c55e' : '#ef4444'};">
+          <i class="fas fa-check-circle"></i> Polling is now <strong>${data.polling_enabled ? 'ON' : 'OFF'}</strong>.
+          ${data.polling_enabled ? 'All users will receive live result updates every 5 minutes.' : 'No API calls will be made. Safe to test and simulate.'}
+        </p>`;
+      }
+    } else {
+      if (statusDiv) statusDiv.innerHTML = `<p style="color:var(--accent-red);">Error: ${data.error}</p>`;
+      loadPollingStatus(); // restore button state
+    }
+  } catch (e) {
+    if (statusDiv) statusDiv.innerHTML = `<p style="color:var(--accent-red);">Error: ${e.message}</p>`;
+    loadPollingStatus();
+  }
 }
