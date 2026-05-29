@@ -1654,21 +1654,11 @@ function renderCountdown() {
 
   const urgentColor = diff < 3600000 ? '#ef4444' : (isDeadline ? '#ffd700' : '#60a5fa');
 
-  card.innerHTML = `
-    <div class="countdown-card">
-      <div class="countdown-label" style="color:${urgentColor};">
-        ${isDeadline ? '⚠️ ' : '🕐 '}${label}
-      </div>
-      <div class="countdown-digits">
-        ${days > 0 ? `<div class="countdown-unit"><span class="countdown-num">${pad(days)}</span><span class="countdown-unit-label">DAYS</span></div><div class="countdown-sep">:</div>` : ''}
-        <div class="countdown-unit"><span class="countdown-num">${pad(hours)}</span><span class="countdown-unit-label">HRS</span></div>
-        <div class="countdown-sep">:</div>
-        <div class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span><span class="countdown-unit-label">MIN</span></div>
-        <div class="countdown-sep">:</div>
-        <div class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span><span class="countdown-unit-label">SEC</span></div>
-      </div>
-    </div>
-  `;
+  const daysHtml = days > 0
+    ? `<div class="countdown-unit"><span class="countdown-num">${pad(days)}</span><span class="countdown-unit-label">DAYS</span></div><div class="countdown-sep">:</div>`
+    : '';
+
+  card.innerHTML = `<div class="countdown-card"><div class="countdown-label" style="color:${urgentColor};">${isDeadline ? '⚠️ ' : '🕐 '}${label}</div><div class="countdown-digits">${daysHtml}<div class="countdown-unit"><span class="countdown-num">${pad(hours)}</span><span class="countdown-unit-label">HRS</span></div><div class="countdown-sep">:</div><div class="countdown-unit"><span class="countdown-num">${pad(minutes)}</span><span class="countdown-unit-label">MIN</span></div><div class="countdown-sep">:</div><div class="countdown-unit"><span class="countdown-num">${pad(seconds)}</span><span class="countdown-unit-label">SEC</span></div></div></div>`;
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);
