@@ -340,6 +340,8 @@ function displayKnockoutPickFlow() {
     `;
   }
   
+  const isScoreRound = currentRound.round_number >= 4;
+
   let html = `
     <div class="matchday-flow">
       <div class="matchday-header">
@@ -356,6 +358,25 @@ function displayKnockoutPickFlow() {
         Pick <strong>ONE</strong> team to win their match.
         <br><small>Each team can only be used once across the whole tournament.</small>
       </p>
+      ${isScoreRound ? `
+        <div style="background:rgba(255,215,0,0.1);border:1px solid var(--accent-gold);border-radius:0.6rem;padding:0.75rem 1rem;margin:0.5rem 0;text-align:center;">
+          <p style="font-size:0.85rem;color:var(--accent-gold);font-weight:600;margin-bottom:0.5rem;">
+            <i class="fas fa-star"></i> Score Prediction — Bonus 3 points for correct score!
+          </p>
+          <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.6rem;">Select your team first, then enter your predicted score below.</p>
+          <div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <div id="score-home-label" style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:2px;">Home</div>
+              <input type="number" id="score-home" min="0" max="20" value="1" style="width:60px;padding:0.4rem;text-align:center;font-size:1.2rem;font-weight:600;border-radius:0.4rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);">
+            </div>
+            <span style="font-size:1.5rem;font-weight:700;color:var(--text-secondary);">—</span>
+            <div style="text-align:center;">
+              <div id="score-away-label" style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:2px;">Away</div>
+              <input type="number" id="score-away" min="0" max="20" value="0" style="width:60px;padding:0.4rem;text-align:center;font-size:1.2rem;font-weight:600;border-radius:0.4rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);">
+            </div>
+          </div>
+        </div>
+      ` : ''}
       ${warningBanner}
       <p class="used-teams-note"><i class="fas fa-info-circle"></i> Teams greyed out were used in previous rounds</p>
       <div class="match-picker-list">
@@ -371,6 +392,9 @@ function displayKnockoutPickFlow() {
     
     const homeUsed = usedTeamIds.has(m.home_team_id);
     const awayUsed = usedTeamIds.has(m.away_team_id);
+
+    const homeClick = homeUsed ? '' : `onclick="submitKnockoutPick('${m.home_team_id}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}')"`;
+    const awayClick = awayUsed ? '' : `onclick="submitKnockoutPick('${m.away_team_id}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}')"`;
     
     html += `
       <div class="match-picker-card">
@@ -380,7 +404,7 @@ function displayKnockoutPickFlow() {
         </div>
         <div class="match-picker-teams">
           <div class="match-picker-team ${homeUsed ? 'picked' : ''}" 
-               ${homeUsed ? '' : `onclick="submitKnockoutPick('${m.home_team_id}')"`}
+               ${homeClick}
                style="cursor:${homeUsed ? 'not-allowed' : 'pointer'};">
             <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="match-picker-flag">
             <span class="match-picker-team-name">${homeTeam?.name || 'TBD'}</span>
@@ -388,7 +412,7 @@ function displayKnockoutPickFlow() {
           </div>
           <span class="match-picker-vs">VS</span>
           <div class="match-picker-team ${awayUsed ? 'picked' : ''}"
-               ${awayUsed ? '' : `onclick="submitKnockoutPick('${m.away_team_id}')"`}
+               ${awayClick}
                style="cursor:${awayUsed ? 'not-allowed' : 'pointer'};">
             <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="match-picker-flag">
             <span class="match-picker-team-name">${awayTeam?.name || 'TBD'}</span>
@@ -405,44 +429,77 @@ function displayKnockoutPickFlow() {
   `;
   
   container.innerHTML = html;
+
+  // Update score input labels to show team names when a match has only one game
+  if (isScoreRound && roundMatches.length === 1) {
+    const m = roundMatches[0];
+    const ht = allTeams.find(t => t.id === m.home_team_id);
+    const at = allTeams.find(t => t.id === m.away_team_id);
+    const hl = document.getElementById('score-home-label');
+    const al = document.getElementById('score-away-label');
+    if (hl && ht) hl.textContent = ht.name;
+    if (al && at) al.textContent = at.name;
+  }
 }
 
-async function submitKnockoutPick(teamId) {
+async function submitKnockoutPick(teamId, homeTeamName, awayTeamName) {
   const token = localStorage.getItem('wc_lms_token');
   const team = allTeams.find(t => t.id === teamId);
-  
+  const isScoreRound = currentRound && currentRound.round_number >= 4;
+
+  let predictedHomeScore = null;
+  let predictedAwayScore = null;
+
+  if (isScoreRound) {
+    const homeInput = document.getElementById('score-home');
+    const awayInput = document.getElementById('score-away');
+    if (!homeInput || !awayInput) {
+      alert('Please enter your score prediction first.');
+      return;
+    }
+    predictedHomeScore = parseInt(homeInput.value);
+    predictedAwayScore = parseInt(awayInput.value);
+    if (isNaN(predictedHomeScore) || isNaN(predictedAwayScore)) {
+      alert('Please enter valid scores (numbers only).');
+      return;
+    }
+  }
+
   try {
+    const body = {
+      team_id: teamId,
+      round_id: currentRound.id,
+      tournament_id: tournamentId
+    };
+    if (isScoreRound) {
+      body.predicted_home_score = predictedHomeScore;
+      body.predicted_away_score = predictedAwayScore;
+    }
+
     const response = await fetch('/api/picks', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ 
-        team_id: teamId,
-        round_id: currentRound.id,
-        tournament_id: tournamentId,
-        matchday: null  // Knockout rounds don't use matchdays
-      })
+      body: JSON.stringify(body)
     });
     
     if (response.ok) {
       const data = await response.json();
-      alert(`✓ Pick saved! You picked ${team?.name}`);
+      const scoreMsg = isScoreRound ? ` — Score prediction: ${predictedHomeScore}-${predictedAwayScore}` : '';
+      alert(`✓ Pick saved! You picked ${team?.name}${scoreMsg}`);
       
-      // Update local state instead of reloading everything
       if (data.pick) {
         roundPicks.push(data.pick);
         userPicks.push(data.pick);
       }
       
-      // Re-render all affected sections
       displayKnockoutPickFlow();
       displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
       
-      // Scroll back to Make Your Pick section
       setTimeout(() => {
         document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
@@ -816,10 +873,15 @@ function displayCurrentPicks(picks) {
       
       const result = koPick.result || 'pending';
       const points = koPick.points || 0;
+      const scoreBonus = koPick.score_bonus || 0;
       const borderClass = result === 'win' ? 'animated-border-win' : result === 'loss' ? 'animated-border-loss' : 'animated-border-pending';
-      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts` : result === 'loss' ? '❌ Lost' : '⏳ Awaiting result';
+      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts${scoreBonus > 0 ? ` (incl. +${scoreBonus} score bonus 🎯)` : ''}` : result === 'loss' ? '❌ Lost' : '⏳ Awaiting result';
       const resultColor = result === 'win' ? '#22c55e' : result === 'loss' ? '#ef4444' : '#ffd700';
       const roundName = koPick.rounds?.name || 'Knockout';
+      const isScoreRound = (koPick.rounds?.round_number || 0) >= 4;
+      const scorePrediction = isScoreRound && koPick.predicted_home_score !== null && koPick.predicted_away_score !== null
+        ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">Score prediction: ${koPick.predicted_home_score}–${koPick.predicted_away_score}${scoreBonus > 0 ? ' ✅ Correct!' : ''}</div>`
+        : '';
       
       html += `
         <h3 style="margin-bottom:0.5rem;">Your ${roundName} Pick</h3>
@@ -829,6 +891,7 @@ function displayCurrentPicks(picks) {
             <div style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">${team?.name || koPick.teams?.name}</div>
             <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.6rem;">${dateStr}</div>
             <div style="font-size:1rem;font-weight:700;color:${resultColor};letter-spacing:0.03em;">${resultLabel}</div>
+            ${scorePrediction}
           </div>
         </div>
       `;

@@ -95,12 +95,12 @@ module.exports = async (req, res) => {
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
-      const { team_id, round_id, tournament_id, matchday } = req.body || {};
+      const { team_id, round_id, tournament_id, matchday, predicted_home_score, predicted_away_score } = req.body || {};
 
       // Get round info first to determine if matchday is required
       const { data: round, error: roundError } = await supabase
         .from('rounds')
-        .select('picks_required, round_number')
+        .select('picks_required, round_number, name, picks_closed')
         .eq('id', round_id)
         .single();
 
@@ -198,9 +198,34 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'You have already used this team in a previous round. Each team can only be used once across the entire tournament.' });
       }
 
+      // QF, SF and Final (rounds 4,5,6) require a score prediction
+      const isScoreRound = round.round_number >= 4;
+      if (isScoreRound) {
+        if (predicted_home_score === undefined || predicted_home_score === null ||
+            predicted_away_score === undefined || predicted_away_score === null) {
+          return res.status(400).json({ error: 'Please enter a score prediction for this round.' });
+        }
+      }
+
+      const pickInsert = {
+        user_id: user.id,
+        team_id,
+        round_id,
+        tournament_id,
+        matchday: matchday || null,
+        result: 'pending',
+        points: 0,
+        score_bonus: 0
+      };
+
+      if (isScoreRound) {
+        pickInsert.predicted_home_score = parseInt(predicted_home_score);
+        pickInsert.predicted_away_score = parseInt(predicted_away_score);
+      }
+
       const { data, error } = await supabase
         .from('picks')
-        .insert({ user_id: user.id, team_id, round_id, tournament_id, matchday: matchday || null, result: 'pending', points: 0 })
+        .insert(pickInsert)
         .select();
 
       if (error) return res.status(500).json({ error: error.message });

@@ -1136,9 +1136,9 @@ async function downloadFullTournamentCSV() {
       // Knockout rounds
       'R32 Pick', 'R32 Result', 'R32 Pts', 'R32 Note',
       'R16 Pick', 'R16 Result', 'R16 Pts', 'R16 Note',
-      'QF Pick',  'QF Result',  'QF Pts',  'QF Note',
-      'SF Pick',  'SF Result',  'SF Pts',  'SF Note',
-      'Final Pick', 'Final Result', 'Final Pts', 'Final Note',
+      'QF Pick',  'QF Result',  'QF Pts', 'QF Score Prediction', 'QF Score Bonus',
+      'SF Pick',  'SF Result',  'SF Pts', 'SF Score Prediction', 'SF Score Bonus',
+      'Final Pick', 'Final Result', 'Final Pts', 'Final Score Prediction', 'Final Score Bonus',
       'Went Out Round'
     ];
 
@@ -1168,6 +1168,21 @@ async function downloadFullTournamentCSV() {
         ? [pick.teams?.name || '', pick.result || 'pending', pick.points || 0]
         : ['—', '—', 0];
 
+      // Helper for QF/SF/Final — includes score prediction and bonus
+      const scorePickCol = (pick) => {
+        if (!pick) return ['—', '—', 0, '—', 0];
+        const prediction = (pick.predicted_home_score !== null && pick.predicted_home_score !== undefined)
+          ? `${pick.predicted_home_score}-${pick.predicted_away_score}`
+          : '—';
+        return [
+          pick.teams?.name || '',
+          pick.result || 'pending',
+          pick.points || 0,
+          prediction,
+          pick.score_bonus || 0
+        ];
+      };
+
       // MD pick cols (3 picks per matchday, pad with blanks if fewer)
       const mdCols = (picks) => {
         const out = [];
@@ -1180,10 +1195,9 @@ async function downloadFullTournamentCSV() {
       // GS total
       const gsTotal = [...md1,...md2,...md3].reduce((s,p) => s + (p.points || 0), 0);
 
-      // Knockout note — if no pick, why?
+      // Knockout note for R32/R16
       const koNote = (pick, roundNum) => {
-        if (pick) return pick.result === 'loss' ? 'Lost — out of teams' : '';
-        // Check if round has started (has picks from other players)
+        if (pick) return '';
         const roundPicks = allPicks.filter(p => p.rounds?.round_number === roundNum);
         if (roundPicks.length === 0) return 'Round not yet played';
         return 'No eligible teams available';
@@ -1191,7 +1205,6 @@ async function downloadFullTournamentCSV() {
 
       // Work out which round they went out
       let wentOut = '';
-      const roundNames = {1:'Group Stage',2:'Round of 32',3:'Round of 16',4:'Quarter Finals',5:'Semi Finals',6:'Final'};
       if (fin && fin.result === 'loss') wentOut = 'Final';
       else if (sf && sf.result === 'loss') wentOut = 'Semi Finals';
       else if (qf && qf.result === 'loss') wentOut = 'Quarter Finals';
@@ -1216,9 +1229,9 @@ async function downloadFullTournamentCSV() {
         gsTotal,
         ...pickCol(r32), koNote(r32, 2),
         ...pickCol(r16), koNote(r16, 3),
-        ...pickCol(qf),  koNote(qf, 4),
-        ...pickCol(sf),  koNote(sf, 5),
-        ...pickCol(fin), koNote(fin, 6),
+        ...scorePickCol(qf),
+        ...scorePickCol(sf),
+        ...scorePickCol(fin),
         wentOut
       ];
 

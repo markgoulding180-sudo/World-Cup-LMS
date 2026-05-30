@@ -344,7 +344,7 @@ module.exports = async (req, res) => {
       const qualified = await get32QualifiedTeams();
       if (qualified.length < 2) return res.status(400).json({ error: 'Not enough qualified teams.' });
       const koMatches = [];
-      for (let i = 0; i < qualified.length - 1; i += 2) koMatches.push({ round_id: round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      for (let i = 0; i < qualified.length - 1; i += 2) koMatches.push({ round_id: round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + 172800000 + i * 3600000).toISOString(), status: 'upcoming' });
       const { error } = await supabase.from('matches').insert(koMatches);
       if (error) throw error;
       return res.status(200).json({ success: true, teamsQualified: qualified.length, matchesCreated: koMatches.length, message: `${qualified.length} teams qualified. Created ${koMatches.length} Round of 32 matches.` });
@@ -367,7 +367,7 @@ module.exports = async (req, res) => {
       if (!finished?.length) return res.status(400).json({ error: 'No finished matches. Run results first.' });
       const winners = finished.map(m => m.result === 'H' ? m.home_team_id : m.result === 'A' ? m.away_team_id : m.home_team_id);
       const newMatches = [];
-      for (let i = 0; i < winners.length - 1; i += 2) newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      for (let i = 0; i < winners.length - 1; i += 2) newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + 172800000 + i * 3600000).toISOString(), status: 'upcoming' });
       const { error } = await supabase.from('matches').insert(newMatches);
       if (error) throw error;
       return res.status(200).json({ success: true, matchesCreated: newMatches.length, nextRound: roundNames[next], message: `Created ${newMatches.length} ${roundNames[next]} matches.` });
@@ -577,7 +577,7 @@ module.exports = async (req, res) => {
         const { data: finished } = await supabase.from('matches').select('home_team_id, away_team_id, result').eq('round_id', fromRound.id).eq('status', 'finished');
         const winners = finished.map(m => m.result === 'H' ? m.home_team_id : m.away_team_id);
         const newMatches = [];
-        for (let i = 0; i < winners.length - 1; i += 2) newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+        for (let i = 0; i < winners.length - 1; i += 2) newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + 172800000 + i * 3600000).toISOString(), status: 'upcoming' });
         if (newMatches.length > 0) await supabase.from('matches').insert(newMatches);
       };
 
@@ -599,7 +599,7 @@ module.exports = async (req, res) => {
       summary.teamsQualifiedForR32 = qualified.length;
       const { data: r32round } = await supabase.from('rounds').select('id').eq('round_number', 2).single();
       const r32matches = [];
-      for (let i = 0; i < qualified.length - 1; i += 2) r32matches.push({ round_id: r32round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+      for (let i = 0; i < qualified.length - 1; i += 2) r32matches.push({ round_id: r32round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + 172800000 + i * 3600000).toISOString(), status: 'upcoming' });
       await supabase.from('matches').insert(r32matches);
 
       // KO ROUNDS
@@ -902,7 +902,7 @@ module.exports = async (req, res) => {
       const { data: r32round } = await supabase.from('rounds').select('id').eq('round_number', 2).single();
       const r32matches = [];
       for (let i = 0; i < qualified.length - 1; i += 2) {
-        r32matches.push({ round_id: r32round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+        r32matches.push({ round_id: r32round.id, home_team_id: qualified[i].id, away_team_id: qualified[i + 1].id, match_time: new Date(Date.now() + 172800000 + i * 3600000).toISOString(), status: 'upcoming' });
       }
       await supabase.from('matches').insert(r32matches);
       return res.status(200).json({ success: true, teamsQualified: qualified.length, matchesCreated: r32matches.length });
@@ -994,7 +994,7 @@ module.exports = async (req, res) => {
       const winners = finished.map(m => m.result === 'H' ? m.home_team_id : m.away_team_id);
       const newMatches = [];
       for (let i = 0; i < winners.length - 1; i += 2) {
-        newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + i * 3600000).toISOString(), status: 'upcoming' });
+        newMatches.push({ round_id: nextRound.id, home_team_id: winners[i], away_team_id: winners[i + 1], match_time: new Date(Date.now() + 172800000 + i * 3600000).toISOString(), status: 'upcoming' });
       }
       if (newMatches.length > 0) await supabase.from('matches').insert(newMatches);
       return res.status(200).json({ success: true, matchesCreated: newMatches.length });

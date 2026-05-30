@@ -64,20 +64,17 @@ module.exports = async (req, res) => {
     // Calculate stats
     const totalPlayers = entries?.length || 0;
     
-    // Calculate prize pool (£30 per player)
     const entryFee = 30;
     const prizePool = totalPlayers * entryFee;
 
-    // Find the highest round number that has picks (to determine current round)
     const allRoundNumbers = picks?.map(p => p.rounds?.round_number || 1) || [];
     const maxRound = Math.max(...allRoundNumbers, 1);
     
-    // Build leaderboard data - sorted by points already from DB query
     const leaderboard = entries?.map((entry, index) => {
       const userPicks = picks?.filter(p => p.user_id === entry.user_id) || [];
       const wins = userPicks.filter(p => p.result === 'win').length;
+      const totalScoreBonus = userPicks.reduce((s, p) => s + (p.score_bonus || 0), 0);
       
-      // Group picks by round
       const roundNames = { 1: 'GS', 2: 'L32', 3: 'L16', 4: 'QF', 5: 'SF', 6: 'F' };
       const picksByRound = {};
       const userRoundNumbers = new Set();
@@ -86,19 +83,19 @@ module.exports = async (req, res) => {
         const roundNum = p.rounds?.round_number || 1;
         userRoundNumbers.add(roundNum);
         const roundLabel = roundNames[roundNum] || 'GS';
-        if (!picksByRound[roundLabel]) {
-          picksByRound[roundLabel] = [];
-        }
+        if (!picksByRound[roundLabel]) picksByRound[roundLabel] = [];
         picksByRound[roundLabel].push({
           team: p.teams?.name,
           flag: p.teams?.flag_url,
           result: p.result,
-          points: p.points
+          points: p.points,
+          score_bonus: p.score_bonus || 0,
+          predicted_home_score: p.predicted_home_score,
+          predicted_away_score: p.predicted_away_score,
+          matchday: p.matchday
         });
       });
       
-      // Determine if player is eliminated (missed the most recent round)
-      // If maxRound > 1 and player has no pick in maxRound, they're out
       const hasPickInMaxRound = userRoundNumbers.has(maxRound);
       const isEliminated = maxRound > 1 && !hasPickInMaxRound;
       
@@ -108,17 +105,29 @@ module.exports = async (req, res) => {
         display_name: entry.users?.display_name || 'Unknown',
         status: isEliminated ? 'eliminated' : entry.status,
         total_points: entry.total_points || 0,
-        wins: wins,
+        wins,
+        total_score_bonus: totalScoreBonus,
         entered_at: entry.entered_at,
         current_pick: userPicks[0] ? {
           team: userPicks[0].teams?.name,
           flag: userPicks[0].teams?.flag_url,
           result: userPicks[0].result,
-          points: userPicks[0].points
+          points: userPicks[0].points,
+          score_bonus: userPicks[0].score_bonus || 0
         } : null,
         picks_by_round: picksByRound
       };
     });
+
+    // Sort: total_points → wins → total_score_bonus
+    leaderboard?.sort((a, b) => {
+      if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.total_score_bonus - a.total_score_bonus;
+    });
+
+    // Re-assign positions after sort
+    leaderboard?.forEach((p, i) => p.position = i + 1);
 
     // Get current round name
     const roundNames = { 1: 'Group Stage', 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };

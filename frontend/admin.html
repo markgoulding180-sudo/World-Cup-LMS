@@ -147,22 +147,7 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         SECTION 8 — PLAYER PICKS OVERVIEW
-         Human-readable view of all players and their picks
-    ════════════════════════════════════════════════════════ -->
-    <div class="admin-card">
-      <h2><i class="fas fa-users"></i> Player Picks Overview</h2>
-      <p>All players with their picks, team names and results — human readable.</p>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
-        <button class="btn btn-primary" onclick="loadPlayerOverview()"><i class="fas fa-sync"></i> Load / Refresh</button>
-        <button id="download-picks-btn" class="btn btn-secondary" onclick="downloadPicksCSV()"><i class="fas fa-download"></i> Download Summary CSV</button>
-        <button id="download-full-btn" class="btn btn-secondary" onclick="downloadFullTournamentCSV()" style="background:rgba(34,197,94,0.15);border:1px solid var(--accent-green);color:var(--accent-green);"><i class="fas fa-file-csv"></i> Download Full Tournament Data (CSV)</button>
-      </div>
-      <div id="player-overview">Click Load to view player data.</div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         SECTION 9 — ALL PICKS (raw view)
+         SECTION 8 — ALL PICKS (view)
     ════════════════════════════════════════════════════════ -->
     <div class="admin-card">
       <h2><i class="fas fa-list"></i> All Picks</h2>

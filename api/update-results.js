@@ -230,7 +230,7 @@ module.exports = async (req, res) => {
         // Update tournament entries with points and wins
         let winningPicksQuery = supabase
           .from('picks')
-          .select('user_id')
+          .select('id, user_id, predicted_home_score, predicted_away_score')
           .eq('team_id', winningTeamId)
           .eq('round_id', dbMatch.round_id)
           .eq('result', 'win');
@@ -245,12 +245,30 @@ module.exports = async (req, res) => {
         for (const pick of winningPicks || []) {
           picksProcessed++;
           
-          // Increment points and wins
+          let totalPointsForPick = pointsForWin;
+
+          // ── Score bonus for QF, SF, Final (rounds 4, 5, 6) ──
+          if (roundNumber >= 4 && 
+              pick.predicted_home_score !== null && 
+              pick.predicted_away_score !== null &&
+              parseInt(pick.predicted_home_score) === homeScore &&
+              parseInt(pick.predicted_away_score) === awayScore) {
+            
+            // Award 3 bonus points for correct score
+            await supabase
+              .from('picks')
+              .update({ score_bonus: 3, points: pointsForWin + 3 })
+              .eq('id', pick.id);
+
+            totalPointsForPick = pointsForWin + 3;
+          }
+
+          // Increment points in tournament entries
           await supabase.rpc('increment_points', { 
             user_id: pick.user_id, 
-            points: pointsForWin 
+            points: totalPointsForPick 
           });
-          pointsAwarded += pointsForWin;
+          pointsAwarded += totalPointsForPick;
         }
       }
 
