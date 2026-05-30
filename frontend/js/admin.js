@@ -922,3 +922,320 @@ async function togglePolling() {
     loadPollingStatus();
   }
 }
+
+// ─── DATA EXPORT ─────────────────────────────────────────────────────────────
+
+async function downloadPicksCSV() {
+  const btn = document.getElementById('download-picks-btn');
+  if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; btn.disabled = true; }
+
+  try {
+    // Fetch all picks with user and team data
+    const [picksRes, leaderboardRes] = await Promise.all([
+      fetch('/api/picks?admin=true'),
+      fetch('/api/leaderboard')
+    ]);
+
+    const picksData = await picksRes.json();
+    const lbData = await leaderboardRes.json();
+
+    const picks = picksData.picks || [];
+    const leaderboard = lbData.leaderboard || [];
+
+    // ── Sheet 1: All Picks ──
+    let csvPicks = 'Player,Round,Matchday,Team,Result,Points,Submitted\n';
+    picks.forEach(p => {
+      const name = `"${p.users?.display_name || p.users?.username || 'Unknown'}"`;
+      const round = `"${p.rounds?.name || ''}"`;
+      const md = p.matchday || '-';
+      const team = `"${p.teams?.name || ''}"`;
+      const result = p.result || 'pending';
+      const points = p.points || 0;
+      const date = new Date(p.created_at).toLocaleDateString('en-GB');
+      csvPicks += `${name},${round},${md},${team},${result},${points},${date}\n`;
+    });
+
+    // ── Sheet 2: Leaderboard Summary ──
+    let csvLB = 'Position,Player,Total Points,Wins,Status\n';
+    leaderboard.forEach(p => {
+      csvLB += `${p.position},"${p.display_name || p.username}",${p.total_points},${p.wins},${p.status}\n`;
+    });
+
+    // ── Sheet 3: Per-user round summary ──
+    let csvSummary = 'Player,GS Points,R32 Points,R16 Points,QF Points,SF Points,Final Points,Total\n';
+    leaderboard.forEach(p => {
+      const gs  = (p.picks_by_round?.GS  || []).reduce((s, pk) => s + (pk.points || 0), 0);
+      const l32 = (p.picks_by_round?.L32 || []).reduce((s, pk) => s + (pk.points || 0), 0);
+      const l16 = (p.picks_by_round?.L16 || []).reduce((s, pk) => s + (pk.points || 0), 0);
+      const qf  = (p.picks_by_round?.QF  || []).reduce((s, pk) => s + (pk.points || 0), 0);
+      const sf  = (p.picks_by_round?.SF  || []).reduce((s, pk) => s + (pk.points || 0), 0);
+      const f   = (p.picks_by_round?.F   || []).reduce((s, pk) => s + (pk.points || 0), 0);
+      csvSummary += `"${p.display_name || p.username}",${gs},${l32},${l16},${qf},${sf},${f},${p.total_points}\n`;
+    });
+
+    // Download all 3 as separate files
+    const now = new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
+    downloadCSV(csvPicks,    `wc-all-picks-${now}.csv`);
+    setTimeout(() => downloadCSV(csvLB,      `wc-leaderboard-${now}.csv`), 300);
+    setTimeout(() => downloadCSV(csvSummary, `wc-round-summary-${now}.csv`), 600);
+
+  } catch (e) {
+    alert('Error generating CSV: ' + e.message);
+  } finally {
+    if (btn) { btn.innerHTML = '<i class="fas fa-download"></i> Download All Data (CSV)'; btn.disabled = false; }
+  }
+}
+
+function downloadCSV(content, filename) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── PLAYER PICKS OVERVIEW ───────────────────────────────────────────────────
+
+async function loadPlayerOverview() {
+  const container = document.getElementById('player-overview');
+  container.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+
+  try {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    const players = data.leaderboard || [];
+
+    if (players.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-secondary);">No players yet.</p>';
+      return;
+    }
+
+    const roundOrder = ['GS', 'L32', 'L16', 'QF', 'SF', 'F'];
+    const roundLabels = { GS: 'Group Stage', L32: 'Round of 32', L16: 'Round of 16', QF: 'Quarter Finals', SF: 'Semi Finals', F: 'Final' };
+
+    let html = `<div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+        <thead>
+          <tr style="background:var(--bg-secondary);border-bottom:2px solid var(--border-color);">
+            <th style="padding:0.5rem 0.75rem;text-align:left;">#</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">Player</th>
+            <th style="padding:0.5rem 0.75rem;text-align:center;">Pts</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">Group Stage (MD1 / MD2 / MD3)</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">R32</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">R16</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">QF</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">SF</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left;">Final</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+    players.forEach(p => {
+      const gs = p.picks_by_round?.GS || [];
+      
+      // Group GS picks by matchday
+      const md1 = gs.filter(pk => pk.matchday === 1);
+      const md2 = gs.filter(pk => pk.matchday === 2);
+      const md3 = gs.filter(pk => pk.matchday === 3);
+
+      // If matchday not available fall back to order
+      const gsByMd = gs.length > 0 && gs[0].matchday 
+        ? [md1, md2, md3]
+        : [gs.slice(0,3), gs.slice(3,6), gs.slice(6,9)];
+
+      function pickCell(picks) {
+        if (!picks || picks.length === 0) return '<span style="color:var(--text-secondary);font-size:0.75rem;">—</span>';
+        return picks.map(pk => {
+          const col = pk.result === 'win' ? '#22c55e' : pk.result === 'loss' ? '#ef4444' : '#8b92b9';
+          const icon = pk.result === 'win' ? '✓' : pk.result === 'loss' ? '✗' : '?';
+          return `<span style="color:${col};white-space:nowrap;">${icon} ${pk.team || ''}${pk.points > 0 ? ` +${pk.points}` : ''}</span>`;
+        }).join('<br>');
+      }
+
+      function koCell(roundKey) {
+        const picks = p.picks_by_round?.[roundKey] || [];
+        return pickCell(picks);
+      }
+
+      const gsCell = `<td style="padding:0.4rem 0.75rem;border-bottom:1px solid var(--border-color);vertical-align:top;">
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <div><div style="font-size:0.65rem;color:var(--accent-gold);margin-bottom:2px;">MD1</div>${pickCell(gsByMd[0])}</div>
+          <div><div style="font-size:0.65rem;color:var(--accent-gold);margin-bottom:2px;">MD2</div>${pickCell(gsByMd[1])}</div>
+          <div><div style="font-size:0.65rem;color:var(--accent-gold);margin-bottom:2px;">MD3</div>${pickCell(gsByMd[2])}</div>
+        </div>
+      </td>`;
+
+      const statusCol = p.status === 'eliminated' ? '#ef4444' : '#22c55e';
+
+      html += `<tr style="border-bottom:1px solid var(--border-color);">
+        <td style="padding:0.4rem 0.75rem;color:var(--text-secondary);">${p.position}</td>
+        <td style="padding:0.4rem 0.75rem;font-weight:600;">
+          ${p.display_name || p.username}
+          <span style="font-size:0.65rem;color:${statusCol};margin-left:4px;">${p.status}</span>
+        </td>
+        <td style="padding:0.4rem 0.75rem;text-align:center;font-weight:700;color:var(--accent-gold);">${p.total_points}</td>
+        ${gsCell}
+        <td style="padding:0.4rem 0.75rem;border-bottom:1px solid var(--border-color);vertical-align:top;">${koCell('L32')}</td>
+        <td style="padding:0.4rem 0.75rem;border-bottom:1px solid var(--border-color);vertical-align:top;">${koCell('L16')}</td>
+        <td style="padding:0.4rem 0.75rem;border-bottom:1px solid var(--border-color);vertical-align:top;">${koCell('QF')}</td>
+        <td style="padding:0.4rem 0.75rem;border-bottom:1px solid var(--border-color);vertical-align:top;">${koCell('SF')}</td>
+        <td style="padding:0.4rem 0.75rem;border-bottom:1px solid var(--border-color);vertical-align:top;">${koCell('F')}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--accent-red);">Error: ${e.message}</p>`;
+  }
+}
+
+// ─── FULL TOURNAMENT DATA EXPORT ─────────────────────────────────────────────
+
+async function downloadFullTournamentCSV() {
+  const btn = document.getElementById('download-full-btn');
+  if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; btn.disabled = true; }
+
+  try {
+    const [picksRes, lbRes, entriesRes] = await Promise.all([
+      fetch('/api/picks?admin=true'),
+      fetch('/api/leaderboard'),
+      fetch('/api/entries?admin=true')
+    ]);
+
+    const picksData = await picksRes.json();
+    const lbData = await lbRes.json();
+
+    const allPicks = picksData.picks || [];
+    const players = lbData.leaderboard || [];
+
+    // Build headers
+    const headers = [
+      'Player Name',
+      'Entry Date',
+      'Status',
+      'Total Points',
+      // Group Stage MD1
+      'GS MD1 Pick 1', 'GS MD1 P1 Result', 'GS MD1 P1 Pts',
+      'GS MD1 Pick 2', 'GS MD1 P2 Result', 'GS MD1 P2 Pts',
+      'GS MD1 Pick 3', 'GS MD1 P3 Result', 'GS MD1 P3 Pts',
+      // Group Stage MD2
+      'GS MD2 Pick 1', 'GS MD2 P1 Result', 'GS MD2 P1 Pts',
+      'GS MD2 Pick 2', 'GS MD2 P2 Result', 'GS MD2 P2 Pts',
+      'GS MD2 Pick 3', 'GS MD2 P3 Result', 'GS MD2 P3 Pts',
+      // Group Stage MD3
+      'GS MD3 Pick 1', 'GS MD3 P1 Result', 'GS MD3 P1 Pts',
+      'GS MD3 Pick 2', 'GS MD3 P2 Result', 'GS MD3 P2 Pts',
+      'GS MD3 Pick 3', 'GS MD3 P3 Result', 'GS MD3 P3 Pts',
+      'GS Total Points',
+      // Knockout rounds
+      'R32 Pick', 'R32 Result', 'R32 Pts', 'R32 Note',
+      'R16 Pick', 'R16 Result', 'R16 Pts', 'R16 Note',
+      'QF Pick',  'QF Result',  'QF Pts',  'QF Note',
+      'SF Pick',  'SF Result',  'SF Pts',  'SF Note',
+      'Final Pick', 'Final Result', 'Final Pts', 'Final Note',
+      'Went Out Round'
+    ];
+
+    const rows = [headers];
+
+    players.forEach(player => {
+      // Get all picks for this player from allPicks (has matchday data)
+      const playerPicks = allPicks.filter(p =>
+        (p.users?.display_name || p.users?.username) === (player.display_name || player.username)
+      );
+
+      // Group stage picks by matchday
+      const gsPicks = playerPicks.filter(p => p.rounds?.round_number === 1);
+      const md1 = gsPicks.filter(p => p.matchday === 1).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+      const md2 = gsPicks.filter(p => p.matchday === 2).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+      const md3 = gsPicks.filter(p => p.matchday === 3).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+      // Knockout picks
+      const r32 = playerPicks.find(p => p.rounds?.round_number === 2);
+      const r16 = playerPicks.find(p => p.rounds?.round_number === 3);
+      const qf  = playerPicks.find(p => p.rounds?.round_number === 4);
+      const sf  = playerPicks.find(p => p.rounds?.round_number === 5);
+      const fin = playerPicks.find(p => p.rounds?.round_number === 6);
+
+      // Helper to get pick fields
+      const pickCol = (pick) => pick
+        ? [pick.teams?.name || '', pick.result || 'pending', pick.points || 0]
+        : ['—', '—', 0];
+
+      // MD pick cols (3 picks per matchday, pad with blanks if fewer)
+      const mdCols = (picks) => {
+        const out = [];
+        for (let i = 0; i < 3; i++) {
+          out.push(...pickCol(picks[i]));
+        }
+        return out;
+      };
+
+      // GS total
+      const gsTotal = [...md1,...md2,...md3].reduce((s,p) => s + (p.points || 0), 0);
+
+      // Knockout note — if no pick, why?
+      const koNote = (pick, roundNum) => {
+        if (pick) return pick.result === 'loss' ? 'Lost — out of teams' : '';
+        // Check if round has started (has picks from other players)
+        const roundPicks = allPicks.filter(p => p.rounds?.round_number === roundNum);
+        if (roundPicks.length === 0) return 'Round not yet played';
+        return 'No eligible teams available';
+      };
+
+      // Work out which round they went out
+      let wentOut = '';
+      const roundNames = {1:'Group Stage',2:'Round of 32',3:'Round of 16',4:'Quarter Finals',5:'Semi Finals',6:'Final'};
+      if (fin && fin.result === 'loss') wentOut = 'Final';
+      else if (sf && sf.result === 'loss') wentOut = 'Semi Finals';
+      else if (qf && qf.result === 'loss') wentOut = 'Quarter Finals';
+      else if (r16 && r16.result === 'loss') wentOut = 'Round of 16';
+      else if (r32 && r32.result === 'loss') wentOut = 'Round of 32';
+      else if (!r32 && allPicks.some(p => p.rounds?.round_number === 2)) wentOut = 'No R32 pick — out';
+      else if (player.status === 'eliminated') wentOut = 'Eliminated';
+      else wentOut = 'Still active';
+
+      const entryDate = player.entered_at
+        ? new Date(player.entered_at).toLocaleDateString('en-GB')
+        : '—';
+
+      const row = [
+        player.display_name || player.username,
+        entryDate,
+        player.status || 'active',
+        player.total_points || 0,
+        ...mdCols(md1),
+        ...mdCols(md2),
+        ...mdCols(md3),
+        gsTotal,
+        ...pickCol(r32), koNote(r32, 2),
+        ...pickCol(r16), koNote(r16, 3),
+        ...pickCol(qf),  koNote(qf, 4),
+        ...pickCol(sf),  koNote(sf, 5),
+        ...pickCol(fin), koNote(fin, 6),
+        wentOut
+      ];
+
+      // Wrap any field with commas in quotes
+      rows.push(row.map(v => {
+        const s = String(v);
+        return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s;
+      }));
+    });
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const now = new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
+    downloadCSV(csv, `wc-full-tournament-data-${now}.csv`);
+
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    if (btn) { btn.innerHTML = '<i class="fas fa-download"></i> Download Full Tournament Data (CSV)'; btn.disabled = false; }
+  }
+}
