@@ -587,40 +587,6 @@ async function submitKnockoutPick(teamId, homeTeamName, awayTeamName, predictedH
     alert('Error submitting pick: ' + error.message);
   }
 }
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const scoreMsg = isScoreRound ? ` — Score prediction: ${predictedHomeScore}-${predictedAwayScore}` : '';
-      alert(`✓ Pick saved! You picked ${team?.name}${scoreMsg}`);
-      
-      if (data.pick) {
-        roundPicks.push(data.pick);
-        userPicks.push(data.pick);
-      }
-      
-      displayKnockoutPickFlow();
-      displayCurrentPicks(roundPicks);
-      displayTournamentHistory();
-      displayEligibleTeams();
-      
-      setTimeout(() => {
-        document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    } else {
-      const error = await response.json();
-      alert('Error: ' + (error.error || 'Failed to submit pick'));
-    }
-  } catch (error) {
-    alert('Error submitting pick: ' + error.message);
-  }
-}
 
 function displayMatchdayPickFlow() {
   const container = document.getElementById('available-teams');
