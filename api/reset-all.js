@@ -392,7 +392,25 @@ module.exports = async (req, res) => {
       for (const entry of entries) {
         const used = userPicksMap[entry.user_id] || new Set();
         const avail = available.filter(x => !used.has(x));
-        if (avail.length > 0) picks.push({ tournament_id: t.id, user_id: entry.user_id, round_id: round.id, team_id: avail[Math.floor(Math.random() * avail.length)], matchday: null, result: 'pending', points: 0 });
+        if (avail.length > 0) {
+          const pick = { 
+            tournament_id: t.id, 
+            user_id: entry.user_id, 
+            round_id: round.id, 
+            team_id: avail[Math.floor(Math.random() * avail.length)], 
+            matchday: null, 
+            result: 'pending', 
+            points: 0,
+            score_bonus: 0
+          };
+          // QF, SF, Final (rounds 4,5,6) get random score predictions
+          if (round_number >= 4) {
+            pick.predicted_home_score = Math.floor(Math.random() * 4);
+            pick.predicted_away_score = Math.floor(Math.random() * 3);
+            if (pick.predicted_home_score === pick.predicted_away_score) pick.predicted_home_score++;
+          }
+          picks.push(pick);
+        }
       }
       let picksMade = 0;
       for (let i = 0; i < picks.length; i += 100) { const { error } = await supabase.from('picks').insert(picks.slice(i, i + 100)); if (!error) picksMade += Math.min(100, picks.length - i); }
@@ -419,10 +437,20 @@ module.exports = async (req, res) => {
         await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
         await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
         // Update entry points and wins
-        const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+        const { data: winningPicks } = await supabase.from('picks').select('user_id, predicted_home_score, predicted_away_score').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
         for (const pick of winningPicks || []) {
-          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
-          pointsAwarded += pointsForRound;
+          let pts = pointsForRound;
+          // Score bonus for QF/SF/Final
+          if (round_number >= 4 &&
+              pick.predicted_home_score !== null &&
+              pick.predicted_home_score !== undefined &&
+              parseInt(pick.predicted_home_score) === hs &&
+              parseInt(pick.predicted_away_score) === as) {
+            pts += 3;
+            await supabase.from('picks').update({ score_bonus: 3, points: pts }).eq('user_id', pick.user_id).eq('round_id', round.id).eq('result', 'win');
+          }
+          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pts });
+          pointsAwarded += pts;
         }
         matchesUpdated++;
       }
@@ -938,7 +966,22 @@ module.exports = async (req, res) => {
         const a = avail.filter(t => !used.has(t));
         if (a.length > 0) {
           couldPick++;
-          picks.push({ tournament_id: tournament.id, user_id: entry.user_id, round_id: round.id, team_id: a[Math.floor(Math.random() * a.length)], matchday: null, result: 'pending' });
+          const pick = { 
+            tournament_id: tournament.id, 
+            user_id: entry.user_id, 
+            round_id: round.id, 
+            team_id: a[Math.floor(Math.random() * a.length)], 
+            matchday: null, 
+            result: 'pending',
+            score_bonus: 0
+          };
+          // Add random score prediction for QF/SF/Final
+          if (round_number >= 4) {
+            pick.predicted_home_score = Math.floor(Math.random() * 4);
+            pick.predicted_away_score = Math.floor(Math.random() * 3);
+            if (pick.predicted_home_score === pick.predicted_away_score) pick.predicted_home_score++;
+          }
+          picks.push(pick);
         } else {
           couldNotPick++;
         }
@@ -959,10 +1002,19 @@ module.exports = async (req, res) => {
         // Award points for winning picks
         await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
         await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
-        // Also update tournament_entries.total_points via RPC (like manual sim)
-        const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+        // Update tournament_entries.total_points and check score bonus
+        const { data: winningPicks } = await supabase.from('picks').select('user_id, predicted_home_score, predicted_away_score').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
         for (const pick of winningPicks || []) {
-          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pointsForRound });
+          let pts = pointsForRound;
+          if (round_number >= 4 &&
+              pick.predicted_home_score !== null &&
+              pick.predicted_home_score !== undefined &&
+              parseInt(pick.predicted_home_score) === hs &&
+              parseInt(pick.predicted_away_score) === as) {
+            pts += 3;
+            await supabase.from('picks').update({ score_bonus: 3, points: pts }).eq('user_id', pick.user_id).eq('round_id', round.id).eq('result', 'win');
+          }
+          await supabase.rpc('increment_points', { user_id: pick.user_id, points: pts });
         }
       }
       
