@@ -360,42 +360,40 @@ function displayKnockoutPickFlow() {
       </p>
       ${isScoreRound ? `
         <div style="background:rgba(255,215,0,0.1);border:1px solid var(--accent-gold);border-radius:0.6rem;padding:0.75rem 1rem;margin:0.5rem 0;text-align:center;">
-          <p style="font-size:0.85rem;color:var(--accent-gold);font-weight:600;margin-bottom:0.5rem;">
+          <p style="font-size:0.85rem;color:var(--accent-gold);font-weight:600;margin-bottom:0.25rem;">
             <i class="fas fa-star"></i> Score Prediction — Bonus 3 points for correct score!
           </p>
-          <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.6rem;">Select your team first, then enter your predicted score below.</p>
-          <div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;">
-            <div style="text-align:center;">
-              <div id="score-home-label" style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:2px;">Home</div>
-              <input type="number" id="score-home" min="0" max="20" value="1" style="width:60px;padding:0.4rem;text-align:center;font-size:1.2rem;font-weight:600;border-radius:0.4rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);">
-            </div>
-            <span style="font-size:1.5rem;font-weight:700;color:var(--text-secondary);">—</span>
-            <div style="text-align:center;">
-              <div id="score-away-label" style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:2px;">Away</div>
-              <input type="number" id="score-away" min="0" max="20" value="0" style="width:60px;padding:0.4rem;text-align:center;font-size:1.2rem;font-weight:600;border-radius:0.4rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);">
-            </div>
-          </div>
+          <p style="font-size:0.78rem;color:var(--text-secondary);">
+            Step 1: Click a team to select it. Step 2: Enter your predicted score and confirm.
+          </p>
         </div>
       ` : ''}
       ${warningBanner}
       <p class="used-teams-note"><i class="fas fa-info-circle"></i> Teams greyed out were used in previous rounds</p>
       <div class="match-picker-list">
   `;
-  
+
   roundMatches.forEach(m => {
     const matchDate = new Date(m.match_time);
     const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    
+
     const homeTeam = allTeams.find(t => t.id === m.home_team_id);
     const awayTeam = allTeams.find(t => t.id === m.away_team_id);
-    
+
     const homeUsed = usedTeamIds.has(m.home_team_id);
     const awayUsed = usedTeamIds.has(m.away_team_id);
 
-    const homeClick = homeUsed ? '' : `onclick="submitKnockoutPick('${m.home_team_id}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}')"`;
-    const awayClick = awayUsed ? '' : `onclick="submitKnockoutPick('${m.away_team_id}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}')"`;
-    
+    // For score rounds, clicking selects the team and shows confirm panel
+    // For regular rounds, clicking submits immediately
+    const homeClick = homeUsed ? '' : isScoreRound
+      ? `onclick="selectTeamForScore('${m.home_team_id}', '${homeTeam?.name || ''}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}', '${m.home_team_id}', '${m.away_team_id}')"`
+      : `onclick="submitKnockoutPick('${m.home_team_id}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}')"`;
+
+    const awayClick = awayUsed ? '' : isScoreRound
+      ? `onclick="selectTeamForScore('${m.away_team_id}', '${awayTeam?.name || ''}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}', '${m.home_team_id}', '${m.away_team_id}')"`
+      : `onclick="submitKnockoutPick('${m.away_team_id}', '${homeTeam?.name || ''}', '${awayTeam?.name || ''}')"`;
+
     html += `
       <div class="match-picker-card">
         <div class="match-picker-header">
@@ -403,7 +401,8 @@ function displayKnockoutPickFlow() {
           <span class="match-picker-group">${currentRound.name}</span>
         </div>
         <div class="match-picker-teams">
-          <div class="match-picker-team ${homeUsed ? 'picked' : ''}" 
+          <div class="match-picker-team ${homeUsed ? 'picked' : ''}"
+               id="team-card-${m.home_team_id}"
                ${homeClick}
                style="cursor:${homeUsed ? 'not-allowed' : 'pointer'};">
             <img src="${homeTeam?.flag_url || ''}" alt="${homeTeam?.name}" class="match-picker-flag">
@@ -412,6 +411,7 @@ function displayKnockoutPickFlow() {
           </div>
           <span class="match-picker-vs">VS</span>
           <div class="match-picker-team ${awayUsed ? 'picked' : ''}"
+               id="team-card-${m.away_team_id}"
                ${awayClick}
                style="cursor:${awayUsed ? 'not-allowed' : 'pointer'};">
             <img src="${awayTeam?.flag_url || ''}" alt="${awayTeam?.name}" class="match-picker-flag">
@@ -422,47 +422,118 @@ function displayKnockoutPickFlow() {
       </div>
     `;
   });
-  
+
   html += `
       </div>
+      ${isScoreRound ? `
+        <div id="score-confirm-panel" style="display:none;margin-top:1rem;background:var(--bg-secondary);border:2px solid var(--accent-gold);border-radius:0.75rem;padding:1rem;text-align:center;">
+          <div style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem;">
+            You selected: <span id="selected-team-name" style="color:var(--accent-gold);"></span>
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.75rem;">Enter your predicted final score (your team's score on the left):</p>
+          <div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:1rem;">
+            <div style="text-align:center;">
+              <div id="score-picked-label" style="font-size:0.7rem;color:var(--accent-gold);margin-bottom:2px;font-weight:600;">Your team</div>
+              <input type="number" id="score-picked-team" min="0" max="20" value="1"
+                style="width:64px;padding:0.5rem;text-align:center;font-size:1.4rem;font-weight:700;border-radius:0.4rem;border:2px solid var(--accent-gold);background:var(--bg-secondary);color:var(--text-primary);">
+            </div>
+            <span style="font-size:1.8rem;font-weight:700;color:var(--text-secondary);">—</span>
+            <div style="text-align:center;">
+              <div id="score-other-label" style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:2px;">Opponent</div>
+              <input type="number" id="score-other-team" min="0" max="20" value="0"
+                style="width:64px;padding:0.5rem;text-align:center;font-size:1.4rem;font-weight:700;border-radius:0.4rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);">
+            </div>
+          </div>
+          <div style="display:flex;gap:0.5rem;justify-content:center;">
+            <button onclick="confirmScorePick()" style="background:var(--accent-green);color:#fff;border:none;padding:0.6rem 1.5rem;border-radius:0.5rem;font-size:0.9rem;font-weight:600;cursor:pointer;">
+              <i class="fas fa-check"></i> Confirm Pick & Score
+            </button>
+            <button onclick="cancelScorePick()" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border-color);padding:0.6rem 1rem;border-radius:0.5rem;font-size:0.9rem;cursor:pointer;">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ` : ''}
     </div>
   `;
-  
-  container.innerHTML = html;
 
-  // Update score input labels to show team names when a match has only one game
-  if (isScoreRound && roundMatches.length === 1) {
-    const m = roundMatches[0];
-    const ht = allTeams.find(t => t.id === m.home_team_id);
-    const at = allTeams.find(t => t.id === m.away_team_id);
-    const hl = document.getElementById('score-home-label');
-    const al = document.getElementById('score-away-label');
-    if (hl && ht) hl.textContent = ht.name;
-    if (al && at) al.textContent = at.name;
+  container.innerHTML = html;
+}
+
+// Score round state
+let _scorePickTeamId = null;
+let _scorePickHomeTeamId = null;
+let _scorePickAwayTeamId = null;
+let _scorePickIsHome = false;
+
+function selectTeamForScore(teamId, teamName, homeTeamName, awayTeamName, homeTeamId, awayTeamId) {
+  _scorePickTeamId = teamId;
+  _scorePickHomeTeamId = homeTeamId;
+  _scorePickAwayTeamId = awayTeamId;
+  _scorePickIsHome = (teamId === homeTeamId);
+
+  // Highlight selected team card
+  document.querySelectorAll('.match-picker-team').forEach(el => {
+    el.style.borderColor = '';
+    el.style.background = '';
+  });
+  const selectedCard = document.getElementById(`team-card-${teamId}`);
+  if (selectedCard) {
+    selectedCard.style.borderColor = 'var(--accent-gold)';
+    selectedCard.style.background = 'rgba(255,215,0,0.12)';
+  }
+
+  // Show confirm panel
+  const panel = document.getElementById('score-confirm-panel');
+  if (panel) {
+    panel.style.display = 'block';
+    const nameEl = document.getElementById('selected-team-name');
+    const pickedLabel = document.getElementById('score-picked-label');
+    const otherLabel = document.getElementById('score-other-label');
+    if (nameEl) nameEl.textContent = teamName;
+    if (pickedLabel) pickedLabel.textContent = teamName;
+    if (otherLabel) otherLabel.textContent = _scorePickIsHome ? awayTeamName : homeTeamName;
+    // Scroll to panel
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   }
 }
 
-async function submitKnockoutPick(teamId, homeTeamName, awayTeamName) {
+function cancelScorePick() {
+  _scorePickTeamId = null;
+  document.querySelectorAll('.match-picker-team').forEach(el => {
+    el.style.borderColor = '';
+    el.style.background = '';
+  });
+  const panel = document.getElementById('score-confirm-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function confirmScorePick() {
+  if (!_scorePickTeamId) return;
+
+  const pickedScore = parseInt(document.getElementById('score-picked-team')?.value);
+  const otherScore = parseInt(document.getElementById('score-other-team')?.value);
+
+  if (isNaN(pickedScore) || isNaN(otherScore)) {
+    alert('Please enter valid scores.');
+    return;
+  }
+
+  // Convert to home/away scores based on which team user picked
+  const predictedHomeScore = _scorePickIsHome ? pickedScore : otherScore;
+  const predictedAwayScore = _scorePickIsHome ? otherScore : pickedScore;
+
+  await submitKnockoutPick(_scorePickTeamId, null, null, predictedHomeScore, predictedAwayScore);
+}
+
+async function submitKnockoutPick(teamId, homeTeamName, awayTeamName, predictedHomeScore, predictedAwayScore) {
   const token = localStorage.getItem('wc_lms_token');
   const team = allTeams.find(t => t.id === teamId);
   const isScoreRound = currentRound && currentRound.round_number >= 4;
 
-  let predictedHomeScore = null;
-  let predictedAwayScore = null;
-
-  if (isScoreRound) {
-    const homeInput = document.getElementById('score-home');
-    const awayInput = document.getElementById('score-away');
-    if (!homeInput || !awayInput) {
-      alert('Please enter your score prediction first.');
-      return;
-    }
-    predictedHomeScore = parseInt(homeInput.value);
-    predictedAwayScore = parseInt(awayInput.value);
-    if (isNaN(predictedHomeScore) || isNaN(predictedAwayScore)) {
-      alert('Please enter valid scores (numbers only).');
-      return;
-    }
+  if (isScoreRound && (predictedHomeScore === undefined || predictedHomeScore === null)) {
+    alert('Please select your team and enter a score prediction first.');
+    return;
   }
 
   try {
@@ -471,12 +542,51 @@ async function submitKnockoutPick(teamId, homeTeamName, awayTeamName) {
       round_id: currentRound.id,
       tournament_id: tournamentId
     };
+
     if (isScoreRound) {
       body.predicted_home_score = predictedHomeScore;
       body.predicted_away_score = predictedAwayScore;
     }
 
     const response = await fetch('/api/picks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const scoreMsg = isScoreRound
+        ? ` with score prediction ${predictedHomeScore}-${predictedAwayScore}`
+        : '';
+      alert(`✓ Pick saved! You picked ${team?.name}${scoreMsg}`);
+
+      if (data.pick) {
+        roundPicks.push(data.pick);
+        userPicks.push(data.pick);
+      }
+
+      _scorePickTeamId = null;
+
+      displayKnockoutPickFlow();
+      displayCurrentPicks(roundPicks);
+      displayTournamentHistory();
+      displayEligibleTeams();
+
+      setTimeout(() => {
+        document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    } else {
+      const error = await response.json();
+      alert('Error: ' + (error.error || 'Failed to submit pick'));
+    }
+  } catch (error) {
+    alert('Error submitting pick: ' + error.message);
+  }
+}
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1075,13 +1185,20 @@ function displayTournamentHistory() {
           <!-- Pick cards - stacked on mobile, inline on desktop -->
           ${hasPicks ? `
             <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
-              ${roundPicks.map(pick => `
-                <div style="display:flex;align-items:center;gap:0.4rem;background:rgba(255,255,255,0.06);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.3rem 0.6rem;flex:1;min-width:140px;max-width:100%;box-sizing:border-box;">
+              ${roundPicks.map(pick => {
+                const isScoreRound = round.round_number >= 4;
+                const hasScore = isScoreRound && pick.predicted_home_score !== null && pick.predicted_home_score !== undefined;
+                const scoreBonus = pick.score_bonus || 0;
+                const scoreText = hasScore ? `<span style="font-size:0.68rem;color:#8b92b9;margin-left:2px;">${pick.predicted_home_score}–${pick.predicted_away_score}${scoreBonus > 0 ? ' 🎯' : ''}</span>` : '';
+                const bonusText = scoreBonus > 0 ? `<span style="font-size:0.68rem;color:#ffd700;flex-shrink:0;">+${scoreBonus}🎯</span>` : '';
+                return `
+                <div style="display:flex;align-items:center;gap:0.4rem;background:rgba(255,255,255,0.06);border:1px solid #2a3066;border-left:3px solid ${resultBorderColor(pick.result)};border-radius:7px;padding:0.3rem 0.6rem;flex:1;min-width:140px;max-width:100%;box-sizing:border-box;flex-wrap:wrap;">
                   <img src="${pick.teams?.flag_url}" alt="" style="width:26px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0;">
                   <span style="font-size:0.78rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${pick.teams?.name}</span>
-                  ${pick.result === 'win' ? `<span style="font-size:0.72rem;font-weight:700;color:#22c55e;flex-shrink:0;">+${pick.points}</span>` : resultIcon(pick.result)}
-                </div>
-              `).join('')}
+                  ${scoreText}
+                  ${pick.result === 'win' ? `<span style="font-size:0.72rem;font-weight:700;color:#22c55e;flex-shrink:0;">+${pick.points}</span>${bonusText}` : resultIcon(pick.result)}
+                </div>`;
+              }).join('')}
             </div>
           ` : `<span style="font-size:0.78rem;color:#8b92b9;font-style:italic;">${isUpcoming ? 'Not started' : 'No pick yet'}</span>`}
         </div>

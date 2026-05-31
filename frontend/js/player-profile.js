@@ -61,14 +61,21 @@ function displayPlayerProfile(player, stats) {
         <div class="profile-round">
           <h4>${roundNames[round]}</h4>
           <div class="${picksClass}">
-            ${picks.map(p => `
+            ${picks.map(p => {
+              const isScoreRound = ['QF','SF','F'].includes(round);
+              const hasPrediction = isScoreRound && p.predicted_home_score !== null && p.predicted_home_score !== undefined;
+              const scoreText = hasPrediction ? `${p.predicted_home_score}–${p.predicted_away_score}` : '';
+              const bonusText = p.score_bonus > 0 ? `<span style="color:#ffd700;font-size:0.7rem;">🎯 +${p.score_bonus} bonus</span>` : '';
+              return `
               <div class="profile-pick ${p.result}">
                 <img src="${p.flag || ''}" alt="${p.team}" class="profile-pick-flag">
                 <span class="profile-pick-team">${p.team}</span>
                 <span class="profile-pick-result">${p.result === 'win' ? '✓' : p.result === 'loss' ? '✗' : '⏳'}</span>
                 ${p.points > 0 ? `<span class="profile-pick-points">+${p.points}</span>` : ''}
+                ${hasPrediction ? `<span style="font-size:0.7rem;color:var(--text-secondary);width:100%;text-align:center;">Score: ${scoreText}</span>` : ''}
+                ${bonusText}
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
         </div>
       `;
