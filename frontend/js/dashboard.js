@@ -70,8 +70,15 @@ async function loadDashboard() {
       const openRound = roundsData.rounds?.find(r => r.status === 'open');
       
       if (!openRound) {
-        // No open round - show waiting message
-        displayWaitingState();
+        // Check if tournament is completely finished (Final round is closed)
+        const finalRound = roundsData.rounds?.find(r => r.round_number === 6);
+        const allFinished = finalRound && finalRound.status === 'closed';
+        
+        if (allFinished) {
+          displayTournamentFinishedState();
+        } else {
+          displayWaitingState();
+        }
       } else if (openRound.round_number >= 2) {
         // Knockout round - check if matches exist
         const roundMatches = allMatches.filter(m => m.round_id === openRound.id);
@@ -93,6 +100,20 @@ async function loadDashboard() {
           
           if (!hasEligibleTeams) {
             displayEliminatedState(openRound);
+            // Also update Your Picks tab with a clear message
+            const pickContainer = document.getElementById('current-pick');
+            if (pickContainer) {
+              pickContainer.innerHTML = `
+                <div style="text-align:center;padding:1.5rem 1rem;">
+                  <div style="font-size:2rem;margin-bottom:0.5rem;">😔</div>
+                  <h3 style="color:var(--accent-red);margin-bottom:0.25rem;">No Teams Available</h3>
+                  <p style="color:var(--text-secondary);font-size:0.85rem;">
+                    All the teams you have left to use have already been knocked out of the tournament.
+                    <br>Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see your final position.
+                  </p>
+                </div>
+              `;
+            }
           } else {
             displayKnockoutPickFlow();
           }
@@ -134,6 +155,24 @@ function determineCurrentMatchday() {
   
   // Reset selected teams when switching matchdays
   selectedTeams = [];
+}
+
+function displayTournamentFinishedState() {
+  isWaitingForNextRound = true; // Reuse flag so Your Picks shows last pick not group stage
+  const container = document.getElementById('available-teams');
+  container.innerHTML = `
+    <div style="text-align:center;padding:2rem 1rem;background:rgba(255,215,0,0.08);border:2px solid var(--accent-gold);border-radius:1rem;">
+      <div style="font-size:3rem;margin-bottom:0.75rem;">🏆</div>
+      <h2 style="color:var(--accent-gold);margin-bottom:0.5rem;">Tournament Complete!</h2>
+      <p style="color:var(--text-primary);margin-bottom:0.5rem;">The 2026 World Cup is over.</p>
+      <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1rem;">
+        Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see the final standings and winner.
+      </p>
+      <a href="leaderboard.html" style="display:inline-block;background:var(--accent-gold);color:#000;font-weight:700;padding:0.6rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-size:0.9rem;">
+        <i class="fas fa-trophy"></i> View Final Leaderboard
+      </a>
+    </div>
+  `;
 }
 
 function displayWaitingState() {
@@ -900,8 +939,46 @@ function displayCurrentPicks(picks) {
   const container = document.getElementById('current-pick');
   if (!container) return;
   
-  // When waiting for next round: group stage is done, show message instead of picks
+  // When waiting for next round or tournament finished
   if (isWaitingForNextRound) {
+    // If user has knockout picks, show their most recent one
+    const knockoutPicks = picks.filter(p => p.rounds?.round_number >= 2);
+    if (knockoutPicks.length > 0) {
+      const sortedKOPicks = [...knockoutPicks].sort((a, b) => (b.rounds?.round_number || 0) - (a.rounds?.round_number || 0));
+      const latestPick = sortedKOPicks[0];
+      const team = allTeams.find(t => t.id === latestPick.team_id);
+      const result = latestPick.result || 'pending';
+      const points = latestPick.points || 0;
+      const scoreBonus = latestPick.score_bonus || 0;
+      const borderClass = result === 'win' ? 'animated-border-win' : result === 'loss' ? 'animated-border-loss' : 'animated-border-pending';
+      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts${scoreBonus > 0 ? ` (incl. +${scoreBonus} score bonus 🎯)` : ''}` : result === 'loss' ? '❌ Lost' : '⏳ Awaiting result';
+      const resultColor = result === 'win' ? '#22c55e' : result === 'loss' ? '#ef4444' : '#ffd700';
+      const roundName = latestPick.rounds?.name || 'Knockout';
+      const isScoreRound = (latestPick.rounds?.round_number || 0) >= 4;
+      const scorePrediction = isScoreRound && latestPick.predicted_home_score !== null && latestPick.predicted_home_score !== undefined
+        ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">Score prediction: ${latestPick.predicted_home_score}–${latestPick.predicted_away_score}${scoreBonus > 0 ? ' ✅ Correct!' : ''}</div>`
+        : '';
+
+      container.innerHTML = `
+        <div class="current-pick-card">
+          <h3 style="margin-bottom:0.5rem;">Your ${roundName} Pick</h3>
+          <div class="pick-result-wrapper ${borderClass}">
+            <div class="pick-result-inner">
+              <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:60px;height:42px;object-fit:cover;border-radius:0.4rem;margin-bottom:0.5rem;">
+              <div style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">${team?.name || latestPick.teams?.name}</div>
+              <div style="font-size:1rem;font-weight:700;color:${resultColor};letter-spacing:0.03em;">${resultLabel}</div>
+              ${scorePrediction}
+            </div>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-secondary);text-align:center;margin-top:0.5rem;">
+            See <strong style="color:var(--accent-gold);">Your Picks</strong> tab for full history
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    // No knockout picks — show waiting message
     container.innerHTML = `
       <div style="text-align:center;padding:2rem 1rem;">
         <div style="font-size:2.5rem;margin-bottom:0.75rem;">✅</div>
@@ -911,7 +988,7 @@ function displayCurrentPicks(picks) {
         </p>
         <p style="font-size:0.85rem;color:var(--text-secondary);">
           <i class="fas fa-flag" style="color:var(--accent-gold);"></i>
-          Check the <strong style="color:var(--accent-gold);">Eligible Teams</strong> tab to see which teams you still have available for the next round.
+          Check the <strong style="color:var(--accent-gold);">Eligible Teams</strong> tab to see which teams you still have available.
         </p>
       </div>
     `;
