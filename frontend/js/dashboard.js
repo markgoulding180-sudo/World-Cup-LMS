@@ -127,6 +127,7 @@ async function loadDashboard() {
       displayTournamentHistory();
       displayEligibleTeams();
       startCountdown();
+      startPolling();
     }
     
   } catch (error) {
@@ -1824,8 +1825,7 @@ function getNextDeadlineMatch() {
 
     if (matchdayMatches.length > 0) {
       const first = matchdayMatches[0];
-      const isDeadline = currentMatchday === 1; // MD1 first game = hard deadline for all group picks
-      return { match: first, isDeadline, label: isDeadline ? `DEADLINE — Matchday 1 picks close` : `Next Match — Matchday ${currentMatchday}` };
+      return { match: first, isDeadline: true, label: `DEADLINE — Matchday ${currentMatchday} picks close` };
     }
   } else {
     // Knockout: find first upcoming match of this round
@@ -1894,3 +1894,83 @@ function renderCountdown() {
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);
+
+// ── Live Results Polling ──────────────────────────────────────────────────────
+// Fires on page load and every 5 minutes while the tab is visible.
+// Only runs if polling_enabled = true in the DB (set by admin on admin page).
+// Never causes a full page reload — only re-renders affected sections.
+
+let pollInterval = null;
+
+async function pollForResults() {
+  const token = localStorage.getItem('wc_lms_token');
+  if (!token) return;
+
+  try {
+    const response = await fetch('/api/update-results', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) return;
+    const data = await response.json();
+
+    // If polling is disabled in DB, or nothing changed, do nothing
+    if (!data.matchesUpdated && !data.picksProcessed) return;
+    if (data.matchesUpdated === 0 && data.picksProcessed === 0) return;
+
+    console.log(`[Poll] ${data.matchesUpdated} matches, ${data.picksProcessed} picks, ${data.pointsAwarded} pts`);
+
+    // Re-fetch only what changed
+    const [matchesRes, picksRes] = await Promise.all([
+      fetch('/api/matches?limit=200'),
+      fetch('/api/picks', { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
+
+    if (matchesRes.ok) {
+      const d = await matchesRes.json();
+      allMatches = d.matches || [];
+    }
+
+    if (picksRes.ok) {
+      const d = await picksRes.json();
+      userPicks = d.picks || [];
+      roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
+    }
+
+    // Re-render only the affected sections — no full page reload
+    displayCurrentPicks(roundPicks);
+    displayTournamentHistory();
+    displayEligibleTeams();
+    displayRoundMatches(allMatches, currentRound);
+
+  } catch (err) {
+    // Silent fail — polling must never break the page
+    console.log('[Poll] Error (non-fatal):', err.message);
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  pollForResults(); // immediate check on load
+  pollInterval = setInterval(pollForResults, 5 * 60 * 1000);
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+}
+
+// Pause when tab is hidden to save API quota, resume when visible
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    startPolling();
+  }
+});
