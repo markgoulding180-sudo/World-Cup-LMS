@@ -701,17 +701,24 @@ function displayMatchdayPickFlow() {
       const missedPicks = 3 - picksInMatchday;
       
       container.innerHTML = `
-        <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
-          <div style="font-size:2.5rem;margin-bottom:0.75rem;">⏰</div>
-          <h3 style="color:var(--accent-red);margin-bottom:0.5rem;">Matchday ${currentMatchday} Closed</h3>
-          <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
-            You missed ${missedPicks} pick${missedPicks !== 1 ? 's' : ''} for Matchday ${currentMatchday}.
-            <br>The deadline has passed.
+        <div style="text-align:center;padding:2.5rem 1.5rem;background:rgba(239,68,68,0.1);border:3px solid var(--accent-red);border-radius:1rem;box-shadow:0 0 30px rgba(239,68,68,0.2);">
+          <div style="font-size:3.5rem;margin-bottom:1rem;">⛔</div>
+          <h2 style="color:var(--accent-red);margin-bottom:0.75rem;font-size:1.5rem;">Picks Are Closed</h2>
+          <p style="color:var(--text-primary);font-size:1.1rem;margin-bottom:0.5rem;">
+            Matchday ${currentMatchday} started at <strong>${deadline.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })}</strong>
           </p>
-          <p style="font-size:0.85rem;color:var(--text-secondary);">
-            <strong>Auto-picks will be assigned.</strong>
-            <br>Check the <strong style="color:var(--accent-gold);">Your Picks</strong> tab to see your auto-assigned teams.
+          <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.95rem;">
+            You missed ${missedPicks} pick${missedPicks !== 1 ? 's' : ''}.
           </p>
+          <div style="background:rgba(255,215,0,0.1);border:2px solid var(--accent-gold);border-radius:0.75rem;padding:1rem;margin-top:1rem;">
+            <p style="color:var(--accent-gold);font-weight:700;margin-bottom:0.5rem;">
+              <i class="fas fa-magic"></i> Auto-Picks Will Be Assigned
+            </p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">
+              Random teams will be selected for you when results are fetched.<br>
+              Check your <strong style="color:var(--accent-gold);">Your Picks</strong> tab to see your teams.
+            </p>
+          </div>
         </div>
       `;
       return;
