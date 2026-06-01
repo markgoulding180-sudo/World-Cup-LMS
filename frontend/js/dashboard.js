@@ -718,9 +718,7 @@ function displayMatchdayPickFlow() {
     }
   }
   
-  const matchdayMatches = allMatches.filter(m => 
-    m.round_id === currentRound.id && m.matchday === currentMatchday
-  );
+  // matchdayMatches already declared above
   
   if (matchdayMatches.length === 0) {
     container.innerHTML = `<p class="text-secondary">No matches found for Matchday ${currentMatchday}.</p>`;
