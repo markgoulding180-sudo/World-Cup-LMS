@@ -144,13 +144,30 @@ function determineCurrentMatchday() {
     }
   });
   
-  if (matchdayCounts[1] < 3) {
+  // Check if matchday deadlines have passed
+  const now = new Date();
+  
+  // Find the earliest match time for each matchday
+  const matchdayDeadlines = {};
+  if (allMatches && currentRound) {
+    [1, 2, 3].forEach(md => {
+      const mdMatches = allMatches.filter(m => m.round_id === currentRound.id && m.matchday === md);
+      if (mdMatches.length > 0) {
+        const earliestMatch = mdMatches.sort((a, b) => new Date(a.match_time) - new Date(b.match_time))[0];
+        matchdayDeadlines[md] = new Date(earliestMatch.match_time);
+      }
+    });
+  }
+  
+  // Determine current matchday based on picks AND deadlines
+  if (matchdayCounts[1] < 3 && (!matchdayDeadlines[1] || now < matchdayDeadlines[1])) {
     currentMatchday = 1;
-  } else if (matchdayCounts[2] < 3) {
+  } else if (matchdayCounts[2] < 3 && (!matchdayDeadlines[2] || now < matchdayDeadlines[2])) {
     currentMatchday = 2;
-  } else if (matchdayCounts[3] < 3) {
+  } else if (matchdayCounts[3] < 3 && (!matchdayDeadlines[3] || now < matchdayDeadlines[3])) {
     currentMatchday = 3;
   } else {
+    // All matchdays have passed or are complete
     currentMatchday = 4;
   }
   
@@ -666,6 +683,39 @@ function displayMatchdayPickFlow() {
       </div>
     `;
     return;
+  }
+  
+  // Check if current matchday deadline has passed
+  const now = new Date();
+  const matchdayMatches = allMatches.filter(m => 
+    m.round_id === currentRound.id && m.matchday === currentMatchday
+  );
+  
+  if (matchdayMatches.length > 0) {
+    const earliestMatch = matchdayMatches.sort((a, b) => new Date(a.match_time) - new Date(b.match_time))[0];
+    const deadline = new Date(earliestMatch.match_time);
+    
+    if (now >= deadline) {
+      // Deadline has passed - show missed matchday message
+      const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+      const missedPicks = 3 - picksInMatchday;
+      
+      container.innerHTML = `
+        <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem;">⏰</div>
+          <h3 style="color:var(--accent-red);margin-bottom:0.5rem;">Matchday ${currentMatchday} Closed</h3>
+          <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
+            You missed ${missedPicks} pick${missedPicks !== 1 ? 's' : ''} for Matchday ${currentMatchday}.
+            <br>The deadline has passed.
+          </p>
+          <p style="font-size:0.85rem;color:var(--text-secondary);">
+            <strong>Auto-picks will be assigned.</strong>
+            <br>Check the <strong style="color:var(--accent-gold);">Your Picks</strong> tab to see your auto-assigned teams.
+          </p>
+        </div>
+      `;
+      return;
+    }
   }
   
   const matchdayMatches = allMatches.filter(m => 
