@@ -146,6 +146,96 @@ module.exports = async (req, res) => {
     let pointsAwarded = 0;
     const skipped = [];
 
+    // ── AUTO-PICK: Assign random picks to users who missed deadline ──
+    // This runs before processing results to ensure all users have picks
+    for (const fixture of finishedFixtures) {
+      const homeName = fixture.homeTeam?.name || fixture.homeTeam?.shortName;
+      const awayName = fixture.awayTeam?.name || fixture.awayTeam?.shortName;
+      const homeTeamId = findTeamId(homeName);
+      const awayTeamId = findTeamId(awayName);
+      
+      if (!homeTeamId || !awayTeamId) continue;
+      
+      const dbMatch = dbMatches?.find(m =>
+        m.home_team_id === homeTeamId && m.away_team_id === awayTeamId
+      );
+      
+      if (!dbMatch) continue;
+      
+      const roundNumber = dbMatch.rounds?.round_number || 1;
+      const matchday = dbMatch.matchday;
+      
+      // Find all active users who don't have a pick for this match/round
+      const { data: activeEntries } = await supabase
+        .from('tournament_entries')
+        .select('user_id')
+        .eq('status', 'active');
+      
+      for (const entry of activeEntries || []) {
+        // Check if user already has a pick for this round/matchday
+        let existingPickQuery = supabase
+          .from('picks')
+          .select('id')
+          .eq('user_id', entry.user_id)
+          .eq('round_id', dbMatch.round_id);
+        
+        if (roundNumber === 1 && matchday) {
+          existingPickQuery = existingPickQuery.eq('matchday', matchday);
+        }
+        
+        const { data: existingPicks } = await existingPickQuery;
+        
+        if (!existingPicks || existingPicks.length === 0) {
+          // User missed this pick - auto-assign a random team
+          const { data: userAllPicks } = await supabase
+            .from('picks')
+            .select('team_id')
+            .eq('user_id', entry.user_id);
+          
+          const usedTeamIds = userAllPicks?.map(p => p.team_id) || [];
+          
+          // Get available teams for this matchday/round
+          let availableTeams = [homeTeamId, awayTeamId];
+          
+          // For group stage, get all teams playing in this matchday
+          if (roundNumber === 1 && matchday) {
+            const { data: mdMatches } = await supabase
+              .from('matches')
+              .select('home_team_id, away_team_id')
+              .eq('round_id', dbMatch.round_id)
+              .eq('matchday', matchday);
+            availableTeams = mdMatches?.flatMap(m => [m.home_team_id, m.away_team_id]) || [];
+          }
+          
+          // Filter out already used teams
+          const unusedTeams = availableTeams.filter(tid => !usedTeamIds.includes(tid));
+          
+          if (unusedTeams.length > 0) {
+            const randomTeam = unusedTeams[Math.floor(Math.random() * unusedTeams.length)];
+            
+            const autoPickData = {
+              user_id: entry.user_id,
+              tournament_id: (await supabase.from('tournaments').select('id').single()).data?.id,
+              round_id: dbMatch.round_id,
+              team_id: randomTeam,
+              matchday: matchday || null,
+              result: 'pending',
+              points: 0,
+              is_auto_pick: true
+            };
+            
+            // Add score prediction for QF, SF, Final
+            if (roundNumber >= 4) {
+              autoPickData.predicted_home_score = Math.floor(Math.random() * 4);
+              autoPickData.predicted_away_score = Math.floor(Math.random() * 3);
+            }
+            
+            await supabase.from('picks').insert(autoPickData);
+          }
+        }
+      }
+    }
+
     // ── Process each finished fixture ─────────────────────
     for (const fixture of finishedFixtures) {
       const homeScore = fixture.score.fullTime.home;
