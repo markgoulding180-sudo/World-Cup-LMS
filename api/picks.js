@@ -85,8 +85,162 @@ module.exports = async (req, res) => {
     }
   }
 
-  // POST - Submit pick
+  // POST - Submit pick OR Auto-pick missed rounds
   if (req.method === 'POST') {
+    const { action } = req.body || {};
+    
+    // Handle auto-pick for missed rounds
+    if (action === 'auto_pick') {
+      try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { tournament_id } = req.body || {};
+        if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
+
+        // Get current round
+        const { data: currentRound } = await supabase
+          .from('rounds')
+          .select('*')
+          .eq('status', 'open')
+          .single();
+
+        if (!currentRound) return res.status(400).json({ error: 'No open round found' });
+
+        // Get all rounds up to current
+        const { data: allRounds } = await supabase
+          .from('rounds')
+          .select('*')
+          .order('round_number', { ascending: true });
+
+        const currentRoundIndex = allRounds.findIndex(r => r.id === currentRound.id);
+        const previousRounds = allRounds.slice(0, currentRoundIndex);
+
+        // Get user's existing picks
+        const { data: userPicks } = await supabase
+          .from('picks')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('tournament_id', tournament_id);
+
+        const autoPicks = [];
+        const results = [];
+
+        // Check each previous round for missed picks
+        for (const round of previousRounds) {
+          const roundPicks = userPicks.filter(p => p.round_id === round.id);
+          const expectedPicks = round.picks_required || (round.round_number === 1 ? 9 : 1);
+          const missingPicks = expectedPicks - roundPicks.length;
+
+          if (missingPicks > 0) {
+            if (round.round_number === 1) {
+              // Group stage - get teams by matchday
+              const { data: matches } = await supabase
+                .from('matches')
+                .select('home_team_id, away_team_id, matchday')
+                .eq('round_id', round.id);
+
+              const matchdays = { 1: [], 2: [], 3: [] };
+              matches.forEach(m => {
+                if (matchdays[m.matchday]) {
+                  matchdays[m.matchday].push(m.home_team_id, m.away_team_id);
+                }
+              });
+
+              // For each matchday, pick 3 random teams
+              for (let md = 1; md <= 3; md++) {
+                const mdPicks = roundPicks.filter(p => p.matchday === md);
+                const mdMissing = 3 - mdPicks.length;
+                
+                if (mdMissing > 0) {
+                  const availableTeams = matchdays[md].filter(teamId => {
+                    return !userPicks.some(p => p.team_id === teamId);
+                  });
+
+                  const shuffled = availableTeams.sort(() => 0.5 - Math.random());
+                  const selected = shuffled.slice(0, mdMissing);
+
+                  for (const teamId of selected) {
+                    autoPicks.push({
+                      user_id: user.id,
+                      tournament_id,
+                      round_id: round.id,
+                      team_id: teamId,
+                      matchday: md,
+                      result: 'pending',
+                      points: 0,
+                      is_auto_pick: true
+                    });
+                  }
+                }
+              }
+            } else {
+              // Knockout round - pick from teams playing in this round
+              const { data: matches } = await supabase
+                .from('matches')
+                .select('home_team_id, away_team_id')
+                .eq('round_id', round.id);
+
+              const availableTeams = matches.flatMap(m => [m.home_team_id, m.away_team_id])
+                .filter(teamId => !userPicks.some(p => p.team_id === teamId));
+
+              if (availableTeams.length > 0) {
+                const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
+                
+                const pickData = {
+                  user_id: user.id,
+                  tournament_id,
+                  round_id: round.id,
+                  team_id: randomTeam,
+                  matchday: null,
+                  result: 'pending',
+                  points: 0,
+                  is_auto_pick: true
+                };
+
+                // Add score prediction for QF, SF, Final
+                if (round.round_number >= 4) {
+                  pickData.predicted_home_score = Math.floor(Math.random() * 4);
+                  pickData.predicted_away_score = Math.floor(Math.random() * 3);
+                }
+
+                autoPicks.push(pickData);
+              }
+            }
+
+            results.push({
+              round: round.name,
+              round_number: round.round_number,
+              auto_picks_created: autoPicks.filter(p => p.round_id === round.id).length
+            });
+          }
+        }
+
+        // Insert auto-picks
+        if (autoPicks.length > 0) {
+          const { error: insertError } = await supabase.from('picks').insert(autoPicks);
+          if (insertError) return res.status(500).json({ error: 'Failed to create auto-picks: ' + insertError.message });
+        }
+
+        return res.status(200).json({
+          success: true,
+          auto_picks_created: autoPicks.length,
+          rounds_updated: results,
+          message: autoPicks.length > 0 
+            ? `Created ${autoPicks.length} auto-picks for missed rounds`
+            : 'No missed picks found - you\'re up to date!'
+        });
+
+      } catch (error) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    // Regular pick submission
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader) return res.status(401).json({ error: 'Authentication required' });

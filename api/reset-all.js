@@ -149,7 +149,7 @@ module.exports = async (req, res) => {
       const { data: adminUsers } = await supabase.from('users').select('id').eq('is_admin', true);
       const adminCount = adminUsers?.length || 0;
 
-      const { data: tournament, error: tErr } = await supabase.from('tournaments').insert({ name: 'World Cup 2026 Last Man Standing', entry_fee: 30, prize_pool: 0, max_players: 100, current_players: 0, status: 'open' }).select().single();
+      const { data: tournament, error: tErr } = await supabase.from('tournaments').insert({ name: 'World Cup 2026 Last Man Standing', entry_fee: 20, prize_pool: 0, max_players: 100, current_players: 0, status: 'open' }).select().single();
       if (tErr) return res.status(500).json({ error: 'Failed to create tournament: ' + tErr.message });
 
       const { data: masterTeams, error: mErr } = await supabase.from('master_teams').select('*');

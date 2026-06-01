@@ -317,7 +317,7 @@ function displayKnockoutPickFlow() {
       <div class="not-entered-message">
         <p>You need to enter the tournament before making picks.</p>
         <button class="btn btn-primary" onclick="enterTournament()">
-          <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
         </button>
       </div>
     `;
@@ -644,7 +644,7 @@ function displayMatchdayPickFlow() {
       <div class="not-entered-message">
         <p>You need to enter the tournament before making picks.</p>
         <button class="btn btn-primary" onclick="enterTournament()">
-          <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
         </button>
       </div>
     `;
@@ -1264,7 +1264,7 @@ function updateStatusCard(data) {
         <h3>Not Entered</h3>
         <p>You need to enter the tournament to play</p>
         <button class="btn btn-primary" onclick="enterTournament()" style="margin-top: 1rem;">
-          <i class="fas fa-ticket-alt"></i> Enter Tournament (£30)
+          <i class="fas fa-ticket-alt"></i> Enter Tournament (£20)
         </button>
       </div>
     `;
@@ -1313,7 +1313,7 @@ function updateStatusCard(data) {
 async function enterTournament() {
   const token = localStorage.getItem('wc_lms_token');
   
-  if (!confirm('Enter the World Cup 2026 Last Man Standing tournament?\n\nEntry fee: £30\nMax 100 players\nPrize pool: Winner takes all!')) {
+  if (!confirm('Enter the World Cup 2026 Last Man Standing tournament?\n\nEntry fee: £20\nMax 100 players\nPrize pool: Winner takes all!')) {
     return;
   }
   
@@ -1338,7 +1338,27 @@ async function enterTournament() {
     });
     
     if (response.ok) {
-      alert('You have entered the tournament! Good luck!');
+      // Check if user missed any rounds and auto-pick for them
+      const autoPickResponse = await fetch('/api/picks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'auto_pick', tournament_id: tournamentId })
+      });
+      
+      if (autoPickResponse.ok) {
+        const autoPickData = await autoPickResponse.json();
+        if (autoPickData.auto_picks_created > 0) {
+          alert(`You have entered the tournament!\n\n${autoPickData.message}\n\nGood luck!`);
+        } else {
+          alert('You have entered the tournament! Good luck!');
+        }
+      } else {
+        alert('You have entered the tournament! Good luck!');
+      }
+      
       loadDashboard();
     } else {
       const error = await response.json();
