@@ -1940,7 +1940,7 @@ function renderCountdown() {
 
   // Check if admin has force-closed picks (deadline triggered)
   if (currentRound && currentRound.picks_closed === true) {
-    card.innerHTML = `<div style="background:linear-gradient(135deg,#3f1a1a,#2d0f0f);border:2px solid #ef4444;border-radius:0.75rem;padding:0.6rem 1.5rem 0.8rem;margin:0.75rem auto 0;max-width:500px;text-align:center;box-shadow:0 0 20px rgba(239,68,68,0.3);"><div style="font-size:0.85rem;font-weight:700;color:#ef4444;">⛔ Deadline Has Passed</div><div style="font-size:0.75rem;color:#8b92b9;margin-top:0.3rem;">Picks are closed for ${currentRound?.name || 'this round'}</div></div>`;
+    card.innerHTML = `<div style="background:linear-gradient(135deg,#3f1a1a,#2d0f0f);border:2px solid #ef4444;border-radius:0.75rem;padding:0.6rem 1.5rem 0.8rem;margin:0.75rem auto 0;max-width:500px;text-align:center;box-shadow:0 0 20px rgba(239,68,68,0.3);"><div style="font-size:0.85rem;font-weight:700;color:#ef4444;">⛔ Deadline Passed - Games In Play</div><div style="font-size:0.75rem;color:#8b92b9;margin-top:0.3rem;">${currentRound?.name || 'This round'} is in progress. If you missed the deadline, random teams have been assigned.</div></div>`;
     return;
   }
 
