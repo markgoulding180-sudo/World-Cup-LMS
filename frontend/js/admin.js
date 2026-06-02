@@ -790,6 +790,60 @@ async function simulateResults(matchday) {
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
 }
 
+// ─── MANUAL AUTO-PICK FOR TESTING ─────────────────────────
+async function manualAutoPick() {
+  if (!confirm('Run auto-pick for all users who missed picks in the current round?')) return;
+  const statusDiv = document.getElementById('manual-autopick-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Running auto-pick...</p>';
+  
+  try {
+    // Get tournament ID
+    const tourneyResponse = await fetch('/api/tournaments');
+    const tourneyData = await tourneyResponse.json();
+    const tournamentId = tourneyData.tournaments?.[0]?.id;
+    
+    if (!tournamentId) {
+      statusDiv.innerHTML = '<p style="color: var(--accent-red);">No tournament found.</p>';
+      return;
+    }
+    
+    // Get all active users
+    const entriesResponse = await fetch('/api/entries');
+    const entriesData = await entriesResponse.json();
+    const activeUsers = entriesData.entries?.filter(e => e.status === 'active') || [];
+    
+    let autoPicksCreated = 0;
+    
+    // For each active user, run auto-pick
+    for (const entry of activeUsers) {
+      // We need to call the auto-pick API for each user
+      // Since auto-pick requires auth, we'll use a workaround:
+      // Call the reset-all API with a new action
+      const response = await fetch('/api/reset-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'manual_autopick_for_user', 
+          user_id: entry.user_id,
+          tournament_id: tournamentId,
+          admin_pin: '1234' 
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        autoPicksCreated += data.auto_picks_created || 0;
+      }
+    }
+    
+    statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Auto-pick complete! Created ${autoPicksCreated} picks for users who missed deadlines.</p>`;
+    loadAdminData();
+    
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
 async function createKnockoutMatches() {
   if (!confirm('Create Round of 32 from group standings?\n\nTop 2 from each of 12 groups (24) + best 8 third-placed = 32 teams')) return;
   const statusDiv = document.getElementById('create-knockout-status');

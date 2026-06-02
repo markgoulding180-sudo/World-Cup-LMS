@@ -275,6 +275,13 @@
         <div id="simulate-results-status" style="margin-top:0.5rem;"></div>
       </div>
 
+      <div style="margin:1rem 0;padding:1rem;background:rgba(34,197,94,0.1);border-radius:0.5rem;border:2px solid var(--accent-green);">
+        <p><strong>TEST: Manual Auto-Pick</strong></p>
+        <p style="font-size:0.85rem;color:var(--text-secondary);">Use this to test auto-pick for users who missed picks. Run this BEFORE simulating results.</p>
+        <button class="btn btn-primary" onclick="manualAutoPick()" style="background:var(--accent-green);color:#000;"><i class="fas fa-magic"></i> Run Auto-Pick for Missed Picks</button>
+        <div id="manual-autopick-status" style="margin-top:0.5rem;"></div>
+      </div>
+
       <div style="margin:1rem 0;padding:1rem;background:var(--bg-secondary);border-radius:0.5rem;">
         <p><strong>Create R32 from group standings</strong> (sim only — uses calculated standings, not FIFA draw)</p>
         <p style="font-size:0.8rem;color:var(--text-secondary);">Top 2 from each of 12 groups (24) + best 8 third-placed = 32 total</p>
