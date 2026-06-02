@@ -1363,3 +1363,137 @@ async function downloadFullTournamentCSV() {
     if (btn) { btn.innerHTML = '<i class="fas fa-download"></i> Download Full Tournament Data (CSV)'; btn.disabled = false; }
   }
 }
+// ─── SNAPSHOT SYSTEM ─────────────────────────────────────────────────────────
+
+async function createSnapshot() {
+  const label = document.getElementById('snapshot-label')?.value?.trim() 
+    || `Snapshot ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`;
+  const statusDiv = document.getElementById('snapshot-status');
+  statusDiv.innerHTML = '<p style="color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Creating snapshot...</p>';
+
+  try {
+    const res = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_snapshot', label, admin_pin: ADMIN_PIN })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      statusDiv.innerHTML = `
+        <p style="color:var(--accent-green);">
+          <i class="fas fa-check-circle"></i> Snapshot created: <strong>${label}</strong><br>
+          <small style="color:var(--text-secondary);">
+            ${data.counts.picks} picks · ${data.counts.matches} matches · ${data.counts.rounds} rounds · ${data.counts.entries} entries
+          </small>
+        </p>`;
+      document.getElementById('snapshot-label').value = '';
+      loadSnapshots();
+    } else {
+      statusDiv.innerHTML = `<p style="color:var(--accent-red);">Error: ${data.error}</p>`;
+    }
+  } catch (e) {
+    statusDiv.innerHTML = `<p style="color:var(--accent-red);">Error: ${e.message}</p>`;
+  }
+}
+
+async function loadSnapshots() {
+  const container = document.getElementById('snapshot-list');
+  container.innerHTML = '<p style="color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+
+  try {
+    const res = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list_snapshots', admin_pin: ADMIN_PIN })
+    });
+    const data = await res.json();
+
+    if (!res.ok) { container.innerHTML = `<p style="color:var(--accent-red);">Error: ${data.error}</p>`; return; }
+
+    const snapshots = data.snapshots || [];
+    if (snapshots.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-secondary);font-style:italic;">No snapshots yet.</p>';
+      return;
+    }
+
+    container.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border-color);">
+            <th style="padding:0.5rem;text-align:left;color:var(--text-secondary);">Name</th>
+            <th style="padding:0.5rem;text-align:left;color:var(--text-secondary);">Created</th>
+            <th style="padding:0.5rem;text-align:right;color:var(--text-secondary);">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${snapshots.map(s => {
+            const date = new Date(s.created_at).toLocaleString('en-GB', { 
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' 
+            });
+            return `
+              <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:0.5rem;font-weight:500;">${s.label}</td>
+                <td style="padding:0.5rem;color:var(--text-secondary);">${date}</td>
+                <td style="padding:0.5rem;text-align:right;">
+                  <button onclick="restoreSnapshot('${s.id}', '${s.label.replace(/'/g,"\\'")}') "
+                    style="background:rgba(239,68,68,0.15);border:1px solid #ef4444;color:#ef4444;padding:0.3rem 0.75rem;border-radius:0.4rem;font-size:0.75rem;cursor:pointer;margin-right:0.25rem;">
+                    <i class="fas fa-undo"></i> Restore
+                  </button>
+                  <button onclick="deleteSnapshot('${s.id}')"
+                    style="background:transparent;border:1px solid var(--border-color);color:var(--text-secondary);padding:0.3rem 0.5rem;border-radius:0.4rem;font-size:0.75rem;cursor:pointer;">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--accent-red);">Error: ${e.message}</p>`;
+  }
+}
+
+async function restoreSnapshot(snapshotId, label) {
+  if (!confirm(`⚠️ RESTORE SNAPSHOT\n\n"${label}"\n\nThis will OVERWRITE all current tournament data with this snapshot.\n\nAre you absolutely sure?`)) return;
+  if (!confirm(`Second confirmation: restore "${label}"?\n\nAll current data will be lost.`)) return;
+
+  const statusDiv = document.getElementById('snapshot-status');
+  statusDiv.innerHTML = '<p style="color:var(--accent-gold);"><i class="fas fa-spinner fa-spin"></i> Restoring snapshot... please wait...</p>';
+
+  try {
+    const res = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'restore_snapshot', snapshot_id: snapshotId, admin_pin: ADMIN_PIN })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      statusDiv.innerHTML = `
+        <p style="color:var(--accent-green);">
+          <i class="fas fa-check-circle"></i> <strong>Restored successfully!</strong><br>
+          <small style="color:var(--text-secondary);">
+            ${data.restored.picks} picks · ${data.restored.matches} matches · 
+            ${data.restored.rounds} rounds · ${data.restored.entries} entries restored
+          </small>
+        </p>`;
+    } else {
+      statusDiv.innerHTML = `<p style="color:var(--accent-red);">Restore failed: ${data.error}</p>`;
+    }
+  } catch (e) {
+    statusDiv.innerHTML = `<p style="color:var(--accent-red);">Error: ${e.message}</p>`;
+  }
+}
+
+async function deleteSnapshot(snapshotId) {
+  if (!confirm('Delete this snapshot? This cannot be undone.')) return;
+  try {
+    await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_snapshot', snapshot_id: snapshotId, admin_pin: ADMIN_PIN })
+    });
+    loadSnapshots();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}

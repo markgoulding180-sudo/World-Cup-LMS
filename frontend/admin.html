@@ -217,7 +217,31 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         SECTION 11 — TOURNAMENT SIMULATION (full auto)
+         SNAPSHOT / BACKUP SYSTEM
+    ════════════════════════════════════════════════════════ -->
+    <div class="admin-card" style="border:2px solid #2563eb;">
+      <h2><i class="fas fa-database"></i> Tournament Snapshots</h2>
+      <p>Create a full snapshot of all tournament data at any point. If something goes wrong you can restore to any previous snapshot instantly.</p>
+      <ul style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;">
+        <li>✅ Saves: picks, matches, rounds, entries, points, master_clock</li>
+        <li>✅ Restore brings the entire tournament back to that exact moment</li>
+        <li>⚠️ Restore overwrites all current data — use with care</li>
+      </ul>
+
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+        <input type="text" id="snapshot-label" placeholder="Snapshot name e.g. After Matchday 1"
+          style="flex:1;min-width:200px;padding:0.5rem 0.75rem;border-radius:0.5rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;">
+        <button class="btn btn-primary" onclick="createSnapshot()" style="background:#2563eb;">
+          <i class="fas fa-camera"></i> Create Snapshot
+        </button>
+        <button class="btn btn-secondary" onclick="loadSnapshots()">
+          <i class="fas fa-sync"></i> Refresh List
+        </button>
+      </div>
+
+      <div id="snapshot-status" style="margin-bottom:0.75rem;"></div>
+      <div id="snapshot-list">Click Refresh List to see saved snapshots.</div>
+    </div>
          FOR TESTING ONLY. Turn polling OFF first.
     ════════════════════════════════════════════════════════ -->
     <div class="admin-card" style="border: 2px solid #9333ea;">

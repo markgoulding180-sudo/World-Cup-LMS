@@ -1239,5 +1239,142 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ── CREATE SNAPSHOT ──────────────────────────────────────────────────────────
+  if (action === 'create_snapshot') {
+    try {
+      const label = req.body.label || `Snapshot ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`;
+
+      // Fetch all tables that make up tournament state
+      const [picks, matches, rounds, entries, tournaments, clock] = await Promise.all([
+        supabase.from('picks').select('*'),
+        supabase.from('matches').select('*'),
+        supabase.from('rounds').select('*'),
+        supabase.from('tournament_entries').select('*'),
+        supabase.from('tournaments').select('*'),
+        supabase.from('master_clock').select('*')
+      ]);
+
+      const snapshotData = {
+        created_at: new Date().toISOString(),
+        picks: picks.data || [],
+        matches: matches.data || [],
+        rounds: rounds.data || [],
+        tournament_entries: entries.data || [],
+        tournaments: tournaments.data || [],
+        master_clock: clock.data || []
+      };
+
+      const { data, error } = await supabase
+        .from('tournament_snapshots')
+        .insert({ label, data: snapshotData })
+        .select('id, label, created_at');
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        snapshot: data[0],
+        counts: {
+          picks: snapshotData.picks.length,
+          matches: snapshotData.matches.length,
+          rounds: snapshotData.rounds.length,
+          entries: snapshotData.tournament_entries.length
+        }
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── LIST SNAPSHOTS ────────────────────────────────────────────────────────────
+  if (action === 'list_snapshots') {
+    try {
+      const { data, error } = await supabase
+        .from('tournament_snapshots')
+        .select('id, label, created_at, data->picks, data->matches, data->rounds')
+        .order('created_at', { ascending: false });
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      // Return lightweight list — just metadata not full data
+      const list = await supabase
+        .from('tournament_snapshots')
+        .select('id, label, created_at')
+        .order('created_at', { ascending: false });
+
+      return res.status(200).json({ success: true, snapshots: list.data || [] });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── RESTORE SNAPSHOT ─────────────────────────────────────────────────────────
+  if (action === 'restore_snapshot') {
+    try {
+      const { snapshot_id } = req.body;
+      if (!snapshot_id) return res.status(400).json({ error: 'snapshot_id required' });
+
+      const { data: snap, error: fetchErr } = await supabase
+        .from('tournament_snapshots')
+        .select('*')
+        .eq('id', snapshot_id)
+        .single();
+
+      if (fetchErr || !snap) return res.status(404).json({ error: 'Snapshot not found' });
+
+      const d = snap.data;
+
+      // Restore each table — delete current data then re-insert snapshot data
+      // Order matters for foreign key constraints
+
+      // 1. Clear dependent tables first
+      await supabase.from('picks').delete().neq('id', FAKE_ID);
+      await supabase.from('tournament_entries').delete().neq('id', FAKE_ID);
+      await supabase.from('matches').delete().neq('id', FAKE_ID);
+      await supabase.from('rounds').delete().neq('id', FAKE_ID);
+      await supabase.from('tournaments').delete().neq('id', FAKE_ID);
+
+      // 2. Re-insert in correct order
+      if (d.tournaments?.length) await supabase.from('tournaments').insert(d.tournaments);
+      if (d.rounds?.length) await supabase.from('rounds').insert(d.rounds);
+      if (d.matches?.length) await supabase.from('matches').insert(d.matches);
+      if (d.tournament_entries?.length) await supabase.from('tournament_entries').insert(d.tournament_entries);
+      if (d.picks?.length) await supabase.from('picks').insert(d.picks);
+
+      // 3. Restore master_clock
+      if (d.master_clock?.length) {
+        await supabase.from('master_clock').upsert(d.master_clock);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Restored to snapshot: ${snap.label}`,
+        restored: {
+          picks: d.picks?.length || 0,
+          matches: d.matches?.length || 0,
+          rounds: d.rounds?.length || 0,
+          entries: d.tournament_entries?.length || 0
+        }
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── DELETE SNAPSHOT ───────────────────────────────────────────────────────────
+  if (action === 'delete_snapshot') {
+    try {
+      const { snapshot_id } = req.body;
+      const { error } = await supabase
+        .from('tournament_snapshots')
+        .delete()
+        .eq('id', snapshot_id);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ success: true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   return res.status(400).json({ error: 'Invalid action.' });
 };
