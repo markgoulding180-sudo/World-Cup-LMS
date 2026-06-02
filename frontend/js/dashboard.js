@@ -716,30 +716,25 @@ function displayMatchdayPickFlow() {
         deadlineStr = deadline.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
       }
       
-      const statusMessage = picksClosed 
-        ? 'Picks have been closed by the admin.'
-        : `Matchday ${currentMatchday} started at <strong>${deadlineStr}</strong>`;
-      
-      const autoPickMessage = picksInMatchday > 0
-        ? 'Your auto-picks have been assigned. Check your "Your Picks" tab to see your teams.'
-        : 'Auto-picks will be assigned. Check your "Your Picks" tab to see your teams.';
+      const roundName = currentRound?.name || 'This round';
       
       container.innerHTML = `
         <div style="text-align:center;padding:2.5rem 1.5rem;background:rgba(239,68,68,0.1);border:3px solid var(--accent-red);border-radius:1rem;box-shadow:0 0 30px rgba(239,68,68,0.2);">
           <div style="font-size:3.5rem;margin-bottom:1rem;">⛔</div>
-          <h2 style="color:var(--accent-red);margin-bottom:0.75rem;font-size:1.5rem;">Picks Are Closed</h2>
-          <p style="color:var(--text-primary);font-size:1.1rem;margin-bottom:0.5rem;">
-            ${statusMessage}
+          <h2 style="color:var(--accent-red);margin-bottom:0.75rem;font-size:1.5rem;">Deadline Has Passed</h2>
+          <p style="color:var(--text-primary);font-size:1.1rem;margin-bottom:1rem;">
+            The deadline has passed for adding teams in <strong>${roundName}</strong>.
           </p>
           <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.95rem;">
             You missed ${missedPicks} pick${missedPicks !== 1 ? 's' : ''}.
           </p>
           <div style="background:rgba(255,215,0,0.1);border:2px solid var(--accent-gold);border-radius:0.75rem;padding:1rem;margin-top:1rem;">
             <p style="color:var(--accent-gold);font-weight:700;margin-bottom:0.5rem;">
-              <i class="fas fa-magic"></i> Auto-Picks Assigned
+              <i class="fas fa-magic"></i> Random Teams Assigned
             </p>
             <p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">
-              ${autoPickMessage}
+              If you missed the deadline, you have been given random team${missedPicks !== 1 ? 's' : ''}.<br>
+              Check your <strong style="color:var(--accent-gold);">Your Picks</strong> tab to see your teams.
             </p>
           </div>
         </div>
