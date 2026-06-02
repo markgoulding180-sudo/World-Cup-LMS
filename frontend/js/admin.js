@@ -100,11 +100,11 @@ async function forcePicksOpen(roundId) {
   else alert('Error: ' + data.error);
 }
 
-// ─── CLOSE ROUND & AUTO-PICK ──────────────────────────────
-async function closeRoundAndAutoPick() {
-  if (!confirm('⚠️ This will close picks for the current round and auto-assign teams to users who missed picks.\n\nAre you sure?')) return;
+// ─── TRIGGER ROUND DEADLINE ───────────────────────────────
+async function triggerRoundDeadline() {
+  if (!confirm('Trigger round deadline?\n\nThis will close picks and auto-assign teams to users who missed the deadline.\n\nAre you sure?')) return;
   
-  const statusDiv = document.getElementById('close-autopick-status');
+  const statusDiv = document.getElementById('round-deadline-status');
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Closing round and running auto-pick...</p>';
   
   try {
