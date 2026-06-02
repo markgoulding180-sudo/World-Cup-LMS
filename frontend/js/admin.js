@@ -153,10 +153,14 @@ async function triggerRoundDeadlineForSelected() {
       return;
     }
     
-    // Call the auto-pick API
+    // Call the auto-pick API - need admin token
+    const token = localStorage.getItem('wc_lms_token');
     const autoPickRes = await fetch('/api/picks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ action: 'auto_pick', tournament_id: tournamentId })
     });
     
