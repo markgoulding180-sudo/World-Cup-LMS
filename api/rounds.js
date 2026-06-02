@@ -93,6 +93,126 @@ module.exports = async (req, res) => {
         return res.status(200).json({ success: true, round: data[0], message: 'Picks re-opened' });
       }
 
+      // Trigger deadline: close picks + auto-pick for all users who missed
+      if (action === 'trigger_deadline') {
+        // Step 1: Get round info
+        const { data: round, error: roundError } = await supabase
+          .from('rounds')
+          .select('*')
+          .eq('id', round_id)
+          .single();
+        if (roundError) return res.status(500).json({ error: 'Round not found' });
+
+        // Step 2: Force close picks
+        await supabase.from('rounds').update({ picks_closed: true }).eq('id', round_id);
+
+        // Step 3: Get tournament
+        const { data: tournament } = await supabase.from('tournaments').select('id').single();
+        const tournamentId = tournament?.id;
+
+        // Step 4: Get all active users
+        const { data: entries } = await supabase
+          .from('tournament_entries')
+          .select('user_id')
+          .eq('status', 'active');
+
+        let autoPicksCreated = 0;
+
+        // Step 5: For each user, check if they have picks for this round
+        for (const entry of entries || []) {
+          const { data: userPicks } = await supabase
+            .from('picks')
+            .select('team_id, matchday')
+            .eq('user_id', entry.user_id)
+            .eq('round_id', round_id);
+
+          const existingPicks = userPicks || [];
+
+          if (round.round_number === 1) {
+            // Group Stage: need 3 picks per matchday (9 total)
+            for (let md = 1; md <= 3; md++) {
+              const mdPicks = existingPicks.filter(p => p.matchday === md);
+              const missingPicks = 3 - mdPicks.length;
+
+              if (missingPicks > 0) {
+                // Get teams for this matchday
+                const { data: matches } = await supabase
+                  .from('matches')
+                  .select('home_team_id, away_team_id')
+                  .eq('round_id', round_id)
+                  .eq('matchday', md);
+
+                const availableTeams = matches?.flatMap(m => [m.home_team_id, m.away_team_id]) || [];
+                
+                // Filter out already used teams
+                const usedTeamIds = existingPicks.map(p => p.team_id);
+                const unusedTeams = availableTeams.filter(tid => !usedTeamIds.includes(tid));
+
+                // Randomly select teams
+                const shuffled = unusedTeams.sort(() => 0.5 - Math.random());
+                const selected = shuffled.slice(0, missingPicks);
+
+                for (const teamId of selected) {
+                  await supabase.from('picks').insert({
+                    user_id: entry.user_id,
+                    tournament_id: tournamentId,
+                    round_id: round_id,
+                    team_id: teamId,
+                    matchday: md,
+                    result: 'pending',
+                    points: 0,
+                    is_auto_pick: true
+                  });
+                  autoPicksCreated++;
+                }
+              }
+            }
+          } else {
+            // Knockout round: need 1 pick
+            if (existingPicks.length === 0) {
+              // Get teams for this round
+              const { data: matches } = await supabase
+                .from('matches')
+                .select('home_team_id, away_team_id')
+                .eq('round_id', round_id);
+
+              const availableTeams = matches?.flatMap(m => [m.home_team_id, m.away_team_id]) || [];
+              
+              if (availableTeams.length > 0) {
+                const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
+                
+                const pickData = {
+                  user_id: entry.user_id,
+                  tournament_id: tournamentId,
+                  round_id: round_id,
+                  team_id: randomTeam,
+                  matchday: null,
+                  result: 'pending',
+                  points: 0,
+                  is_auto_pick: true
+                };
+
+                // Add score prediction for QF, SF, Final
+                if (round.round_number >= 4) {
+                  pickData.predicted_home_score = Math.floor(Math.random() * 4);
+                  pickData.predicted_away_score = Math.floor(Math.random() * 3);
+                }
+
+                await supabase.from('picks').insert(pickData);
+                autoPicksCreated++;
+              }
+            }
+          }
+        }
+
+        return res.status(200).json({ 
+          success: true, 
+          round: round,
+          auto_picks_created: autoPicksCreated,
+          message: `Deadline triggered. ${autoPicksCreated} auto-picks created.`
+        });
+      }
+
       return res.status(400).json({ error: 'Invalid action' });
 
     } catch (error) {

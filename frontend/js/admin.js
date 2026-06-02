@@ -130,53 +130,26 @@ async function triggerRoundDeadlineForSelected() {
       return;
     }
     
-    // Step 1: Force close picks for this round
-    const closeRes = await fetch('/api/rounds', {
+    // Call the trigger_deadline API (closes picks + auto-picks for all users in one call)
+    const deadlineRes = await fetch('/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'force_close_picks', round_id: selectedRound.id })
+      body: JSON.stringify({ action: 'trigger_deadline', round_id: selectedRound.id })
     });
     
-    if (!closeRes.ok) {
-      const err = await closeRes.json();
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error closing round: ${err.error}</p>`;
-      return;
-    }
+    const deadlineData = await deadlineRes.json();
     
-    // Step 2: Run auto-pick for all users who missed picks
-    const tournamentRes = await fetch('/api/tournaments');
-    const tournamentData = await tournamentRes.json();
-    const tournamentId = tournamentData.tournaments?.[0]?.id;
-    
-    if (!tournamentId) {
-      statusDiv.innerHTML = '<p style="color: var(--accent-red);">No tournament found.</p>';
-      return;
-    }
-    
-    // Call the auto-pick API - need admin token
-    const token = localStorage.getItem('wc_lms_token');
-    const autoPickRes = await fetch('/api/picks', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: 'auto_pick', tournament_id: tournamentId })
-    });
-    
-    const autoPickData = await autoPickRes.json();
-    
-    if (autoPickRes.ok) {
+    if (deadlineRes.ok) {
       statusDiv.innerHTML = `
         <p style="color: var(--accent-green);">
           <i class="fas fa-check-circle"></i> 
-          Round closed! ${autoPickData.auto_picks_created || 0} auto-picks created for users who missed the deadline.
+          ${deadlineData.message}
         </p>
       `;
       loadRoundStatus();
       loadAllPicks();
     } else {
-      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Auto-pick error: ${autoPickData.error}</p>`;
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${deadlineData.error}</p>`;
     }
     
   } catch (error) {
