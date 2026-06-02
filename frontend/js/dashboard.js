@@ -685,38 +685,64 @@ function displayMatchdayPickFlow() {
     return;
   }
   
-  // Check if current matchday deadline has passed
+  // Check if picks are closed (admin triggered deadline OR match time passed)
   const now = new Date();
   const matchdayMatches = allMatches.filter(m => 
     m.round_id === currentRound.id && m.matchday === currentMatchday
   );
   
+  // Check if admin has force-closed picks for this round
+  const picksClosed = currentRound?.picks_closed === true;
+  
+  // Check if match time has passed
+  let deadlinePassed = false;
   if (matchdayMatches.length > 0) {
     const earliestMatch = matchdayMatches.sort((a, b) => new Date(a.match_time) - new Date(b.match_time))[0];
     const deadline = new Date(earliestMatch.match_time);
-    
-    if (now >= deadline) {
+    deadlinePassed = now >= deadline;
+  }
+  
+  // Show closed message if admin closed picks OR deadline passed
+  if (picksClosed || deadlinePassed) {
       // Deadline has passed - show missed matchday message
       const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
       const missedPicks = 3 - picksInMatchday;
+      
+      // Get deadline time for display
+      let deadlineStr = '';
+      if (matchdayMatches.length > 0) {
+        const earliestMatch = matchdayMatches.sort((a, b) => new Date(a.match_time) - new Date(b.match_time))[0];
+        const deadline = new Date(earliestMatch.match_time);
+        deadlineStr = deadline.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
+      }
+      
+      const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+      const missedPicks = 3 - picksInMatchday;
+      
+      const statusMessage = picksClosed 
+        ? 'Picks have been closed by the admin.'
+        : `Matchday ${currentMatchday} started at <strong>${deadlineStr}</strong>`;
+      
+      const autoPickMessage = picksInMatchday > 0
+        ? 'Your auto-picks have been assigned. Check your "Your Picks" tab to see your teams.'
+        : 'Auto-picks will be assigned. Check your "Your Picks" tab to see your teams.';
       
       container.innerHTML = `
         <div style="text-align:center;padding:2.5rem 1.5rem;background:rgba(239,68,68,0.1);border:3px solid var(--accent-red);border-radius:1rem;box-shadow:0 0 30px rgba(239,68,68,0.2);">
           <div style="font-size:3.5rem;margin-bottom:1rem;">⛔</div>
           <h2 style="color:var(--accent-red);margin-bottom:0.75rem;font-size:1.5rem;">Picks Are Closed</h2>
           <p style="color:var(--text-primary);font-size:1.1rem;margin-bottom:0.5rem;">
-            Matchday ${currentMatchday} started at <strong>${deadline.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })}</strong>
+            ${statusMessage}
           </p>
           <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.95rem;">
             You missed ${missedPicks} pick${missedPicks !== 1 ? 's' : ''}.
           </p>
           <div style="background:rgba(255,215,0,0.1);border:2px solid var(--accent-gold);border-radius:0.75rem;padding:1rem;margin-top:1rem;">
             <p style="color:var(--accent-gold);font-weight:700;margin-bottom:0.5rem;">
-              <i class="fas fa-magic"></i> Auto-Picks Will Be Assigned
+              <i class="fas fa-magic"></i> Auto-Picks Assigned
             </p>
             <p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">
-              Random teams will be selected for you when results are fetched.<br>
-              Check your <strong style="color:var(--accent-gold);">Your Picks</strong> tab to see your teams.
+              ${autoPickMessage}
             </p>
           </div>
         </div>
