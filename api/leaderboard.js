@@ -64,7 +64,14 @@ module.exports = async (req, res) => {
     // Calculate stats
     const totalPlayers = entries?.length || 0;
     
-    const entryFee = 30;
+    // Get entry fee from tournament
+    const { data: tournamentData } = await supabase
+      .from('tournaments')
+      .select('entry_fee')
+      .eq('id', tournamentId)
+      .single();
+    
+    const entryFee = tournamentData?.entry_fee || 20;
     const prizePool = totalPlayers * entryFee;
 
     const allRoundNumbers = picks?.map(p => p.rounds?.round_number || 1) || [];

@@ -351,7 +351,7 @@ async function resetAllData() {
 
 // ─── SETUP TOURNAMENT ─────────────────────────────────────
 async function setupTournament() {
-  const confirmed = confirm('Setup the World Cup 2026 Last Man Standing tournament?\n\n£30 entry | 100 players max | Points-based system\n\nMake sure you have run Reset All Data first.');
+  const confirmed = confirm('Setup the World Cup 2026 Last Man Standing tournament?\n\n£20 entry | 100 players max | Points-based system\n\nMake sure you have run Reset All Data first.');
   if (!confirmed) return;
   const statusDiv = document.getElementById('setup-status');
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Setting up tournament...</p>';
