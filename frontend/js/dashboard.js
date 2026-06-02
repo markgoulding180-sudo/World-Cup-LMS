@@ -1934,8 +1934,9 @@ function renderCountdown() {
   }
 
   const { match, isDeadline, label } = info;
-  // Parse match time as UTC (football-data.org returns UTC times)
-  const target = new Date(match.match_time + 'Z'); // Force UTC interpretation
+  // Parse match time - ensure UTC interpretation
+  // match.match_time is ISO format from DB (e.g., "2026-06-11T19:00:00+00:00")
+  const target = new Date(match.match_time);
   const now = new Date();
   const diff = target - now;
 
