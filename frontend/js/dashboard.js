@@ -716,14 +716,14 @@ function displayMatchdayPickFlow() {
         deadlineStr = deadline.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
       }
       
-      const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
-      const missedPicks = 3 - picksInMatchday;
+      const picksInCurrentMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
+      const missedPicks = 3 - picksInCurrentMatchday;
       
       const statusMessage = picksClosed 
         ? 'Picks have been closed by the admin.'
         : `Matchday ${currentMatchday} started at <strong>${deadlineStr}</strong>`;
       
-      const autoPickMessage = picksInMatchday > 0
+      const autoPickMessage = picksInCurrentMatchday > 0
         ? 'Your auto-picks have been assigned. Check your "Your Picks" tab to see your teams.'
         : 'Auto-picks will be assigned. Check your "Your Picks" tab to see your teams.';
       
