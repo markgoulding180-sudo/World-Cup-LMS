@@ -126,12 +126,21 @@ module.exports = async (req, res) => {
             .eq('user_id', entry.user_id)
             .eq('round_id', round_id);
 
+          // Also get ALL picks across the tournament to check global team usage
+          const { data: allUserPicks } = await supabase
+            .from('picks')
+            .select('team_id')
+            .eq('user_id', entry.user_id)
+            .eq('tournament_id', tournamentId);
+
           const existingPicks = userPicks || [];
+          // Tournament-wide used team IDs (prevents reusing teams from other rounds)
+          const globalUsedTeamIds = new Set((allUserPicks || []).map(p => p.team_id));
 
           if (round.round_number === 1) {
             // Group Stage: need 9 picks total (3 per matchday)
-            // Get all teams used so far in this round
-            const usedTeamIds = new Set(existingPicks.map(p => p.team_id));
+            // Use tournament-wide used teams to prevent reuse
+            const usedTeamIds = new Set([...globalUsedTeamIds]);
             
             for (let md = 1; md <= 3; md++) {
               const mdPicks = existingPicks.filter(p => p.matchday === md);
@@ -173,13 +182,14 @@ module.exports = async (req, res) => {
           } else {
             // Knockout round: need 1 pick
             if (existingPicks.length === 0) {
-              // Get teams for this round
               const { data: matches } = await supabase
                 .from('matches')
                 .select('home_team_id, away_team_id')
                 .eq('round_id', round_id);
 
-              const availableTeams = matches?.flatMap(m => [m.home_team_id, m.away_team_id]) || [];
+              // Filter out teams already used anywhere in tournament
+              const availableTeams = matches?.flatMap(m => [m.home_team_id, m.away_team_id])
+                .filter(teamId => !globalUsedTeamIds.has(teamId)) || [];
               
               if (availableTeams.length > 0) {
                 const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
