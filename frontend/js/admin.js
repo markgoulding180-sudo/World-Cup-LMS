@@ -71,6 +71,12 @@ async function loadRoundStatus() {
         </div>`;
 
       select.innerHTML += `<option value="${round.id}">${round.name} (${round.status})</option>`;
+      
+      // Also populate deadline round dropdown
+      const deadlineSelect = document.getElementById('deadline-round-select');
+      if (deadlineSelect) {
+        deadlineSelect.innerHTML += `<option value="${round.id}">${round.name} (${round.status})</option>`;
+      }
     });
     html += '</div>';
     container.innerHTML = html;
@@ -101,20 +107,26 @@ async function forcePicksOpen(roundId) {
 }
 
 // ─── TRIGGER ROUND DEADLINE ───────────────────────────────
-async function triggerRoundDeadline() {
-  if (!confirm('Trigger round deadline?\n\nThis will close picks and auto-assign teams to users who missed the deadline.\n\nAre you sure?')) return;
+async function triggerRoundDeadlineForSelected() {
+  const roundId = document.getElementById('deadline-round-select').value;
+  if (!roundId) {
+    alert('Please select a round first');
+    return;
+  }
+  
+  if (!confirm('Trigger deadline for this round?\n\nThis will close picks and auto-assign teams to users who missed the deadline.\n\nAre you sure?')) return;
   
   const statusDiv = document.getElementById('round-deadline-status');
   statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Closing round and running auto-pick...</p>';
   
   try {
-    // Get current round
+    // Get round details
     const roundsRes = await fetch('/api/rounds');
     const roundsData = await roundsRes.json();
-    const currentRound = roundsData.rounds?.find(r => r.status === 'open');
+    const selectedRound = roundsData.rounds?.find(r => r.id === roundId);
     
-    if (!currentRound) {
-      statusDiv.innerHTML = '<p style="color: var(--accent-red);">No open round found.</p>';
+    if (!selectedRound) {
+      statusDiv.innerHTML = '<p style="color: var(--accent-red);">Round not found.</p>';
       return;
     }
     
@@ -122,7 +134,7 @@ async function triggerRoundDeadline() {
     const closeRes = await fetch('/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'force_close_picks', round_id: currentRound.id })
+      body: JSON.stringify({ action: 'force_close_picks', round_id: selectedRound.id })
     });
     
     if (!closeRes.ok) {

@@ -99,17 +99,16 @@
       <div style="background:rgba(255,193,7,0.1);border:2px solid #ffc107;border-radius:0.5rem;padding:1rem;margin-top:1rem;">
         <h3 style="color:#ffc107;margin-bottom:0.5rem;"><i class="fas fa-clock"></i> Round Deadline</h3>
         <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem;">
-          Click this when the first match of the current round has kicked off. This will:
+          Select a round and click Trigger Deadline when the first match has kicked off. This will close picks and auto-assign teams to users who missed the deadline.
         </p>
-        <ul style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem;">
-          <li>Close picks for the current round</li>
-          <li>Auto-assign random teams to users who missed picks</li>
-          <li>Users see their teams in "Your Picks" tab</li>
-          <li>Round stays open for results</li>
-        </ul>
-        <button class="btn btn-primary" onclick="triggerRoundDeadline()" style="background:#ffc107;color:#000;width:100%;font-weight:bold;">
-          <i class="fas fa-flag-checkered"></i> Trigger Round Deadline
-        </button>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <select id="deadline-round-select" style="flex:1;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);">
+            <option value="">Select round...</option>
+          </select>
+          <button class="btn btn-primary" onclick="triggerRoundDeadlineForSelected()" style="background:#ffc107;color:#000;font-weight:bold;">
+            <i class="fas fa-flag-checkered"></i> Trigger Deadline
+          </button>
+        </div>
         <div id="round-deadline-status" style="margin-top:0.5rem;"></div>
       </div>
     </div>
