@@ -93,6 +93,24 @@
         <button class="btn btn-primary" onclick="openSelectedRound()"><i class="fas fa-lock-open"></i> Open</button>
         <button class="btn btn-secondary" onclick="closeSelectedRound()"><i class="fas fa-lock"></i> Close</button>
       </div>
+      
+      <hr style="margin:1rem 0;border-color:var(--border-color);">
+      
+      <div style="background:rgba(239,68,68,0.1);border:2px solid var(--accent-red);border-radius:0.5rem;padding:1rem;margin-top:1rem;">
+        <h3 style="color:var(--accent-red);margin-bottom:0.5rem;"><i class="fas fa-stop-circle"></i> EMERGENCY: Close Round & Auto-Pick</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+          Use this when the first match of a round has started. This will:
+        </p>
+        <ul style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+          <li>Close picks for the current round</li>
+          <li>Auto-assign random teams to users who missed picks</li>
+          <li>Allow the tournament to continue</li>
+        </ul>
+        <button class="btn btn-danger" onclick="closeRoundAndAutoPick()" style="background:var(--accent-red);width:100%;">
+          <i class="fas fa-magic"></i> Close Round & Auto-Pick Now
+        </button>
+        <div id="close-autopick-status" style="margin-top:0.5rem;"></div>
+      </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════

@@ -100,6 +100,74 @@ async function forcePicksOpen(roundId) {
   else alert('Error: ' + data.error);
 }
 
+// ─── CLOSE ROUND & AUTO-PICK ──────────────────────────────
+async function closeRoundAndAutoPick() {
+  if (!confirm('⚠️ This will close picks for the current round and auto-assign teams to users who missed picks.\n\nAre you sure?')) return;
+  
+  const statusDiv = document.getElementById('close-autopick-status');
+  statusDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Closing round and running auto-pick...</p>';
+  
+  try {
+    // Get current round
+    const roundsRes = await fetch('/api/rounds');
+    const roundsData = await roundsRes.json();
+    const currentRound = roundsData.rounds?.find(r => r.status === 'open');
+    
+    if (!currentRound) {
+      statusDiv.innerHTML = '<p style="color: var(--accent-red);">No open round found.</p>';
+      return;
+    }
+    
+    // Step 1: Force close picks for this round
+    const closeRes = await fetch('/api/rounds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'force_close_picks', round_id: currentRound.id })
+    });
+    
+    if (!closeRes.ok) {
+      const err = await closeRes.json();
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error closing round: ${err.error}</p>`;
+      return;
+    }
+    
+    // Step 2: Run auto-pick for all users who missed picks
+    const tournamentRes = await fetch('/api/tournaments');
+    const tournamentData = await tournamentRes.json();
+    const tournamentId = tournamentData.tournaments?.[0]?.id;
+    
+    if (!tournamentId) {
+      statusDiv.innerHTML = '<p style="color: var(--accent-red);">No tournament found.</p>';
+      return;
+    }
+    
+    // Call the auto-pick API
+    const autoPickRes = await fetch('/api/picks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'auto_pick', tournament_id: tournamentId })
+    });
+    
+    const autoPickData = await autoPickRes.json();
+    
+    if (autoPickRes.ok) {
+      statusDiv.innerHTML = `
+        <p style="color: var(--accent-green);">
+          <i class="fas fa-check-circle"></i> 
+          Round closed! ${autoPickData.auto_picks_created || 0} auto-picks created for users who missed the deadline.
+        </p>
+      `;
+      loadRoundStatus();
+      loadAllPicks();
+    } else {
+      statusDiv.innerHTML = `<p style="color: var(--accent-red);">Auto-pick error: ${autoPickData.error}</p>`;
+    }
+    
+  } catch (error) {
+    statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
 // ─── MATCHES FOR RESULTS ENTRY ────────────────────────────
 async function loadMatchesForResults() {
   const container = document.getElementById('match-list');
