@@ -158,41 +158,99 @@ async function triggerRoundDeadlineForSelected() {
 }
 
 // ─── MATCHES FOR RESULTS ENTRY ────────────────────────────
+// Global variable to store all matches
+let allMatchesData = [];
+let currentRoundTab = 1;
+
 async function loadMatchesForResults() {
   const container = document.getElementById('match-list');
-  const resultContainer = document.getElementById('result-entry');
   try {
     const response = await fetch('/api/matches?limit=200');
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
-    const matches = data.matches || [];
-    if (matches.length === 0) {
-      resultContainer.innerHTML = '<p class="text-secondary">No matches found.</p>';
-    } else {
-      const byMatchday = { 1: [], 2: [], 3: [] };
-      const koMatches = [];
-      matches.forEach(m => { if (m.matchday && byMatchday[m.matchday]) byMatchday[m.matchday].push(m); else koMatches.push(m); });
-      let html = '<div class="matches-for-entry">';
-      html += `<div class="match-filter"><input type="text" id="match-filter-input" placeholder="Filter by team name..." onkeyup="filterMatches()"><button class="btn btn-secondary btn-sm" onclick="clearFilter()">Clear</button></div>`;
-      [1, 2, 3].forEach(md => {
-        if (byMatchday[md].length === 0) return;
-        html += `<h4 class="matchday-header-admin">Matchday ${md}</h4>`;
-        byMatchday[md].forEach(match => { html += buildMatchRow(match); });
-      });
-      if (koMatches.length > 0) {
-        html += `<h4 class="matchday-header-admin">Knockout Stage</h4>`;
-        koMatches.forEach(match => { html += buildMatchRow(match); });
-      }
-      html += '</div>';
-      resultContainer.innerHTML = html;
+    
+    allMatchesData = data.matches || [];
+    
+    if (allMatchesData.length === 0) {
+      container.innerHTML = '<p class="text-secondary">No matches found. Setup tournament first.</p>';
+      return;
     }
-    const upcomingCount = matches.filter(m => m.status === 'upcoming').length;
-    const finishedCount = matches.filter(m => m.status === 'finished').length;
-    container.innerHTML = `<p><strong>Upcoming:</strong> ${upcomingCount} matches</p><p><strong>Finished:</strong> ${finishedCount} matches</p>`;
+    
+    // Show matches for default tab (Group Stage MD1)
+    showMatchesForRound(1);
+    
   } catch (error) {
-    container.innerHTML = `<p class="error">Error loading matches</p>`;
-    resultContainer.innerHTML = `<p class="error">Error loading matches for entry</p>`;
+    container.innerHTML = `<p class="error">Error loading matches: ${error.message}</p>`;
   }
+}
+
+function switchRoundTab(round) {
+  currentRoundTab = round;
+  
+  // Update tab styling
+  document.querySelectorAll('.round-tab').forEach(tab => {
+    tab.style.opacity = '0.6';
+    tab.style.transform = 'scale(0.95)';
+  });
+  const activeTab = document.querySelector(`.round-tab[data-round="${round}"]`);
+  if (activeTab) {
+    activeTab.style.opacity = '1';
+    activeTab.style.transform = 'scale(1)';
+  }
+  
+  showMatchesForRound(round);
+}
+
+function showMatchesForRound(round) {
+  const container = document.getElementById('match-list');
+  
+  let filteredMatches = [];
+  let roundTitle = '';
+  
+  if (round === 1) {
+    // Group Stage MD1
+    filteredMatches = allMatchesData.filter(m => m.rounds?.round_number === 1 && m.matchday === 1);
+    roundTitle = 'Group Stage - Matchday 1';
+  } else if (round === '1-md2') {
+    // Group Stage MD2
+    filteredMatches = allMatchesData.filter(m => m.rounds?.round_number === 1 && m.matchday === 2);
+    roundTitle = 'Group Stage - Matchday 2';
+  } else if (round === '1-md3') {
+    // Group Stage MD3
+    filteredMatches = allMatchesData.filter(m => m.rounds?.round_number === 1 && m.matchday === 3);
+    roundTitle = 'Group Stage - Matchday 3';
+  } else {
+    // Knockout rounds
+    filteredMatches = allMatchesData.filter(m => m.rounds?.round_number === round);
+    const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+    roundTitle = roundNames[round] || `Round ${round}`;
+  }
+  
+  if (filteredMatches.length === 0) {
+    container.innerHTML = `
+      <div style="padding:2rem;text-align:center;color:var(--text-secondary);">
+        <i class="fas fa-info-circle" style="font-size:2rem;margin-bottom:0.5rem;"></i>
+        <p>No matches found for ${roundTitle}.</p>
+        <p style="font-size:0.85rem;">This round may not be created yet or has no fixtures.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  let html = `
+    <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+      <h3 style="margin:0;color:var(--accent-gold);">${roundTitle}</h3>
+      <span style="font-size:0.85rem;color:var(--text-secondary);">${filteredMatches.length} matches</span>
+    </div>
+    <div class="matches-for-entry">
+  `;
+  
+  filteredMatches.forEach(match => {
+    html += buildMatchRow(match);
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 function buildMatchRow(match) {
@@ -200,37 +258,130 @@ function buildMatchRow(match) {
   const dateStr = matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const isFinished = match.status === 'finished';
+  const isQForLater = match.round_number >= 4 && !isFinished; // QF, SF, Final need score prediction fields
+  
+  // Build extra fields for QF/SF/Final (score predictions)
+  let extraFields = '';
+  if (isQForLater) {
+    extraFields = `
+      <div style="grid-column:1/-1;margin-top:0.5rem;padding:0.5rem;background:rgba(255,193,7,0.1);border:1px solid #ffc107;border-radius:0.25rem;">
+        <p style="font-size:0.75rem;color:#ffc107;margin-bottom:0.5rem;font-weight:bold;"><i class="fas fa-star"></i> Score Prediction (90 mins only) - Bonus Points Available</p>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:0.8rem;">Predict 90-min score:</span>
+          <input type="number" id="pred-${match.id}-home" min="0" placeholder="H" class="admin-card-input" style="width:50px;text-align:center;">
+          <span>-</span>
+          <input type="number" id="pred-${match.id}-away" min="0" placeholder="A" class="admin-card-input" style="width:50px;text-align:center;">
+          <span style="font-size:0.75rem;color:var(--text-secondary);">(for bonus points)</span>
+        </div>
+      </div>`;
+  }
+  
+  // Build ET/Penalty fields for knockout matches (round 2+)
+  let koFields = '';
+  if (match.round_number >= 2 && !isFinished) {
+    koFields = `
+      <div style="grid-column:1/-1;margin-top:0.5rem;padding:0.5rem;background:rgba(34,197,94,0.1);border:1px solid var(--accent-green);border-radius:0.25rem;">
+        <p style="font-size:0.75rem;color:var(--accent-green);margin-bottom:0.5rem;font-weight:bold;"><i class="fas fa-clock"></i> Extra Time & Penalties (if needed)</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+          <div>
+            <span style="font-size:0.75rem;">ET Home:</span>
+            <input type="number" id="et-${match.id}-home" min="0" placeholder="-" class="admin-card-input" style="width:50px;text-align:center;">
+          </div>
+          <div>
+            <span style="font-size:0.75rem;">ET Away:</span>
+            <input type="number" id="et-${match.id}-away" min="0" placeholder="-" class="admin-card-input" style="width:50px;text-align:center;">
+          </div>
+          <div>
+            <span style="font-size:0.75rem;">Pens Home:</span>
+            <input type="number" id="pen-${match.id}-home" min="0" placeholder="-" class="admin-card-input" style="width:50px;text-align:center;">
+          </div>
+          <div>
+            <span style="font-size:0.75rem;">Pens Away:</span>
+            <input type="number" id="pen-${match.id}-away" min="0" placeholder="-" class="admin-card-input" style="width:50px;text-align:center;">
+          </div>
+        </div>
+        <p style="font-size:0.7rem;color:var(--text-secondary);margin-top:0.25rem;">Only fill if match went to ET/penalties. Winner determined from these if provided.</p>
+      </div>`;
+  }
+  
   return `
-    <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}">
-      <div class="match-admin-when">${dateStr} @ ${timeStr}</div>
-      <div class="match-admin-cards">
+    <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}" data-round="${match.round_number}">
+      <div class="match-admin-when">${dateStr} @ ${timeStr} ${match.round_name ? `| ${match.round_name}` : ''}</div>
+      <div class="match-admin-cards" style="display:grid;grid-template-columns:1fr auto 1fr;gap:0.5rem;">
         <div class="admin-team-card">
           <div class="admin-team-header"><img src="${match.home_team?.flag_url}" alt="" class="admin-card-flag"><span class="admin-card-name">${match.home_team?.name}</span></div>
-          ${!isFinished ? `<input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="admin-card-input">` : `<div class="admin-card-result">${match.home_score}</div>`}
+          ${!isFinished ? `<input type="number" id="score-${match.id}-home" min="0" placeholder="0" class="admin-card-input">` : `<div class="admin-card-result">${match.home_score !== null ? match.home_score : '-'}</div>`}
         </div>
         <div class="admin-vs-card">
           <span class="admin-vs-text">v</span>
-          ${!isFinished ? `<button class="btn admin-save-btn" onclick="submitResult('${match.id}')">Save</button>` : '<span class="admin-finished-text">FT</span>'}
+          ${!isFinished ? `<button class="btn admin-save-btn" onclick="submitResult('${match.id}', ${match.round_number})">Save</button>` : '<span class="admin-finished-text">FT</span>'}
         </div>
         <div class="admin-team-card">
           <div class="admin-team-header"><img src="${match.away_team?.flag_url}" alt="" class="admin-card-flag"><span class="admin-card-name">${match.away_team?.name}</span></div>
-          ${!isFinished ? `<input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="admin-card-input">` : `<div class="admin-card-result">${match.away_score}</div>`}
+          ${!isFinished ? `<input type="number" id="score-${match.id}-away" min="0" placeholder="0" class="admin-card-input">` : `<div class="admin-card-result">${match.away_score !== null ? match.away_score : '-'}</div>`}
         </div>
+        ${koFields}
+        ${extraFields}
       </div>
+      ${isFinished && (match.et_home_score !== null || match.pen_home_score !== null) ? `
+        <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-secondary);">
+          ${match.et_home_score !== null ? `ET: ${match.et_home_score}-${match.et_away_score} | ` : ''}
+          ${match.pen_home_score !== null ? `Pens: ${match.pen_home_score}-${match.pen_away_score}` : ''}
+        </div>
+      ` : ''}
     </div>`;
 }
 
-async function submitResult(matchId) {
+async function submitResult(matchId, roundNumber) {
   const homeScore = document.getElementById(`score-${matchId}-home`).value;
   const awayScore = document.getElementById(`score-${matchId}-away`).value;
   if (homeScore === '' || awayScore === '') { alert('Please enter both scores'); return; }
+  
+  // Build request body with basic scores
+  const requestBody = {
+    match_id: matchId,
+    home_score: parseInt(homeScore),
+    away_score: parseInt(awayScore)
+  };
+  
+  // Add ET scores if provided (knockout matches)
+  const etHome = document.getElementById(`et-${matchId}-home`);
+  const etAway = document.getElementById(`et-${matchId}-away`);
+  if (etHome && etAway && etHome.value !== '' && etAway.value !== '') {
+    requestBody.et_home_score = parseInt(etHome.value);
+    requestBody.et_away_score = parseInt(etAway.value);
+  }
+  
+  // Add penalty scores if provided (knockout matches)
+  const penHome = document.getElementById(`pen-${matchId}-home`);
+  const penAway = document.getElementById(`pen-${matchId}-away`);
+  if (penHome && penAway && penHome.value !== '' && penAway.value !== '') {
+    requestBody.pen_home_score = parseInt(penHome.value);
+    requestBody.pen_away_score = parseInt(penAway.value);
+  }
+  
+  // Add score predictions if provided (QF/SF/Final)
+  const predHome = document.getElementById(`pred-${matchId}-home`);
+  const predAway = document.getElementById(`pred-${matchId}-away`);
+  if (predHome && predAway && predHome.value !== '' && predAway.value !== '') {
+    requestBody.predicted_home_score = parseInt(predHome.value);
+    requestBody.predicted_away_score = parseInt(predAway.value);
+  }
+  
   try {
     const response = await fetch('/api/admin-results', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ match_id: matchId, home_score: parseInt(homeScore), away_score: parseInt(awayScore) })
+      body: JSON.stringify(requestBody)
     });
     const data = await response.json();
-    if (response.ok) { alert(`Result saved!\n${data.match.home} ${data.match.score} ${data.match.away}\nPoints awarded: ${data.pointsAwarded || 0}`); loadAdminData(); }
+    if (response.ok) { 
+      let message = `Result saved!\n${data.match.home} ${data.match.score} ${data.match.away}\nPoints awarded: ${data.pointsAwarded || 0}`;
+      if (data.match.result !== 'Draw' && roundNumber >= 4) {
+        message += '\n\nScore predictions checked for bonus points (90-min score only)';
+      }
+      alert(message); 
+      loadAdminData(); 
+    }
     else alert('Error: ' + data.error);
   } catch (error) { alert('Error saving result: ' + error.message); }
 }
@@ -252,13 +403,6 @@ async function loadAllPicks() {
     container.innerHTML = html;
   } catch (error) { container.innerHTML = `<p class="error">Error loading picks</p>`; }
 }
-
-function filterMatches() {
-  const filterText = document.getElementById('match-filter-input').value.toLowerCase();
-  document.querySelectorAll('.match-entry-row').forEach(row => { row.style.display = row.textContent.toLowerCase().includes(filterText) ? '' : 'none'; });
-}
-
-function clearFilter() { document.getElementById('match-filter-input').value = ''; filterMatches(); }
 
 async function updateResultsFromFixturedownload() {
   const statusDiv = document.getElementById('update-status');
@@ -1363,6 +1507,126 @@ async function downloadFullTournamentCSV() {
     if (btn) { btn.innerHTML = '<i class="fas fa-download"></i> Download Full Tournament Data (CSV)'; btn.disabled = false; }
   }
 }
+
+// ─── ELIGIBLE TEAMS PER USER EXPORT ──────────────────────────────────────────
+// Shows which teams each user can still pick in each round
+
+async function downloadEligibleTeamsCSV() {
+  const btn = document.getElementById('download-eligible-btn');
+  if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; btn.disabled = true; }
+
+  try {
+    // Fetch all necessary data
+    const [entriesRes, teamsRes, picksRes, roundsRes] = await Promise.all([
+      fetch('/api/entries?admin=true'),
+      fetch('/api/teams'),
+      fetch('/api/picks?admin=true'),
+      fetch('/api/rounds')
+    ]);
+
+    const entriesData = await entriesRes.json();
+    const teamsData = await teamsRes.json();
+    const picksData = await picksRes.json();
+    const roundsData = await roundsRes.json();
+
+    const entries = entriesData.entries || [];
+    const allTeams = teamsData.teams || [];
+    const allPicks = picksData.picks || [];
+    const rounds = roundsData.rounds || [];
+
+    // Build a map of used teams per user
+    const usedTeamsByUser = {};
+    allPicks.forEach(pick => {
+      const userId = pick.user_id;
+      if (!usedTeamsByUser[userId]) usedTeamsByUser[userId] = new Set();
+      usedTeamsByUser[userId].add(pick.team_id);
+    });
+
+    // Build headers - one column per round showing eligible teams
+    const headers = ['Player Name', 'Status', 'Total Points'];
+    const roundOrder = [1, 2, 3, 4, 5, 6]; // Group, R32, R16, QF, SF, Final
+    const roundNames = { 1: 'Group Stage', 2: 'R32', 3: 'R16', 4: 'QF', 5: 'SF', 6: 'Final' };
+    
+    roundOrder.forEach(rn => {
+      headers.push(`${roundNames[rn]} - Eligible Teams`);
+      headers.push(`${roundNames[rn]} - Used Teams`);
+      headers.push(`${roundNames[rn]} - Available Count`);
+    });
+
+    const rows = [headers];
+
+    // Process each player
+    entries.forEach(entry => {
+      const userId = entry.user_id;
+      const userName = entry.users?.display_name || entry.users?.username || 'Unknown';
+      const usedTeams = usedTeamsByUser[userId] || new Set();
+      
+      const row = [
+        userName,
+        entry.status || 'active',
+        entry.total_points || 0
+      ];
+
+      // For each round, calculate eligible teams
+      roundOrder.forEach(roundNum => {
+        const round = rounds.find(r => r.round_number === roundNum);
+        
+        if (!round) {
+          row.push('Round not created', 'N/A', 'N/A');
+          return;
+        }
+
+        // Get teams that play in this round
+        // For Group Stage: all teams playing in that round's matches
+        // For Knockouts: teams in the matches for that round
+        let roundTeams = [];
+        if (roundNum === 1) {
+          // Group stage - all teams are potentially eligible
+          roundTeams = allTeams.map(t => t.id);
+        } else {
+          // Knockout - get teams from matches in this round
+          // This would need matches data - for now show all unused teams
+          roundTeams = allTeams.map(t => t.id);
+        }
+
+        // Filter out used teams to get eligible
+        const eligibleTeams = roundTeams.filter(teamId => !usedTeams.has(teamId));
+        const usedInRound = Array.from(usedTeams).filter(teamId => roundTeams.includes(teamId));
+        
+        // Get team names
+        const eligibleNames = eligibleTeams
+          .map(id => allTeams.find(t => t.id === id)?.name || 'Unknown')
+          .sort()
+          .join('; ');
+        
+        const usedNames = usedInRound
+          .map(id => allTeams.find(t => t.id === id)?.name || 'Unknown')
+          .sort()
+          .join('; ');
+
+        row.push(eligibleNames || 'None available');
+        row.push(usedNames || 'None used yet');
+        row.push(eligibleTeams.length);
+      });
+
+      // Quote fields with commas
+      rows.push(row.map(v => {
+        const s = String(v);
+        return s.includes(',') || s.includes(';') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s;
+      }));
+    });
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const now = new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
+    downloadCSV(csv, `wc-eligible-teams-per-user-${now}.csv`);
+
+  } catch(e) {
+    alert('Error generating eligible teams CSV: ' + e.message);
+  } finally {
+    if (btn) { btn.innerHTML = '<i class="fas fa-download"></i> Download Eligible Teams per User (CSV)'; btn.disabled = false; }
+  }
+}
+
 // ─── SNAPSHOT SYSTEM ─────────────────────────────────────────────────────────
 
 async function createSnapshot() {

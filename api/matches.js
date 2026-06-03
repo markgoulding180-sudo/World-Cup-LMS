@@ -86,6 +86,9 @@ module.exports = async (req, res) => {
       `)
       .order('match_time', { ascending: true })
       .limit(parseInt(limit));
+      
+    // Include new ET/penalty fields in response
+    // These are: et_home_score, et_away_score, pen_home_score, pen_away_score, winner_team_id
 
     if (status) {
       query = query.eq('status', status);

@@ -238,9 +238,6 @@ module.exports = async (req, res) => {
 
     // ── Process each finished fixture ─────────────────────
     for (const fixture of finishedFixtures) {
-      const homeScore = fixture.score.fullTime.home;
-      const awayScore = fixture.score.fullTime.away;
-
       const homeName = fixture.homeTeam?.name || fixture.homeTeam?.shortName;
       const awayName = fixture.awayTeam?.name || fixture.awayTeam?.shortName;
 
@@ -262,23 +259,65 @@ module.exports = async (req, res) => {
         continue;
       }
 
-      // Determine result
-      let result;
-      if (homeScore > awayScore) result = 'H';
-      else if (awayScore > homeScore) result = 'A';
-      else result = 'D';
-
       // Get round number for points calculation
       const roundNumber = dbMatch.rounds?.round_number || 1;
       const pointsForWin = POINTS_STRUCTURE[roundNumber] || 2;
+
+      // ── DETERMINE WINNER FROM API ─────────────────────────
+      // Use score.winner field which accounts for ET and penalties
+      const apiWinner = fixture.score?.winner; // 'HOME_TEAM', 'AWAY_TEAM', or 'DRAW'
+      
+      let result;
+      let winningTeamId = null;
+      
+      if (apiWinner === 'HOME_TEAM') {
+        result = 'H';
+        winningTeamId = homeTeamId;
+      } else if (apiWinner === 'AWAY_TEAM') {
+        result = 'A';
+        winningTeamId = awayTeamId;
+      } else if (apiWinner === 'DRAW') {
+        // Explicit draw from API
+        result = 'D';
+        winningTeamId = null;
+      } else {
+        // No winner field yet - match not truly finished (e.g., ET/penalties pending)
+        skipped.push(`${homeName} vs ${awayName} — no winner determined yet (ET/pens may be pending)`);
+        continue;
+      }
+
+      // For knockout stages (round 2+), ensure we have a winner (not a draw)
+      if (roundNumber >= 2 && apiWinner === 'DRAW') {
+        skipped.push(`${homeName} vs ${awayName} — knockout match draw, waiting for ET/pens resolution`);
+        continue;
+      }
+
+      // ── EXTRACT SCORES ───────────────────────────────────
+      // 90-minute scores for display and score prediction comparison
+      // Use regularTime if available (ET/Pens match), otherwise fullTime
+      const ninetyMinHome = fixture.score?.regularTime?.home ?? fixture.score?.fullTime?.home;
+      const ninetyMinAway = fixture.score?.regularTime?.away ?? fixture.score?.fullTime?.away;
+      
+      // ET scores (if played)
+      const etHome = fixture.score?.extraTime?.home ?? null;
+      const etAway = fixture.score?.extraTime?.away ?? null;
+      
+      // Penalty scores (if played)
+      const penHome = fixture.score?.penalties?.home ?? null;
+      const penAway = fixture.score?.penalties?.away ?? null;
 
       // ── Update match record ───────────────────────────
       const { error: matchUpdateError } = await supabase
         .from('matches')
         .update({
-          home_score: homeScore,
-          away_score: awayScore,
-          result,
+          home_score: ninetyMinHome,        // 90-minute score
+          away_score: ninetyMinAway,        // 90-minute score
+          et_home_score: etHome,            // ET score (null if not played)
+          et_away_score: etAway,            // ET score (null if not played)
+          pen_home_score: penHome,          // Penalty score (null if not played)
+          pen_away_score: penAway,          // Penalty score (null if not played)
+          winner_team_id: winningTeamId,    // Explicit winner (null for draws)
+          result: result,                   // 'H', 'A', or 'D'
           status: 'finished'
         })
         .eq('id', dbMatch.id);
@@ -291,9 +330,6 @@ module.exports = async (req, res) => {
       matchesUpdated++;
 
       // ── Update picks: win / loss ──────────────────────
-      const winningTeamId = result === 'H' ? homeTeamId :
-                            result === 'A' ? awayTeamId : null;
-
       const losingTeamIds = result === 'D'
         ? [homeTeamId, awayTeamId]
         : [result === 'H' ? awayTeamId : homeTeamId];
@@ -338,13 +374,14 @@ module.exports = async (req, res) => {
           let totalPointsForPick = pointsForWin;
 
           // ── Score bonus for QF, SF, Final (rounds 4, 5, 6) ──
+          // Compare prediction to 90-MINUTE score only (not ET/penalties)
           if (roundNumber >= 4 && 
               pick.predicted_home_score !== null && 
               pick.predicted_away_score !== null &&
-              parseInt(pick.predicted_home_score) === homeScore &&
-              parseInt(pick.predicted_away_score) === awayScore) {
+              parseInt(pick.predicted_home_score) === ninetyMinHome &&
+              parseInt(pick.predicted_away_score) === ninetyMinAway) {
             
-            // Award 3 bonus points for correct score
+            // Award 3 bonus points for correct 90-minute score prediction
             await supabase
               .from('picks')
               .update({ score_bonus: 3, points: pointsForWin + 3 })

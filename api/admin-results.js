@@ -43,22 +43,78 @@ module.exports = async (req, res) => {
       process.env.SUPABASE_SECRET
     );
 
-    const { match_id, home_score, away_score } = req.body || {};
+    const { 
+      match_id, 
+      home_score, 
+      away_score, 
+      et_home_score, 
+      et_away_score, 
+      pen_home_score, 
+      pen_away_score,
+      winner_team_id 
+    } = req.body || {};
 
     if (!match_id || home_score === undefined || away_score === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields: match_id, home_score, away_score' });
     }
 
-    // Determine result
+    // Determine result from scores or explicit winner
     let result;
-    if (home_score > away_score) result = 'H';
-    else if (away_score > home_score) result = 'A';
-    else result = 'D';
+    let finalWinnerId = winner_team_id || null;
+    
+    if (finalWinnerId) {
+      // Use explicit winner if provided
+      const { data: matchData } = await supabase
+        .from('matches')
+        .select('home_team_id, away_team_id')
+        .eq('id', match_id)
+        .single();
+      
+      if (matchData) {
+        if (finalWinnerId === matchData.home_team_id) result = 'H';
+        else if (finalWinnerId === matchData.away_team_id) result = 'A';
+        else result = 'D';
+      } else {
+        result = 'D';
+      }
+    } else {
+      // Determine from 90-minute scores
+      if (home_score > away_score) result = 'H';
+      else if (away_score > home_score) result = 'A';
+      else result = 'D';
+      
+      // For draws, check if ET/penalty scores provided to determine winner
+      if (result === 'D' && (et_home_score !== undefined || pen_home_score !== undefined)) {
+        // Check ET scores first
+        if (et_home_score !== undefined && et_away_score !== undefined) {
+          if (et_home_score > et_away_score) result = 'H';
+          else if (et_away_score > et_home_score) result = 'A';
+        }
+        
+        // If still draw, check penalty scores
+        if (result === 'D' && pen_home_score !== undefined && pen_away_score !== undefined) {
+          if (pen_home_score > pen_away_score) result = 'H';
+          else if (pen_away_score > pen_home_score) result = 'A';
+        }
+      }
+    }
 
-    // Update match
+    // Update match with all score data
+    const updateData = {
+      home_score,
+      away_score,
+      et_home_score: et_home_score ?? null,
+      et_away_score: et_away_score ?? null,
+      pen_home_score: pen_home_score ?? null,
+      pen_away_score: pen_away_score ?? null,
+      winner_team_id: finalWinnerId,
+      result,
+      status: 'finished'
+    };
+
     const { data: match, error: matchError } = await supabase
       .from('matches')
-      .update({ home_score, away_score, result, status: 'finished' })
+      .update(updateData)
       .eq('id', match_id)
       .select('*, home_team:home_team_id(*), away_team:away_team_id(*), rounds:round_id(round_number)')
       .single();
@@ -69,6 +125,14 @@ module.exports = async (req, res) => {
 
     const winningTeamId = result === 'H' ? match.home_team_id :
                          result === 'A' ? match.away_team_id : null;
+    
+    // Update winner_team_id if not already set
+    if (!match.winner_team_id && winningTeamId) {
+      await supabase
+        .from('matches')
+        .update({ winner_team_id: winningTeamId })
+        .eq('id', match_id);
+    }
     const matchRoundId = match.round_id;
     const roundNumber = match.rounds?.round_number || 1;
     const pointsForWin = POINTS_STRUCTURE[roundNumber] || 2;
@@ -123,7 +187,7 @@ module.exports = async (req, res) => {
     if (winningTeamId) {
       let winningPicksQuery = supabase
         .from('picks')
-        .select('user_id')
+        .select('id, user_id, predicted_home_score, predicted_away_score')
         .eq('result', 'win')
         .eq('team_id', winningTeamId)
         .eq('round_id', match.round_id);
@@ -136,11 +200,30 @@ module.exports = async (req, res) => {
       const { data: winningPicks } = await winningPicksQuery;
 
       for (const pick of winningPicks || []) {
+        let totalPointsForPick = pointsForWin;
+
+        // ── Score bonus for QF, SF, Final (rounds 4, 5, 6) ──
+        // Compare prediction to 90-MINUTE score only
+        if (roundNumber >= 4 && 
+            pick.predicted_home_score !== null && 
+            pick.predicted_away_score !== null &&
+            parseInt(pick.predicted_home_score) === home_score &&
+            parseInt(pick.predicted_away_score) === away_score) {
+          
+          // Award 3 bonus points for correct 90-minute score prediction
+          await supabase
+            .from('picks')
+            .update({ score_bonus: 3, points: pointsForWin + 3 })
+            .eq('id', pick.id);
+
+          totalPointsForPick = pointsForWin + 3;
+        }
+
         await supabase.rpc('increment_points', { 
           user_id: pick.user_id, 
-          points: pointsForWin 
+          points: totalPointsForPick 
         });
-        pointsAwarded += pointsForWin;
+        pointsAwarded += totalPointsForPick;
       }
     }
 
