@@ -1531,6 +1531,18 @@ function displayRoundMatches(matches, currentRound) {
       const hasScore = m.home_score !== null && m.home_score !== undefined;
       const isFinished = m.status === 'finished' || hasScore;
       
+      // Check if match went to ET or penalties
+      const hasET = m.et_home_score !== null && m.et_home_score !== undefined;
+      const hasPens = m.pen_home_score !== null && m.pen_home_score !== undefined;
+      
+      // Build extra time/penalty display
+      let extraTimeHtml = '';
+      if (hasPens) {
+        extraTimeHtml = `<span style="font-size:0.7rem;color:#ffc107;margin-left:0.5rem;">(Pens: ${m.pen_home_score}-${m.pen_away_score})</span>`;
+      } else if (hasET) {
+        extraTimeHtml = `<span style="font-size:0.7rem;color:#22c55e;margin-left:0.5rem;">(AET: ${m.et_home_score}-${m.et_away_score})</span>`;
+      }
+      
       html += `
         <div class="match-compact-item ${isFinished ? 'finished' : ''} ${m.status === 'live' ? 'live' : ''}">
           <div class="match-compact-teams">
@@ -1542,9 +1554,12 @@ function displayRoundMatches(matches, currentRound) {
             <span class="${hasScore && m.away_score > m.home_score ? 'winner' : ''}">${m.away_team?.name}</span>
             <img src="${m.away_team?.flag_url}" alt="" class="match-compact-flag">
           </div>
-          <span class="match-compact-time">${date} ${time}</span>
-          ${m.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
-          ${isFinished ? '<span class="finished-badge"><i class="fas fa-check"></i></span>' : ''}
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span class="match-compact-time">${date} ${time}</span>
+            ${extraTimeHtml}
+            ${m.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+            ${isFinished ? '<span class="finished-badge"><i class="fas fa-check"></i></span>' : ''}
+          </div>
         </div>
       `;
     });
@@ -1697,6 +1712,11 @@ function displayKnockoutGrid() {
     const live = m.status === 'live';
     const homeWon = finished && m.home_score > m.away_score;
     const awayWon = finished && m.away_score > m.home_score;
+    
+    // Check for ET and penalties
+    const hasET = m.et_home_score !== null && m.et_home_score !== undefined;
+    const hasPens = m.pen_home_score !== null && m.pen_home_score !== undefined;
+    
     const dateStr = m.match_time ? new Date(m.match_time).toLocaleDateString('en-GB', { 
       day: 'numeric', 
       month: 'short',
@@ -1707,6 +1727,15 @@ function displayKnockoutGrid() {
       minute: '2-digit',
       timeZone: 'Europe/London'
     }) : '';
+    
+    // Build ET/Pen display
+    let extraInfo = '';
+    if (hasPens) {
+      extraInfo = `<div style="font-size:0.55rem;color:#ffc107;text-align:center;padding:0.15rem 0;background:rgba(255,193,7,0.1);">Pens: ${m.pen_home_score}-${m.pen_away_score}</div>`;
+    } else if (hasET) {
+      extraInfo = `<div style="font-size:0.55rem;color:#22c55e;text-align:center;padding:0.15rem 0;background:rgba(34,197,94,0.1);">AET: ${m.et_home_score}-${m.et_away_score}</div>`;
+    }
+    
     return `
       <div style="background:rgba(17,25,54,0.8);border:1px solid ${live ? '#22c55e' : '#2a3066'};border-radius:7px;overflow:hidden;${live ? 'box-shadow:0 0 8px rgba(34,197,94,0.2);' : ''}">
         <div style="font-size:0.6rem;color:#8b92b9;text-align:center;padding:0.22rem 0.4rem;border-bottom:1px solid #2a3066;background:#0d1230;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
@@ -1724,6 +1753,7 @@ function displayKnockoutGrid() {
           <span style="font-size:0.72rem;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${away?.name || 'TBD'}</span>
           ${hasScore ? `<span style="font-size:0.85rem;font-weight:700;color:${awayWon ? '#22c55e' : '#fff'};">${m.away_score}</span>` : ''}
         </div>
+        ${extraInfo}
       </div>`;
   }
 
