@@ -432,8 +432,17 @@ function displayKnockoutPickFlow() {
 
   roundMatches.forEach(m => {
     const matchDate = new Date(m.match_time);
-    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = matchDate.toLocaleDateString('en-GB', { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short',
+      timeZone: 'Europe/London'
+    });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Europe/London'
+    });
 
     const homeTeam = allTeams.find(t => t.id === m.home_team_id);
     const awayTeam = allTeams.find(t => t.id === m.away_team_id);
@@ -799,8 +808,17 @@ function displayMatchdayPickFlow() {
   
   matchdayMatches.forEach(m => {
     const matchDate = new Date(m.match_time);
-    const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-    const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = matchDate.toLocaleDateString('en-GB', { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short',
+      timeZone: 'Europe/London'
+    });
+    const timeStr = matchDate.toLocaleTimeString('en-GB', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Europe/London'
+    });
     
     const homeTeam = allTeams.find(t => t.id === m.home_team_id);
     const awayTeam = allTeams.find(t => t.id === m.away_team_id);
@@ -1095,7 +1113,14 @@ function displayCurrentPicks(picks) {
       const team = allTeams.find(t => t.id === koPick.team_id);
       const match = allMatches.find(m => m.home_team_id === koPick.team_id || m.away_team_id === koPick.team_id);
       const matchDate = match ? new Date(match.match_time) : null;
-      const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+      const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'Europe/London'
+      }) : '';
       
       const result = koPick.result || 'pending';
       const points = koPick.points || 0;
@@ -1158,7 +1183,12 @@ function displayCurrentPicks(picks) {
       );
       if (match) {
         const date = new Date(match.match_time);
-        matchdayDate = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+        matchdayDate = date.toLocaleDateString('en-GB', { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'long',
+          timeZone: 'Europe/London'
+        });
       }
     }
     
@@ -1180,8 +1210,16 @@ function displayCurrentPicks(picks) {
           m.matchday === matchday
         );
         const matchDate = match ? new Date(match.match_time) : null;
-        const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-        const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+        const dateStr = matchDate ? matchDate.toLocaleDateString('en-GB', { 
+          day: 'numeric', 
+          month: 'short',
+          timeZone: 'Europe/London'
+        }) : '';
+        const timeStr = matchDate ? matchDate.toLocaleTimeString('en-GB', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: 'Europe/London'
+        }) : '';
         
         return `
           <div class="pick-card-themed ${pick.result || 'pending'}">
@@ -1479,8 +1517,16 @@ function displayRoundMatches(matches, currentRound) {
     html += `<h5 class="round-header">${roundName} ${isCurrentRound ? '<span class="current-badge">CURRENT</span>' : ''}</h5>`;
     
     roundMatches.forEach(m => {
-      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      const date = new Date(m.match_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'Europe/London'
+      });
+      const date = new Date(m.match_time).toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short',
+        timeZone: 'Europe/London'
+      });
       
       const hasScore = m.home_score !== null && m.home_score !== undefined;
       const isFinished = m.status === 'finished' || hasScore;
@@ -1651,8 +1697,16 @@ function displayKnockoutGrid() {
     const live = m.status === 'live';
     const homeWon = finished && m.home_score > m.away_score;
     const awayWon = finished && m.away_score > m.home_score;
-    const dateStr = m.match_time ? new Date(m.match_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-    const timeStr = m.match_time ? new Date(m.match_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+    const dateStr = m.match_time ? new Date(m.match_time).toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'short',
+      timeZone: 'Europe/London'
+    }) : '';
+    const timeStr = m.match_time ? new Date(m.match_time).toLocaleTimeString('en-GB', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Europe/London'
+    }) : '';
     return `
       <div style="background:rgba(17,25,54,0.8);border:1px solid ${live ? '#22c55e' : '#2a3066'};border-radius:7px;overflow:hidden;${live ? 'box-shadow:0 0 8px rgba(34,197,94,0.2);' : ''}">
         <div style="font-size:0.6rem;color:#8b92b9;text-align:center;padding:0.22rem 0.4rem;border-bottom:1px solid #2a3066;background:#0d1230;display:flex;align-items:center;justify-content:center;gap:0.4rem;">

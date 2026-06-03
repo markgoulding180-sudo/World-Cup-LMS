@@ -255,8 +255,17 @@ function showMatchesForRound(round) {
 
 function buildMatchRow(match) {
   const matchDate = new Date(match.match_time);
-  const dateStr = matchDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  // Convert to UK timezone (Europe/London) - handles BST automatically
+  const dateStr = matchDate.toLocaleDateString('en-GB', { 
+    day: 'numeric', 
+    month: 'short',
+    timeZone: 'Europe/London'
+  });
+  const timeStr = matchDate.toLocaleTimeString('en-GB', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: 'Europe/London'
+  });
   const isFinished = match.status === 'finished';
   const isQForLater = match.round_number >= 4 && !isFinished; // QF, SF, Final need score prediction fields
   
