@@ -386,22 +386,213 @@ async function submitResult(matchId, roundNumber) {
   } catch (error) { alert('Error saving result: ' + error.message); }
 }
 
+// Global variable to store all picks data
+let allPicksData = [];
+let currentPicksRoundTab = 'all';
+
 async function loadAllPicks() {
   const container = document.getElementById('all-picks');
+  const statsBox = document.getElementById('picks-stats-box');
+  
   try {
     const response = await fetch('/api/picks?admin=true');
     const data = await response.json();
-    if (!response.ok) { container.innerHTML = `<p class="error">Error: ${data.error}</p>`; return; }
-    if (!data.picks || data.picks.length === 0) { container.innerHTML = '<p class="text-secondary">No picks yet.</p>'; return; }
-    let html = `<div class="picks-summary"><span class="pick-stat">Total: ${data.totalPicks}</span><span class="pick-stat pending">Pending: ${data.stats.pending}</span><span class="pick-stat win">Wins: ${data.stats.win}</span><span class="pick-stat loss">Losses: ${data.stats.loss}</span></div><div class="picks-list">`;
-    data.picks.forEach(pick => {
-      const statusClass = pick.result === 'pending' ? 'status-pending' : pick.result === 'win' ? 'status-win' : 'status-loss';
-      const pointsDisplay = pick.points > 0 ? ` (+${pick.points} pts)` : '';
-      html += `<div class="pick-item"><div class="pick-user"><strong>${pick.users?.display_name || 'Unknown'}</strong><span class="pick-round">${pick.rounds?.name || ''}</span></div><div class="pick-team"><img src="${pick.teams?.flag_url}" alt="" class="pick-flag"><span>${pick.teams?.name}</span></div><span class="pick-result ${statusClass}">${pick.result}${pointsDisplay}</span></div>`;
-    });
-    html += '</div>';
-    container.innerHTML = html;
-  } catch (error) { container.innerHTML = `<p class="error">Error loading picks</p>`; }
+    
+    if (!response.ok) { 
+      container.innerHTML = `<p class="error">Error: ${data.error}</p>`; 
+      statsBox.innerHTML = `<p class="error">Error loading stats</p>`;
+      return; 
+    }
+    
+    if (!data.picks || data.picks.length === 0) { 
+      container.innerHTML = '<p class="text-secondary">No picks yet.</p>'; 
+      statsBox.innerHTML = '<p class="text-secondary">No data available.</p>';
+      return; 
+    }
+    
+    // Store data globally
+    allPicksData = data.picks;
+    
+    // Show all picks by default
+    showPicksForRound('all');
+    
+    // Update stats box
+    updatePicksStatsBox(data);
+    
+  } catch (error) { 
+    container.innerHTML = `<p class="error">Error loading picks</p>`; 
+    statsBox.innerHTML = `<p class="error">Error loading stats</p>`;
+  }
+}
+
+function switchPicksRoundTab(round) {
+  currentPicksRoundTab = round;
+  
+  // Update tab styling
+  document.querySelectorAll('.picks-round-tab').forEach(tab => {
+    tab.style.opacity = '0.6';
+    tab.style.transform = 'scale(0.95)';
+  });
+  const activeTab = document.querySelector(`.picks-round-tab[data-round="${round}"]`);
+  if (activeTab) {
+    activeTab.style.opacity = '1';
+    activeTab.style.transform = 'scale(1)';
+  }
+  
+  showPicksForRound(round);
+}
+
+function showPicksForRound(round) {
+  const container = document.getElementById('all-picks');
+  
+  let filteredPicks = [];
+  let roundTitle = '';
+  
+  if (round === 'all') {
+    // Show all picks
+    filteredPicks = allPicksData;
+    roundTitle = 'All Rounds';
+  } else if (round === '1-md1') {
+    filteredPicks = allPicksData.filter(p => p.rounds?.round_number === 1 && p.matchday === 1);
+    roundTitle = 'Group Stage - Matchday 1';
+  } else if (round === '1-md2') {
+    filteredPicks = allPicksData.filter(p => p.rounds?.round_number === 1 && p.matchday === 2);
+    roundTitle = 'Group Stage - Matchday 2';
+  } else if (round === '1-md3') {
+    filteredPicks = allPicksData.filter(p => p.rounds?.round_number === 1 && p.matchday === 3);
+    roundTitle = 'Group Stage - Matchday 3';
+  } else {
+    // Knockout rounds
+    const roundNum = parseInt(round);
+    filteredPicks = allPicksData.filter(p => p.rounds?.round_number === roundNum);
+    const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+    roundTitle = roundNames[roundNum] || `Round ${roundNum}`;
+  }
+  
+  if (filteredPicks.length === 0) {
+    container.innerHTML = `
+      <div style="padding:2rem;text-align:center;color:var(--text-secondary);">
+        <i class="fas fa-info-circle" style="font-size:2rem;margin-bottom:0.5rem;"></i>
+        <p>No picks found for ${roundTitle}.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Calculate stats for this round
+  const totalPicks = filteredPicks.length;
+  const pendingPicks = filteredPicks.filter(p => p.result === 'pending').length;
+  const winPicks = filteredPicks.filter(p => p.result === 'win').length;
+  const lossPicks = filteredPicks.filter(p => p.result === 'loss').length;
+  const totalPoints = filteredPicks.reduce((sum, p) => sum + (p.points || 0), 0);
+  
+  let html = `
+    <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+      <h3 style="margin:0;color:var(--accent-gold);">${roundTitle}</h3>
+      <div style="display:flex;gap:1rem;font-size:0.85rem;">
+        <span style="color:var(--text-secondary);">Total: <strong>${totalPicks}</strong></span>
+        <span style="color:#ffc107;">Pending: <strong>${pendingPicks}</strong></span>
+        <span style="color:#22c55e;">Wins: <strong>${winPicks}</strong></span>
+        <span style="color:#ef4444;">Losses: <strong>${lossPicks}</strong></span>
+        <span style="color:var(--accent-gold);">Points: <strong>${totalPoints}</strong></span>
+      </div>
+    </div>
+    <div class="picks-list" style="max-height:500px;overflow-y:auto;">
+  `;
+  
+  filteredPicks.forEach(pick => {
+    const statusClass = pick.result === 'pending' ? 'status-pending' : pick.result === 'win' ? 'status-win' : 'status-loss';
+    const pointsDisplay = pick.points > 0 ? ` (+${pick.points} pts)` : '';
+    const scorePrediction = (pick.predicted_home_score !== null && pick.predicted_away_score !== null) 
+      ? `<span style="font-size:0.75rem;color:#ffc107;margin-left:0.5rem;">(Predicted: ${pick.predicted_home_score}-${pick.predicted_away_score})</span>` 
+      : '';
+    const scoreBonus = pick.score_bonus > 0 
+      ? `<span style="font-size:0.75rem;color:var(--accent-gold);margin-left:0.5rem;">(+${pick.score_bonus} bonus)</span>` 
+      : '';
+    
+    html += `
+      <div class="pick-item" style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;gap:0.5rem;align-items:center;padding:0.75rem;border-bottom:1px solid var(--border-color);">
+        <div class="pick-user">
+          <strong>${pick.users?.display_name || 'Unknown'}</strong>
+          <span style="font-size:0.75rem;color:var(--text-secondary);display:block;">${pick.rounds?.name || ''} ${pick.matchday ? `MD${pick.matchday}` : ''}</span>
+        </div>
+        <div class="pick-team" style="display:flex;align-items:center;gap:0.5rem;">
+          <img src="${pick.teams?.flag_url}" alt="" class="pick-flag" style="width:24px;height:16px;object-fit:cover;border-radius:2px;">
+          <span>${pick.teams?.name}</span>
+        </div>
+        <span class="pick-result ${statusClass}" style="text-align:center;font-weight:600;">${pick.result}${pointsDisplay}${scoreBonus}</span>
+        <div style="text-align:right;">${scorePrediction}</div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function updatePicksStatsBox(data) {
+  const statsBox = document.getElementById('picks-stats-box');
+  const picks = data.picks || [];
+  
+  // Calculate overall stats
+  const totalPicks = picks.length;
+  const pendingPicks = picks.filter(p => p.result === 'pending').length;
+  const winPicks = picks.filter(p => p.result === 'win').length;
+  const lossPicks = picks.filter(p => p.result === 'loss').length;
+  const totalPoints = picks.reduce((sum, p) => sum + (p.points || 0), 0);
+  const totalBonus = picks.reduce((sum, p) => sum + (p.score_bonus || 0), 0);
+  
+  // Calculate by round
+  const byRound = {};
+  picks.forEach(p => {
+    const roundName = p.rounds?.name || 'Unknown';
+    if (!byRound[roundName]) {
+      byRound[roundName] = { total: 0, wins: 0, points: 0 };
+    }
+    byRound[roundName].total++;
+    if (p.result === 'win') byRound[roundName].wins++;
+    byRound[roundName].points += (p.points || 0);
+  });
+  
+  let roundStatsHtml = '';
+  Object.entries(byRound).forEach(([roundName, stats]) => {
+    roundStatsHtml += `
+      <div style="background:rgba(255,255,255,0.05);padding:0.5rem;border-radius:0.25rem;text-align:center;">
+        <div style="font-size:0.7rem;color:var(--text-secondary);">${roundName}</div>
+        <div style="font-size:0.9rem;font-weight:bold;">${stats.wins}/${stats.total}</div>
+        <div style="font-size:0.75rem;color:var(--accent-gold);">${stats.points} pts</div>
+      </div>
+    `;
+  });
+  
+  statsBox.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;margin-bottom:1rem;">
+      <div style="background:rgba(59,130,246,0.1);padding:0.75rem;border-radius:0.5rem;text-align:center;border:1px solid rgba(59,130,246,0.3);">
+        <div style="font-size:0.75rem;color:var(--text-secondary);">Total Picks</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:#3b82f6;">${totalPicks}</div>
+      </div>
+      <div style="background:rgba(255,193,7,0.1);padding:0.75rem;border-radius:0.5rem;text-align:center;border:1px solid rgba(255,193,7,0.3);">
+        <div style="font-size:0.75rem;color:var(--text-secondary);">Pending</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:#ffc107;">${pendingPicks}</div>
+      </div>
+      <div style="background:rgba(34,197,94,0.1);padding:0.75rem;border-radius:0.5rem;text-align:center;border:1px solid rgba(34,197,94,0.3);">
+        <div style="font-size:0.75rem;color:var(--text-secondary);">Wins</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:#22c55e;">${winPicks}</div>
+      </div>
+      <div style="background:rgba(239,68,68,0.1);padding:0.75rem;border-radius:0.5rem;text-align:center;border:1px solid rgba(239,68,68,0.3);">
+        <div style="font-size:0.75rem;color:var(--text-secondary);">Losses</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:#ef4444;">${lossPicks}</div>
+      </div>
+      <div style="background:rgba(255,215,0,0.1);padding:0.75rem;border-radius:0.5rem;text-align:center;border:1px solid rgba(255,215,0,0.3);">
+        <div style="font-size:0.75rem;color:var(--text-secondary);">Total Points</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:var(--accent-gold);">${totalPoints}</div>
+        ${totalBonus > 0 ? `<div style="font-size:0.75rem;color:var(--accent-gold);">+${totalBonus} bonus</div>` : ''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:0.5rem;">
+      ${roundStatsHtml}
+    </div>
+  `;
 }
 
 async function updateResultsFromFixturedownload() {

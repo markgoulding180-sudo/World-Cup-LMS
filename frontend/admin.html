@@ -100,6 +100,37 @@
       color: var(--accent-green);
       font-weight: bold;
     }
+    
+    /* Picks round tabs styling */
+    .picks-round-tab {
+      transition: all 0.2s ease;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.7rem;
+      border: none;
+      cursor: pointer;
+      border-radius: 0.4rem;
+    }
+    .picks-round-tab:hover {
+      opacity: 1 !important;
+      transform: scale(1.05) !important;
+    }
+    
+    /* Pick item styling */
+    .pick-item {
+      transition: background 0.2s ease;
+    }
+    .pick-item:hover {
+      background: rgba(255,255,255,0.03);
+    }
+    .pick-result.status-pending {
+      color: #ffc107;
+    }
+    .pick-result.status-win {
+      color: #22c55e;
+    }
+    .pick-result.status-loss {
+      color: #ef4444;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -288,10 +319,34 @@
 
     <!-- ═══════════════════════════════════════════════════════
          SECTION 9 — ALL PICKS (raw view)
+         Tabbed interface by round for easy navigation
     ════════════════════════════════════════════════════════ -->
     <div class="admin-card">
-      <h2><i class="fas fa-list"></i> All Picks</h2>
-      <div id="all-picks">Loading...</div>
+      <h2><i class="fas fa-list"></i> All Picks by Round</h2>
+      <p style="font-size:0.85rem;color:var(--text-secondary);">View all player picks organized by round. Shows team picked, result, and points awarded.</p>
+      
+      <!-- Round Tabs for Picks -->
+      <div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin:1rem 0;border-bottom:2px solid var(--border-color);padding-bottom:0.5rem;">
+        <button class="btn btn-sm picks-round-tab" data-round="all" onclick="switchPicksRoundTab('all')" style="background:#3b82f6;color:#fff;">All Rounds</button>
+        <button class="btn btn-sm picks-round-tab" data-round="1-md1" onclick="switchPicksRoundTab('1-md1')" style="background:#22c55e;color:#000;">GS MD1</button>
+        <button class="btn btn-sm picks-round-tab" data-round="1-md2" onclick="switchPicksRoundTab('1-md2')" style="background:#22c55e;color:#000;">GS MD2</button>
+        <button class="btn btn-sm picks-round-tab" data-round="1-md3" onclick="switchPicksRoundTab('1-md3')" style="background:#22c55e;color:#000;">GS MD3</button>
+        <button class="btn btn-sm picks-round-tab" data-round="2" onclick="switchPicksRoundTab(2)" style="background:#ff6b35;color:#fff;">R32</button>
+        <button class="btn btn-sm picks-round-tab" data-round="3" onclick="switchPicksRoundTab(3)" style="background:#ff6b35;color:#fff;">R16</button>
+        <button class="btn btn-sm picks-round-tab" data-round="4" onclick="switchPicksRoundTab(4)" style="background:#9333ea;color:#fff;">QF</button>
+        <button class="btn btn-sm picks-round-tab" data-round="5" onclick="switchPicksRoundTab(5)" style="background:#9333ea;color:#fff;">SF</button>
+        <button class="btn btn-sm picks-round-tab" data-round="6" onclick="switchPicksRoundTab(6)" style="background:#ffc107;color:#000;">Final</button>
+      </div>
+      
+      <!-- Multi-state info box -->
+      <div id="picks-stats-box" style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">
+        <p style="color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Loading picks data...</p>
+      </div>
+      
+      <!-- Picks Container -->
+      <div id="all-picks">
+        <p style="color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Loading picks...</p>
+      </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
