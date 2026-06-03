@@ -503,15 +503,40 @@ function showPicksForRound(round) {
   filteredPicks.forEach(pick => {
     const statusClass = pick.result === 'pending' ? 'status-pending' : pick.result === 'win' ? 'status-win' : 'status-loss';
     const pointsDisplay = pick.points > 0 ? ` (+${pick.points} pts)` : '';
-    const scorePrediction = (pick.predicted_home_score !== null && pick.predicted_away_score !== null) 
-      ? `<span style="font-size:0.75rem;color:#ffc107;margin-left:0.5rem;">(Predicted: ${pick.predicted_home_score}-${pick.predicted_away_score})</span>` 
-      : '';
-    const scoreBonus = pick.score_bonus > 0 
-      ? `<span style="font-size:0.75rem;color:var(--accent-gold);margin-left:0.5rem;">(+${pick.score_bonus} bonus)</span>` 
-      : '';
+    
+    // Check if score prediction was correct (for QF/SF/Final)
+    let scorePredictionHtml = '';
+    let isCorrectScore = false;
+    
+    if (pick.predicted_home_score !== null && pick.predicted_away_score !== null) {
+      // For QF/SF/Final (rounds 4+), check if prediction matches actual 90-min score
+      const roundNum = pick.rounds?.round_number;
+      const hasScoreBonus = pick.score_bonus > 0;
+      
+      if (hasScoreBonus) {
+        // Correct prediction - highlight in gold
+        isCorrectScore = true;
+        scorePredictionHtml = `
+          <span style="font-size:0.75rem;background:linear-gradient(135deg,#ffd700,#ffed4a);color:#000;padding:2px 8px;border-radius:12px;font-weight:bold;box-shadow:0 2px 4px rgba(255,215,0,0.3);">
+            <i class="fas fa-bullseye"></i> ${pick.predicted_home_score}-${pick.predicted_away_score} ✓
+          </span>
+          <span style="font-size:0.75rem;color:var(--accent-gold);margin-left:0.25rem;">+${pick.score_bonus} pts</span>
+        `;
+      } else {
+        // Incorrect prediction - show in muted color
+        scorePredictionHtml = `
+          <span style="font-size:0.75rem;color:var(--text-secondary);background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;">
+            Predicted: ${pick.predicted_home_score}-${pick.predicted_away_score}
+          </span>
+        `;
+      }
+    }
+    
+    // Highlight the row if correct score prediction
+    const rowHighlight = isCorrectScore ? 'background:rgba(255,215,0,0.1);border-left:3px solid #ffd700;' : '';
     
     html += `
-      <div class="pick-item" style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;gap:0.5rem;align-items:center;padding:0.75rem;border-bottom:1px solid var(--border-color);">
+      <div class="pick-item" style="display:grid;grid-template-columns:2fr 1.5fr 1fr auto;gap:0.5rem;align-items:center;padding:0.75rem;border-bottom:1px solid var(--border-color);${rowHighlight}">
         <div class="pick-user">
           <strong>${pick.users?.display_name || 'Unknown'}</strong>
           <span style="font-size:0.75rem;color:var(--text-secondary);display:block;">${pick.rounds?.name || ''} ${pick.matchday ? `MD${pick.matchday}` : ''}</span>
@@ -520,8 +545,8 @@ function showPicksForRound(round) {
           <img src="${pick.teams?.flag_url}" alt="" class="pick-flag" style="width:24px;height:16px;object-fit:cover;border-radius:2px;">
           <span>${pick.teams?.name}</span>
         </div>
-        <span class="pick-result ${statusClass}" style="text-align:center;font-weight:600;">${pick.result}${pointsDisplay}${scoreBonus}</span>
-        <div style="text-align:right;">${scorePrediction}</div>
+        <span class="pick-result ${statusClass}" style="text-align:center;font-weight:600;">${pick.result}${pointsDisplay}</span>
+        <div style="text-align:right;">${scorePredictionHtml}</div>
       </div>
     `;
   });
