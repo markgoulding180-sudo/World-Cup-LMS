@@ -419,6 +419,7 @@ module.exports = async (req, res) => {
   }
 
   // ── SIMULATE KO RESULTS (step-by-step) ────────────────────
+  // Now with ET and Penalty support to test new fields
   if (action === 'simulate_knockout_results') {
     const { round_number } = req.body;
     if (!round_number || round_number < 2 || round_number > 6) return res.status(400).json({ error: 'Valid round (2-6) required' });
@@ -426,26 +427,89 @@ module.exports = async (req, res) => {
       const { data: round } = await supabase.from('rounds').select('id').eq('round_number', round_number).single();
       const { data: matches } = await supabase.from('matches').select('*').eq('round_id', round.id).eq('status', 'upcoming');
       let matchesUpdated = 0; let pointsAwarded = 0;
+      let etMatches = 0; let penMatches = 0;
       const pointsForRound = POINTS_STRUCTURE[round_number] || 2;
+      
       for (const match of matches) {
-        let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
-        if (hs === as) { hs > 0 ? as-- : hs++; }
+        // Generate 90-minute scores
+        let hs90 = Math.floor(Math.random() * 4); 
+        let as90 = Math.floor(Math.random() * 4);
+        
+        let hs = hs90; // Final home score (may include ET)
+        let as = as90; // Final away score (may include ET)
+        let etHome = null;
+        let etAway = null;
+        let penHome = null;
+        let penAway = null;
+        let decidedBy = '90 mins';
+        
+        // 30% chance of draw after 90 mins (goes to ET)
+        if (hs90 === as90) {
+          etMatches++;
+          // Generate ET scores (additional goals)
+          const etHomeGoals = Math.floor(Math.random() * 2); // 0 or 1 goal in ET
+          const etAwayGoals = Math.floor(Math.random() * 2);
+          
+          etHome = hs90 + etHomeGoals;
+          etAway = as90 + etAwayGoals;
+          hs = etHome;
+          as = etAway;
+          
+          // 50% of ET matches still draw (go to pens)
+          if (etHome === etAway) {
+            penMatches++;
+            // Generate penalty scores
+            penHome = Math.floor(Math.random() * 3) + 3; // 3-5 pens
+            penAway = Math.floor(Math.random() * 3) + 3;
+            
+            // Ensure different pen scores
+            if (penHome === penAway) {
+              penHome > penAway ? penHome++ : penAway++;
+            }
+            
+            decidedBy = 'penalties';
+            // Winner determined by pens
+            if (penHome > penAway) {
+              hs = etHome + 1; // Add phantom goal to ensure winner
+            } else {
+              as = etAway + 1;
+            }
+          } else {
+            decidedBy = 'extra time';
+          }
+        }
+        
         const result = hs > as ? 'H' : 'A';
         const winId = result === 'H' ? match.home_team_id : match.away_team_id;
         const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
-        await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
+        
+        // Update match with all scores
+        await supabase.from('matches').update({ 
+          home_score: hs90,           // 90-min score
+          away_score: as90,           // 90-min score
+          et_home_score: etHome,      // ET score (null if no ET)
+          et_away_score: etAway,      // ET score (null if no ET)
+          pen_home_score: penHome,    // Pen score (null if no pens)
+          pen_away_score: penAway,    // Pen score (null if no pens)
+          winner_team_id: winId,      // Explicit winner
+          result, 
+          status: 'finished' 
+        }).eq('id', match.id);
+        
         await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
         await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
+        
         // Update entry points and wins
         const { data: winningPicks } = await supabase.from('picks').select('user_id, predicted_home_score, predicted_away_score').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+        
         for (const pick of winningPicks || []) {
           let pts = pointsForRound;
-          // Score bonus for QF/SF/Final
+          // Score bonus for QF/SF/Final (compare to 90-min score only!)
           if (round_number >= 4 &&
               pick.predicted_home_score !== null &&
               pick.predicted_home_score !== undefined &&
-              parseInt(pick.predicted_home_score) === hs &&
-              parseInt(pick.predicted_away_score) === as) {
+              parseInt(pick.predicted_home_score) === hs90 &&
+              parseInt(pick.predicted_away_score) === as90) {
             pts += 3;
             await supabase.from('picks').update({ score_bonus: 3, points: pts }).eq('user_id', pick.user_id).eq('round_id', round.id).eq('result', 'win');
           }
@@ -454,12 +518,22 @@ module.exports = async (req, res) => {
         }
         matchesUpdated++;
       }
+      
       let winner = null;
       if (round_number === 6) {
         const { data: topEntries } = await supabase.from('tournament_entries').select('*, users:user_id(display_name)').order('total_points', { ascending: false }).limit(1);
         winner = topEntries?.[0]?.users?.display_name || 'No winner';
       }
-      return res.status(200).json({ success: true, matchesUpdated, pointsAwarded, winner, message: `Updated ${matchesUpdated} matches. ${pointsAwarded} points awarded.` });
+      
+      return res.status(200).json({ 
+        success: true, 
+        matchesUpdated, 
+        pointsAwarded, 
+        winner, 
+        etMatches,
+        penMatches,
+        message: `Updated ${matchesUpdated} matches (${etMatches} went to ET, ${penMatches} to pens). ${pointsAwarded} points awarded.` 
+      });
     } catch (error) { return res.status(500).json({ error: error.message }); }
   }
 
@@ -575,19 +649,80 @@ module.exports = async (req, res) => {
         const userPoints = {}; // Aggregate points per user for batch update
 
         for (const match of koMatches) {
-          let hs = Math.floor(Math.random() * 4); let as = Math.floor(Math.random() * 4);
-          if (hs === as) { hs > 0 ? as-- : hs++; }
+          // Generate 90-minute scores
+          let hs90 = Math.floor(Math.random() * 4); 
+          let as90 = Math.floor(Math.random() * 4);
+          
+          let hs = hs90; // Final scores
+          let as = as90;
+          let etHome = null;
+          let etAway = null;
+          let penHome = null;
+          let penAway = null;
+          
+          // 30% chance of draw after 90 mins (goes to ET)
+          if (hs90 === as90) {
+            // Generate ET scores
+            const etHomeGoals = Math.floor(Math.random() * 2);
+            const etAwayGoals = Math.floor(Math.random() * 2);
+            
+            etHome = hs90 + etHomeGoals;
+            etAway = as90 + etAwayGoals;
+            hs = etHome;
+            as = etAway;
+            
+            // 50% of ET matches still draw (go to pens)
+            if (etHome === etAway) {
+              penHome = Math.floor(Math.random() * 3) + 3; // 3-5 pens
+              penAway = Math.floor(Math.random() * 3) + 3;
+              if (penHome === penAway) penHome > penAway ? penHome++ : penAway++;
+              
+              if (penHome > penAway) {
+                hs = etHome + 1;
+              } else {
+                as = etAway + 1;
+              }
+            }
+          }
+          
           const result = hs > as ? 'H' : 'A';
           const winId = result === 'H' ? match.home_team_id : match.away_team_id;
           const loseId = result === 'H' ? match.away_team_id : match.home_team_id;
-          await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
+          
+          // Update match with all scores
+          await supabase.from('matches').update({ 
+            home_score: hs90, 
+            away_score: as90, 
+            et_home_score: etHome,
+            et_away_score: etAway,
+            pen_home_score: penHome,
+            pen_away_score: penAway,
+            winner_team_id: winId,
+            result, 
+            status: 'finished' 
+          }).eq('id', match.id);
+          
           await supabase.from('picks').update({ result: 'win', points: pointsForRound }).eq('team_id', winId).eq('round_id', round.id).eq('result', 'pending');
           await supabase.from('picks').update({ result: 'loss', points: 0 }).eq('team_id', loseId).eq('round_id', round.id).eq('result', 'pending');
-          const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
-          // Aggregate points per user instead of individual RPC calls
+          
+          // Score bonus for QF/SF/Final (compare to 90-min score)
+          const { data: winningPicks } = await supabase.from('picks').select('user_id, predicted_home_score, predicted_away_score').eq('team_id', winId).eq('round_id', round.id).eq('result', 'win');
+          
           for (const pick of winningPicks || []) {
-            userPoints[pick.user_id] = (userPoints[pick.user_id] || 0) + pointsForRound;
-            pointsAwarded += pointsForRound;
+            let pts = pointsForRound;
+            
+            // Check score prediction for QF/SF/Final
+            if (roundNum >= 4 &&
+                pick.predicted_home_score !== null &&
+                pick.predicted_home_score !== undefined &&
+                parseInt(pick.predicted_home_score) === hs90 &&
+                parseInt(pick.predicted_away_score) === as90) {
+              pts += 3;
+              await supabase.from('picks').update({ score_bonus: 3, points: pts }).eq('user_id', pick.user_id).eq('round_id', round.id).eq('result', 'win');
+            }
+            
+            userPoints[pick.user_id] = (userPoints[pick.user_id] || 0) + pts;
+            pointsAwarded += pts;
           }
         }
 
