@@ -35,7 +35,8 @@ async function loadDashboard() {
     const roundsResponse = await fetch('/api/rounds');
     if (roundsResponse.ok) {
       roundsData = await roundsResponse.json();
-      currentRound = roundsData.rounds?.find(r => r.status === 'open') || roundsData.rounds?.[0];
+      currentRound = roundsData.rounds?.find(r => r.status === 'open') || null;
+      window._roundsData = roundsData.rounds || [];
     }
     
     const tourneyResponse = await fetch('/api/tournaments');
@@ -196,17 +197,30 @@ function displayTournamentFinishedState() {
 function displayWaitingState() {
   isWaitingForNextRound = true;
   const container = document.getElementById('available-teams');
+
+  const allRounds = window._roundsData || [];
+  const closedRounds = allRounds
+    .filter(r => r.status === 'closed')
+    .sort((a, b) => (b.round_number || 0) - (a.round_number || 0));
+  const lastClosedNum = closedRounds[0]?.round_number || 1;
+
+  const roundNames    = { 1: 'Group Stage', 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
+  const nextRoundNames = { 1: 'Round of 32', 2: 'Round of 16', 3: 'Quarter Finals', 4: 'Semi Finals', 5: 'Final' };
+
+  const justFinished = roundNames[lastClosedNum] || 'Current round';
+  const comingNext   = nextRoundNames[lastClosedNum] || 'next round';
+
   container.innerHTML = `
-    <div class="waiting-state" style="text-align: center; padding: 3rem 1rem;">
-      <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
-      <h2 style="margin-bottom: 0.5rem;">Waiting for Next Round</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 1rem;">
-        The Group Stage has finished.<br>
-        Waiting for the Round of 32 to begin.
+    <div class="waiting-state" style="text-align:center;padding:3rem 1rem;">
+      <div style="font-size:3rem;margin-bottom:1rem;">⏳</div>
+      <h2 style="margin-bottom:0.5rem;">Waiting for Next Round</h2>
+      <p style="color:var(--text-secondary);margin-bottom:1rem;">
+        The ${justFinished} has finished.<br>
+        Waiting for the ${comingNext} to begin.
       </p>
-      <p style="font-size: 0.85rem; color: var(--text-secondary);">
-        <i class="fas fa-info-circle"></i> 
-        FIFA will announce the knockout fixtures after the group stage completes.
+      <p style="font-size:0.85rem;color:var(--text-secondary);">
+        <i class="fas fa-info-circle"></i>
+        Check the <strong style="color:var(--accent-gold);">Eligible Teams</strong> tab to see which teams you have available for the ${comingNext}.
       </p>
     </div>
   `;
@@ -285,34 +299,39 @@ function displayEliminatedState(round) {
   const container = document.getElementById('available-teams');
   const roundNames = { 2: 'Round of 32', 3: 'Round of 16', 4: 'Quarter Finals', 5: 'Semi Finals', 6: 'Final' };
   const roundName = roundNames[round.round_number] || round.name;
-  
-  // If they made it to the Final, congratulate them instead
+  const nextRoundNames = { 2: 'Round of 16', 3: 'Quarter Finals', 4: 'Semi Finals', 5: 'Final' };
+  const nextRound = nextRoundNames[round.round_number] || 'remaining rounds';
+
+  // This is called when user has NO eligible teams — even in the Final this means they can't pick
   if (round.round_number === 6) {
     container.innerHTML = `
-      <div style="text-align:center;padding:2rem 1rem;background:rgba(255,215,0,0.08);border:2px solid var(--accent-gold);border-radius:1rem;">
-        <div style="font-size:3rem;margin-bottom:0.75rem;">🏆</div>
-        <h2 style="color:var(--accent-gold);margin-bottom:0.5rem;">Congratulations!</h2>
-        <p style="color:var(--text-primary);font-size:1rem;margin-bottom:0.75rem;">
-          You made it all the way to the <strong>World Cup Final!</strong>
+      <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
+        <div style="font-size:3rem;margin-bottom:0.75rem;">😔</div>
+        <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">No Teams Available for the Final</h2>
+        <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
+          Unfortunately all the teams you have left to use have been knocked out before the Final.
+          You are unable to make a pick for this round.
         </p>
-        <p style="color:var(--text-secondary);font-size:0.9rem;">
-          Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see the final standings and winner.
+        <p style="color:var(--text-secondary);font-size:0.85rem;">
+          <strong>Thanks for playing!</strong> You may still have done enough to win —<br>
+          Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> for your final ranking.
         </p>
       </div>
     `;
     return;
   }
-  
+
   container.innerHTML = `
     <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
       <div style="font-size:3rem;margin-bottom:0.75rem;">😔</div>
-      <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">No Teams Left</h2>
+      <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">No Teams Available for ${roundName}</h2>
       <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
-        All the teams you can pick have been knocked out of the tournament.
+        All the teams you have left to use have been knocked out of the tournament.
+        You are unable to make a pick for the ${nextRound}.
       </p>
       <p style="color:var(--text-secondary);font-size:0.85rem;">
-        <strong>Thanks for playing!</strong><br>
-        Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see your final position.
+        <strong>Thanks for playing!</strong> You may still have done enough to win —<br>
+        Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> for your current ranking.
       </p>
     </div>
   `;
@@ -398,9 +417,19 @@ function displayKnockoutPickFlow() {
   }
   
   const isScoreRound = currentRound.round_number >= 4;
+  const isFinal = currentRound.round_number === 6;
+
+  const finalBanner = isFinal ? `
+    <div style="background:rgba(255,215,0,0.12);border:2px solid var(--accent-gold);border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:0.25rem;">🏆</div>
+      <p style="font-size:1rem;font-weight:700;color:var(--accent-gold);margin-bottom:0.25rem;">Congratulations — You've Made the Final!</p>
+      <p style="font-size:0.85rem;color:var(--text-secondary);">You've made it all the way to the World Cup Final. Make your last pick below!</p>
+    </div>
+  ` : '';
 
   let html = `
     <div class="matchday-flow">
+      ${finalBanner}
       <div class="matchday-header">
         <h3>${roundName}</h3>
         <div class="matchday-progress">
@@ -420,8 +449,12 @@ function displayKnockoutPickFlow() {
           <p style="font-size:0.85rem;color:var(--accent-gold);font-weight:600;margin-bottom:0.25rem;">
             <i class="fas fa-star"></i> Score Prediction — Bonus 3 points for correct score!
           </p>
-          <p style="font-size:0.78rem;color:var(--text-secondary);">
+          <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.25rem;">
             Step 1: Click a team to select it. Step 2: Enter your predicted score and confirm.
+          </p>
+          <p style="font-size:0.78rem;color:var(--accent-gold);">
+            ⚠️ Your picked team's score must be higher than the opponent's.<br>
+            Score is based on 90 minutes only — extra time and penalties don't count.
           </p>
         </div>
       ` : ''}
@@ -582,6 +615,12 @@ async function confirmScorePick() {
 
   if (isNaN(pickedScore) || isNaN(otherScore)) {
     alert('Please enter valid scores.');
+    return;
+  }
+
+  // Validate: user's picked team must have a higher score than opponent
+  if (pickedScore <= otherScore) {
+    alert(`Your predicted score must show ${document.getElementById('score-picked-label')?.textContent || 'your team'} winning.\n\nFor example: 2-1 or 1-0. A draw or loss prediction is not valid for your picked team.`);
     return;
   }
 
@@ -2022,8 +2061,9 @@ function renderCountdown() {
   const card = document.getElementById('countdown-card');
   if (!card) return;
 
-  // Check if admin has force-closed picks (deadline triggered)
-  if (currentRound && currentRound.picks_closed === true) {
+  // Only show deadline banner when round is actively OPEN with picks closed
+  // Not when round is fully closed/finished
+  if (currentRound && currentRound.picks_closed === true && currentRound.status === 'open') {
     card.innerHTML = `<div style="background:linear-gradient(135deg,#3f1a1a,#2d0f0f);border:2px solid #ef4444;border-radius:0.75rem;padding:0.6rem 1.5rem 0.8rem;margin:0.75rem auto 0;max-width:500px;text-align:center;box-shadow:0 0 20px rgba(239,68,68,0.3);"><div style="font-size:0.85rem;font-weight:700;color:#ef4444;">⛔ Deadline Passed - Games In Play</div><div style="font-size:0.75rem;color:#8b92b9;margin-top:0.3rem;">${currentRound?.name || 'This round'} is in progress. If you missed the deadline, random teams have been assigned.</div></div>`;
     return;
   }
