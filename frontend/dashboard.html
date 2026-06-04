@@ -13,8 +13,7 @@
   <nav class="navbar">
     <div class="nav-container">
       <a href="index.html" class="logo">
-        <i class="fas fa-trophy"></i>
-        GB World Cup
+        <i class="fas fa-trophy"></i> GB World Cup
       </a>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
@@ -28,46 +27,58 @@
 
   <main class="container">
     <h1>Dashboard</h1>
-    
+
+    <!-- STATS CARD -->
     <div class="status-card" id="status-card">
       <div id="player-status">Loading...</div>
     </div>
 
-    <!-- MAKE YOUR PICK - Most important action at top -->
-    <div class="pick-section" id="pick-section">
-      <h2><i class="fas fa-hand-pointer"></i> Make Your Pick</h2>
-      <div id="available-teams">Loading teams...</div>
-    </div>
-
-    <div class="pick-section" id="current-pick-section" style="max-width: 1400px;">
+    <!-- SINGLE UNIFIED TAB BOX -->
+    <div class="pick-section" id="current-pick-section" style="max-width:1400px;">
       <div class="section-tabs">
-        <button class="tab-btn active" onclick="switchTab('picks')" id="tab-picks">Your Picks</button>
-        <button class="tab-btn" onclick="switchTab('eligible')" id="tab-eligible">Eligible Teams</button>
-        <button class="tab-btn" onclick="switchTab('matches')" id="tab-matches">Matches</button>
-        <button class="tab-btn" onclick="switchTab('groups')" id="tab-groups">Group Results</button>
-        <button class="tab-btn" onclick="switchTab('knockout')" id="tab-knockout">Knockout Grid</button>
+        <button class="tab-btn active" onclick="switchTab('pick')"    id="tab-pick">⚽ Pick</button>
+        <button class="tab-btn"        onclick="switchTab('history')" id="tab-history">📋 My History</button>
+        <button class="tab-btn"        onclick="switchTab('leaderboard')" id="tab-leaderboard">🏆 Leaderboard</button>
+        <button class="tab-btn"        onclick="switchTab('eligible')" id="tab-eligible">🚩 Eligible Teams</button>
+        <button class="tab-btn"        onclick="switchTab('matches')"  id="tab-matches">📅 Matches</button>
+        <button class="tab-btn"        onclick="switchTab('groups')"   id="tab-groups">📊 Group Results</button>
+        <button class="tab-btn"        onclick="switchTab('knockout')" id="tab-knockout">⚔️ Knockout Grid</button>
       </div>
-      <div id="tab-content-picks" class="tab-content active">
-        <div id="current-pick">Loading...</div>
+
+      <!-- TAB 1: PICK -->
+      <div id="tab-content-pick" class="tab-content active">
+        <div id="available-teams">Loading...</div>
       </div>
-      <div id="tab-content-eligible" class="tab-content" style="display: none;">
+
+      <!-- TAB 2: MY HISTORY -->
+      <div id="tab-content-history" class="tab-content" style="display:none;">
+        <div id="tournament-history">Loading history...</div>
+      </div>
+
+      <!-- TAB 3: LEADERBOARD -->
+      <div id="tab-content-leaderboard" class="tab-content" style="display:none;">
+        <div id="dashboard-leaderboard">Loading leaderboard...</div>
+      </div>
+
+      <!-- TAB 4: ELIGIBLE TEAMS -->
+      <div id="tab-content-eligible" class="tab-content" style="display:none;">
         <div id="eligible-teams-tab">Loading eligible teams...</div>
       </div>
-      <div id="tab-content-matches" class="tab-content" style="display: none;">
+
+      <!-- TAB 5: MATCHES -->
+      <div id="tab-content-matches" class="tab-content" style="display:none;">
         <div id="round-matches">Loading matches...</div>
       </div>
-      <div id="tab-content-groups" class="tab-content" style="display: none;">
+
+      <!-- TAB 6: GROUP RESULTS -->
+      <div id="tab-content-groups" class="tab-content" style="display:none;">
         <div id="group-results">Loading group standings...</div>
       </div>
-      <div id="tab-content-knockout" class="tab-content" style="display: none;">
+
+      <!-- TAB 7: KNOCKOUT GRID -->
+      <div id="tab-content-knockout" class="tab-content" style="display:none;">
         <div id="knockout-grid">Loading knockout grid...</div>
       </div>
-    </div>
-
-    <!-- TOURNAMENT HISTORY -->
-    <div class="pick-section" id="history-section">
-      <h2><i class="fas fa-history"></i> Your Tournament History</h2>
-      <div id="tournament-history">Loading history...</div>
     </div>
   </main>
 

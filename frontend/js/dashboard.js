@@ -101,20 +101,6 @@ async function loadDashboard() {
           
           if (!hasEligibleTeams) {
             displayEliminatedState(openRound);
-            // Also update Your Picks tab with a clear message
-            const pickContainer = document.getElementById('current-pick');
-            if (pickContainer) {
-              pickContainer.innerHTML = `
-                <div style="text-align:center;padding:1.5rem 1rem;">
-                  <div style="font-size:2rem;margin-bottom:0.5rem;">😔</div>
-                  <h3 style="color:var(--accent-red);margin-bottom:0.25rem;">No Teams Available</h3>
-                  <p style="color:var(--text-secondary);font-size:0.85rem;">
-                    All the teams you have left to use have already been knocked out of the tournament.
-                    <br>Check the <strong style="color:var(--accent-gold);">Leaderboard</strong> to see your final position.
-                  </p>
-                </div>
-              `;
-            }
           } else {
             displayKnockoutPickFlow();
           }
@@ -682,7 +668,7 @@ async function submitKnockoutPick(teamId, homeTeamName, awayTeamName, predictedH
       displayEligibleTeams();
 
       setTimeout(() => {
-        document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('current-pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } else {
       const error = await response.json();
@@ -981,7 +967,7 @@ function updateSelectedPreview() {
     // All 3 selected - scroll to Make Your Pick section to show submit button
     html += `<p class="selection-hint" style="color: var(--accent-green);"><i class="fas fa-check"></i> All 3 teams selected! Click Submit below.</p>`;
     setTimeout(() => {
-      const pickSection = document.getElementById('pick-section');
+      
       if (pickSection) {
         pickSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -1055,7 +1041,7 @@ async function submitMatchdayPicks() {
       
       // Scroll back to Make Your Pick section
       setTimeout(() => {
-        document.getElementById('pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('current-pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } else {
       alert('Some picks failed. Please try again.');
@@ -1066,9 +1052,15 @@ async function submitMatchdayPicks() {
 }
 
 function displayCurrentPicks(picks) {
-  const container = document.getElementById('current-pick');
-  if (!container) return;
+  // In the new unified layout, displayCurrentPicks supplements the Pick tab
+  // when there's no active pick flow to show (waiting state, tournament done)
+  // The pick flow functions (displayMatchdayPickFlow, displayKnockoutPickFlow) 
+  // render directly into available-teams — so this only handles the "already picked" states
+  // when those functions aren't being called
   
+  const container = document.getElementById('available-teams');
+  if (!container) return;
+
   // When waiting for next round or tournament finished
   if (isWaitingForNextRound) {
     // If user has knockout picks, show their most recent one
@@ -1279,6 +1271,56 @@ function displayCurrentPicks(picks) {
   
   html += '</div>';
   container.innerHTML = html;
+}
+
+async function displayDashboardLeaderboard() {
+  const container = document.getElementById('dashboard-leaderboard');
+  if (!container) return;
+  container.innerHTML = '<p style="color:var(--text-secondary);padding:1rem;text-align:center;"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard...</p>';
+
+  try {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    const players = data.leaderboard || [];
+
+    if (!players.length) {
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:2rem;">No players yet.</p>';
+      return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    container.innerHTML = `
+      <div style="padding:0.5rem 0;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;text-align:left;color:var(--text-secondary);">#</th>
+              <th style="padding:0.5rem;text-align:left;color:var(--text-secondary);">Player</th>
+              <th style="padding:0.5rem;text-align:center;color:var(--text-secondary);">Pts</th>
+              <th style="padding:0.5rem;text-align:center;color:var(--text-secondary);">Wins</th>
+              <th style="padding:0.5rem;text-align:center;color:var(--text-secondary);">Bonus</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${players.map((p, i) => `
+              <tr style="border-bottom:0.5px solid var(--border-color);${i < 3 ? 'background:rgba(255,215,0,0.04);' : ''}">
+                <td style="padding:0.5rem;font-size:1rem;">${medals[i] || p.position}</td>
+                <td style="padding:0.5rem;font-weight:500;">${p.display_name || p.username}</td>
+                <td style="padding:0.5rem;text-align:center;font-weight:700;color:var(--accent-gold);">${p.total_points}</td>
+                <td style="padding:0.5rem;text-align:center;color:var(--text-secondary);">${p.wins}</td>
+                <td style="padding:0.5rem;text-align:center;color:${p.total_score_bonus > 0 ? '#ffd700' : 'var(--text-secondary)'};">${p.total_score_bonus > 0 ? `🎯 ${p.total_score_bonus}` : '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:0.75rem;color:var(--text-secondary);text-align:center;margin-top:0.75rem;">
+          Tiebreaker: Total Points → Wins → Score Bonus
+        </p>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--accent-red);padding:1rem;">Error loading leaderboard: ${e.message}</p>`;
+  }
 }
 
 function displayTournamentHistory() {
@@ -1875,22 +1917,19 @@ async function loadQualifiedTeams() {
 }
 
 function switchTab(tabName) {
-  // Hide all tabs
   document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  
-  // Show selected tab
-  document.getElementById(`tab-content-${tabName}`).style.display = 'block';
-  document.getElementById(`tab-${tabName}`).classList.add('active');
-  
-  // Load content for specific tabs
-  if (tabName === 'groups') {
-    displayGroupResults();
-  } else if (tabName === 'knockout') {
-    displayKnockoutGrid();
-  } else if (tabName === 'eligible') {
-    displayEligibleTeams();
-  }
+
+  const content = document.getElementById(`tab-content-${tabName}`);
+  const btn = document.getElementById(`tab-${tabName}`);
+  if (content) content.style.display = 'block';
+  if (btn) btn.classList.add('active');
+
+  if (tabName === 'groups') displayGroupResults();
+  else if (tabName === 'knockout') displayKnockoutGrid();
+  else if (tabName === 'eligible') displayEligibleTeams();
+  else if (tabName === 'history') displayTournamentHistory();
+  else if (tabName === 'leaderboard') displayDashboardLeaderboard();
 }
 
 function getKnockedOutTeamIds() {
