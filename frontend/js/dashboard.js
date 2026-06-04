@@ -1598,17 +1598,25 @@ function displayRoundMatches(matches, currentRound) {
     html += `<h5 class="round-header">${roundName} ${isCurrentRound ? '<span class="current-badge">CURRENT</span>' : ''}</h5>`;
     
     roundMatches.forEach(m => {
-      const time = new Date(m.match_time).toLocaleTimeString('en-GB', { 
-        hour: '2-digit', 
+      // Add matchday subheading for group stage
+      if (roundName === 'Group Stage') {
+        const md = m.matchday;
+        if (md && !html.includes(`matchday-header-${md}`)) {
+          html += `<div id="matchday-header-${md}" style="padding:0.4rem 0.75rem;margin-top:0.5rem;font-size:0.78rem;font-weight:600;color:var(--accent-gold);border-left:3px solid var(--accent-gold);background:rgba(255,215,0,0.06);">Matchday ${md}</div>`;
+        }
+      }
+
+      const time = new Date(m.match_time).toLocaleTimeString('en-GB', {
+        hour: '2-digit',
         minute: '2-digit',
         timeZone: 'Europe/London'
       });
-      const date = new Date(m.match_time).toLocaleDateString('en-GB', { 
-        day: 'numeric', 
+      const date = new Date(m.match_time).toLocaleDateString('en-GB', {
+        day: 'numeric',
         month: 'short',
         timeZone: 'Europe/London'
       });
-      
+
       const hasScore = m.home_score !== null && m.home_score !== undefined;
       const isFinished = m.status === 'finished' || hasScore;
       
