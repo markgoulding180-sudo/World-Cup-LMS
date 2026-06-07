@@ -155,15 +155,19 @@ module.exports = async (req, res) => {
       await homeQuery;
       await awayQuery;
     } else {
+      // Manual picks get points, auto-picks get win recorded but 0 points
       let winQuery = supabase.from('picks').update({ result: 'win', points: pointsForWin })
-        .eq('team_id', winningTeamId).eq('round_id', matchRoundId).eq('result', 'pending');
-      
-      // Add matchday filter for Group Stage (round 1)
-      if (roundNumber === 1 && matchday) {
-        winQuery = winQuery.eq('matchday', matchday);
-      }
-      
+        .eq('team_id', winningTeamId).eq('round_id', matchRoundId).eq('result', 'pending')
+        .neq('is_auto_pick', true);
+      if (roundNumber === 1 && matchday) winQuery = winQuery.eq('matchday', matchday);
       await winQuery;
+
+      // Auto-picks: mark as win but 0 points
+      let autoWinQuery = supabase.from('picks').update({ result: 'win', points: 0 })
+        .eq('team_id', winningTeamId).eq('round_id', matchRoundId).eq('result', 'pending')
+        .eq('is_auto_pick', true);
+      if (roundNumber === 1 && matchday) autoWinQuery = autoWinQuery.eq('matchday', matchday);
+      await autoWinQuery;
       
       const losingTeamId = result === 'H' ? match.away_team_id : match.home_team_id;
       let lossQuery = supabase.from('picks').update({ result: 'loss', points: 0 })
@@ -187,7 +191,7 @@ module.exports = async (req, res) => {
     if (winningTeamId) {
       let winningPicksQuery = supabase
         .from('picks')
-        .select('id, user_id, predicted_home_score, predicted_away_score')
+        .select('id, user_id, predicted_home_score, predicted_away_score, is_auto_pick')
         .eq('result', 'win')
         .eq('team_id', winningTeamId)
         .eq('round_id', match.round_id);
@@ -200,6 +204,9 @@ module.exports = async (req, res) => {
       const { data: winningPicks } = await winningPicksQuery;
 
       for (const pick of winningPicks || []) {
+        // Auto-picks get 0 points — skip
+        if (pick.is_auto_pick === true) continue;
+
         let totalPointsForPick = pointsForWin;
 
         // ── Score bonus for QF, SF, Final (rounds 4, 5, 6) ──

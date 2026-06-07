@@ -337,51 +337,58 @@ module.exports = async (req, res) => {
       // Get matchday for filtering (Group Stage has multiple matchdays)
       const matchday = dbMatch.matchday;
 
-      // Mark winning picks and award points
+      // Mark winning picks — auto-picks get result='win' but 0 points
       if (winningTeamId) {
         let winUpdateQuery = supabase
           .from('picks')
           .update({ result: 'win', points: pointsForWin })
           .eq('team_id', winningTeamId)
           .eq('round_id', dbMatch.round_id)
-          .eq('result', 'pending');
-        
-        // Add matchday filter for Group Stage (round 1)
-        if (roundNumber === 1 && matchday) {
-          winUpdateQuery = winUpdateQuery.eq('matchday', matchday);
-        }
-        
+          .eq('result', 'pending')
+          .neq('is_auto_pick', true); // only award points to manual picks
+
+        if (roundNumber === 1 && matchday) winUpdateQuery = winUpdateQuery.eq('matchday', matchday);
         await winUpdateQuery;
 
-        // Update tournament entries with points and wins
+        // Also mark auto-picks as win but with 0 points
+        let autoWinQuery = supabase
+          .from('picks')
+          .update({ result: 'win', points: 0 })
+          .eq('team_id', winningTeamId)
+          .eq('round_id', dbMatch.round_id)
+          .eq('result', 'pending')
+          .eq('is_auto_pick', true);
+
+        if (roundNumber === 1 && matchday) autoWinQuery = autoWinQuery.eq('matchday', matchday);
+        await autoWinQuery;
+
+        // Update tournament entries with points — manual picks only
         let winningPicksQuery = supabase
           .from('picks')
-          .select('id, user_id, predicted_home_score, predicted_away_score')
+          .select('id, user_id, predicted_home_score, predicted_away_score, is_auto_pick')
           .eq('team_id', winningTeamId)
           .eq('round_id', dbMatch.round_id)
           .eq('result', 'win');
         
-        // Add matchday filter for Group Stage (round 1)
-        if (roundNumber === 1 && matchday) {
-          winningPicksQuery = winningPicksQuery.eq('matchday', matchday);
-        }
+        if (roundNumber === 1 && matchday) winningPicksQuery = winningPicksQuery.eq('matchday', matchday);
         
         const { data: winningPicks } = await winningPicksQuery;
 
         for (const pick of winningPicks || []) {
           picksProcessed++;
-          
+
+          // Auto-picks get 0 points — skip increment
+          if (pick.is_auto_pick === true) continue;
+
           let totalPointsForPick = pointsForWin;
 
           // ── Score bonus for QF, SF, Final (rounds 4, 5, 6) ──
-          // Compare prediction to 90-MINUTE score only (not ET/penalties)
           if (roundNumber >= 4 && 
               pick.predicted_home_score !== null && 
               pick.predicted_away_score !== null &&
               parseInt(pick.predicted_home_score) === ninetyMinHome &&
               parseInt(pick.predicted_away_score) === ninetyMinAway) {
             
-            // Award 3 bonus points for correct 90-minute score prediction
             await supabase
               .from('picks')
               .update({ score_bonus: 3, points: pointsForWin + 3 })
@@ -390,7 +397,6 @@ module.exports = async (req, res) => {
             totalPointsForPick = pointsForWin + 3;
           }
 
-          // Increment points in tournament entries
           await supabase.rpc('increment_points', { 
             user_id: pick.user_id, 
             points: totalPointsForPick 

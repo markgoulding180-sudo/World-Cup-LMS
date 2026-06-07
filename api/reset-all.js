@@ -320,10 +320,11 @@ module.exports = async (req, res) => {
         const loseIds = result === 'D' ? [match.home_team_id, match.away_team_id] : [result === 'H' ? match.away_team_id : match.home_team_id];
         await supabase.from('matches').update({ home_score: hs, away_score: as, result, status: 'finished' }).eq('id', match.id);
         if (winId) {
-          await supabase.from('picks').update({ result: 'win', points: POINTS_STRUCTURE[1] }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending');
-          // Update entry points and wins
-          const { data: winningPicks } = await supabase.from('picks').select('user_id').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
+          await supabase.from('picks').update({ result: 'win', points: POINTS_STRUCTURE[1] }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending').neq('is_auto_pick', true);
+          await supabase.from('picks').update({ result: 'win', points: 0 }).eq('team_id', winId).eq('matchday', matchday).eq('result', 'pending').eq('is_auto_pick', true);
+          const { data: winningPicks } = await supabase.from('picks').select('user_id, is_auto_pick').eq('team_id', winId).eq('matchday', matchday).eq('result', 'win');
           for (const pick of winningPicks || []) {
+            if (pick.is_auto_pick) continue;
             await supabase.rpc('increment_points', { user_id: pick.user_id, points: POINTS_STRUCTURE[1] });
             pointsAwarded += POINTS_STRUCTURE[1];
           }
