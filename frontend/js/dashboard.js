@@ -109,6 +109,7 @@ async function loadDashboard() {
         displayMatchdayPickFlow();
       }
       
+      displayCurrentPicks(roundPicks);
       displayRoundMatches(allMatches, currentRound);
       displayTournamentHistory();
       displayEligibleTeams();
@@ -129,35 +130,19 @@ function determineCurrentMatchday() {
       matchdayCounts[pick.matchday]++;
     }
   });
-  
-  // Check if matchday deadlines have passed
-  const now = new Date();
-  
-  // Find the earliest match time for each matchday
-  const matchdayDeadlines = {};
-  if (allMatches && currentRound) {
-    [1, 2, 3].forEach(md => {
-      const mdMatches = allMatches.filter(m => m.round_id === currentRound.id && m.matchday === md);
-      if (mdMatches.length > 0) {
-        const earliestMatch = mdMatches.sort((a, b) => new Date(a.match_time) - new Date(b.match_time))[0];
-        matchdayDeadlines[md] = new Date(earliestMatch.match_time);
-      }
-    });
-  }
-  
-  // Determine current matchday based on picks AND deadlines
-  if (matchdayCounts[1] < 3 && (!matchdayDeadlines[1] || now < matchdayDeadlines[1])) {
+
+  // Advance matchday only based on completed picks — deadline enforcement
+  // is handled separately in displayMatchdayPickFlow
+  if (matchdayCounts[1] < 3) {
     currentMatchday = 1;
-  } else if (matchdayCounts[2] < 3 && (!matchdayDeadlines[2] || now < matchdayDeadlines[2])) {
+  } else if (matchdayCounts[2] < 3) {
     currentMatchday = 2;
-  } else if (matchdayCounts[3] < 3 && (!matchdayDeadlines[3] || now < matchdayDeadlines[3])) {
+  } else if (matchdayCounts[3] < 3) {
     currentMatchday = 3;
   } else {
-    // All matchdays have passed or are complete
-    currentMatchday = 4;
+    currentMatchday = 4; // all 9 picks made
   }
-  
-  // Reset selected teams when switching matchdays
+
   selectedTeams = [];
 }
 
@@ -357,7 +342,7 @@ function displayKnockoutPickFlow() {
         <div style="font-size:2rem;margin-bottom:0.5rem;">${resultIcon}</div>
         <h3 style="color:var(--accent-green);margin-bottom:0.25rem;">${currentRound.name} Pick Submitted</h3>
         <p style="font-size:0.85rem;color:${resultColor};margin-top:0.5rem;">${resultText}</p>
-        <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.4rem;">See <strong style="color:var(--accent-gold);">Your Picks</strong> tab for details</p>
+        <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.4rem;">See <strong style="color:var(--accent-gold);">My History</strong> tab for details</p>
       </div>
     `;
     return;
@@ -654,14 +639,21 @@ async function submitKnockoutPick(teamId, homeTeamName, awayTeamName, predictedH
         : '';
       alert(`✓ Pick saved! You picked ${team?.name}${scoreMsg}`);
 
-      if (data.pick) {
-        roundPicks.push(data.pick);
-        userPicks.push(data.pick);
+      // Re-fetch picks from API to get full data including rounds join
+      const token2 = localStorage.getItem('wc_lms_token');
+      const freshPicks = await fetch('/api/picks', {
+        headers: { 'Authorization': `Bearer ${token2}` }
+      });
+      if (freshPicks.ok) {
+        const pd = await freshPicks.json();
+        userPicks = pd.picks || [];
+        roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
       }
 
       _scorePickTeamId = null;
 
       displayKnockoutPickFlow();
+      displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
 
@@ -710,7 +702,7 @@ function displayMatchdayPickFlow() {
         </p>
         <p style="font-size:0.8rem;color:var(--text-secondary);">
           <i class="fas fa-arrow-down" style="color:var(--accent-gold);"></i>
-          See <strong style="color:var(--accent-gold);">Your Picks</strong> tab below for results
+          See <strong style="color:var(--accent-gold);">My History</strong> tab below for results
         </p>
       </div>
     `;
@@ -766,7 +758,7 @@ function displayMatchdayPickFlow() {
             </p>
             <p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">
               If you missed the deadline, you have been given random team${missedPicks !== 1 ? 's' : ''}.<br>
-              Check your <strong style="color:var(--accent-gold);">Your Picks</strong> tab to see your teams.
+              Check the <strong style="color:var(--accent-gold);">My History</strong> tab to see your teams.
             </p>
           </div>
         </div>
@@ -1013,30 +1005,27 @@ async function submitMatchdayPicks() {
     const allOk = responses.every(r => r.ok);
     
     if (allOk) {
-      selectedTeams = []; // Clear selections
-      
-      // Update local state instead of reloading everything
-      const newPicks = await Promise.all(responses.map(async r => await r.json()));
-      newPicks.forEach(p => {
-        if (p.pick) roundPicks.push(p.pick);
+      selectedTeams = [];
+
+      // Re-fetch picks from API to get full data including rounds join
+      const token2 = localStorage.getItem('wc_lms_token');
+      const freshPicks = await fetch('/api/picks', {
+        headers: { 'Authorization': `Bearer ${token2}` }
       });
-      
-      // Update userPicks too so history reflects new picks immediately
-      newPicks.forEach(p => {
-        if (p.pick) userPicks.push(p.pick);
-      });
-      
-      // Update current matchday based on picks made
+      if (freshPicks.ok) {
+        const pd = await freshPicks.json();
+        userPicks = pd.picks || [];
+        roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
+      }
+
       determineCurrentMatchday();
-      
       alert(`✓ Picks saved! Good luck!`);
-      
-      // Re-render all affected sections
+
       displayMatchdayPickFlow();
+      displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
-      
-      // Scroll back to Make Your Pick section
+
       setTimeout(() => {
         document.getElementById('current-pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
@@ -1049,13 +1038,7 @@ async function submitMatchdayPicks() {
 }
 
 function displayCurrentPicks(picks) {
-  // In the new unified layout, displayCurrentPicks supplements the Pick tab
-  // when there's no active pick flow to show (waiting state, tournament done)
-  // The pick flow functions (displayMatchdayPickFlow, displayKnockoutPickFlow) 
-  // render directly into available-teams — so this only handles the "already picked" states
-  // when those functions aren't being called
-  
-  const container = document.getElementById('available-teams');
+  const container = document.getElementById('current-round-picks');
   if (!container) return;
 
   // When waiting for next round or tournament finished
@@ -1090,7 +1073,7 @@ function displayCurrentPicks(picks) {
             </div>
           </div>
           <p style="font-size:0.75rem;color:var(--text-secondary);text-align:center;margin-top:0.5rem;">
-            See <strong style="color:var(--accent-gold);">Your Picks</strong> tab for full history
+            See <strong style="color:var(--accent-gold);">My History</strong> tab for full history
           </p>
         </div>
       `;
