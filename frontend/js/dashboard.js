@@ -11,6 +11,11 @@ let selectedTeams = []; // Track selected teams for current matchday
 let isWaitingForNextRound = false; // True when group stage is complete, waiting for knockout draw
 
 async function loadDashboard() {
+  // Reset state on every load — prevents stale flags if called multiple times
+  isWaitingForNextRound = false;
+  currentRound = null;
+  selectedTeams = [];
+
   const token = localStorage.getItem('wc_lms_token');
   
   try {
@@ -974,6 +979,11 @@ function clearSelections() {
 
 async function submitMatchdayPicks() {
   const token = localStorage.getItem('wc_lms_token');
+
+  if (!tournamentId) {
+    alert('Tournament not loaded. Please refresh the page and try again.');
+    return;
+  }
   
   const picksInMatchday = roundPicks.filter(p => p.matchday === currentMatchday).length;
   const needed = 3 - picksInMatchday;
