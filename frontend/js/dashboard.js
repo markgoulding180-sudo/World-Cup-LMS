@@ -1041,78 +1041,24 @@ function displayCurrentPicks(picks) {
   const container = document.getElementById('current-round-picks');
   if (!container) return;
 
-  // When waiting for next round or tournament finished
+  // When waiting for next round or tournament finished:
+  // displayWaitingState / displayTournamentFinishedState already handles available-teams
+  // Just clear this secondary div so nothing stale shows
   if (isWaitingForNextRound) {
-    // If user has knockout picks, show their most recent one
-    const knockoutPicks = picks.filter(p => p.rounds?.round_number >= 2);
-    if (knockoutPicks.length > 0) {
-      const sortedKOPicks = [...knockoutPicks].sort((a, b) => (b.rounds?.round_number || 0) - (a.rounds?.round_number || 0));
-      const latestPick = sortedKOPicks[0];
-      const team = allTeams.find(t => t.id === latestPick.team_id);
-      const result = latestPick.result || 'pending';
-      const points = latestPick.points || 0;
-      const scoreBonus = latestPick.score_bonus || 0;
-      const borderClass = result === 'win' ? 'animated-border-win' : result === 'loss' ? 'animated-border-loss' : 'animated-border-pending';
-      const resultLabel = result === 'win' ? `🏆 WIN! +${points} pts${scoreBonus > 0 ? ` (incl. +${scoreBonus} score bonus 🎯)` : ''}` : result === 'loss' ? '❌ Lost' : '⏳ Awaiting result';
-      const resultColor = result === 'win' ? '#22c55e' : result === 'loss' ? '#ef4444' : '#ffd700';
-      const roundName = latestPick.rounds?.name || 'Knockout';
-      const isScoreRound = (latestPick.rounds?.round_number || 0) >= 4;
-      const scorePrediction = isScoreRound && latestPick.predicted_home_score !== null && latestPick.predicted_home_score !== undefined
-        ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">Score prediction: ${latestPick.predicted_home_score}–${latestPick.predicted_away_score}${scoreBonus > 0 ? ' ✅ Correct!' : ''}</div>`
-        : '';
-
-      container.innerHTML = `
-        <div class="current-pick-card">
-          <h3 style="margin-bottom:0.5rem;">Your ${roundName} Pick</h3>
-          <div class="pick-result-wrapper ${borderClass}">
-            <div class="pick-result-inner">
-              <img src="${team?.flag_url || ''}" alt="${team?.name}" style="width:60px;height:42px;object-fit:cover;border-radius:0.4rem;margin-bottom:0.5rem;">
-              <div style="font-size:1rem;font-weight:700;margin-bottom:0.25rem;">${team?.name || latestPick.teams?.name}</div>
-              <div style="font-size:1rem;font-weight:700;color:${resultColor};letter-spacing:0.03em;">${resultLabel}</div>
-              ${scorePrediction}
-            </div>
-          </div>
-          <p style="font-size:0.75rem;color:var(--text-secondary);text-align:center;margin-top:0.5rem;">
-            See <strong style="color:var(--accent-gold);">My History</strong> tab for full history
-          </p>
-        </div>
-      `;
-      return;
-    }
-
-    // No knockout picks — show waiting message
-    container.innerHTML = `
-      <div style="text-align:center;padding:2rem 1rem;">
-        <div style="font-size:2.5rem;margin-bottom:0.75rem;">✅</div>
-        <h3 style="color:var(--accent-green);margin-bottom:0.5rem;">Group Stage Complete!</h3>
-        <p style="color:var(--text-secondary);margin-bottom:1rem;">
-          The Group Stage has finished. Waiting for the knockout round fixtures to be drawn.
-        </p>
-        <p style="font-size:0.85rem;color:var(--text-secondary);">
-          <i class="fas fa-flag" style="color:var(--accent-gold);"></i>
-          Check the <strong style="color:var(--accent-gold);">Eligible Teams</strong> tab to see which teams you still have available.
-        </p>
-      </div>
-    `;
+    container.innerHTML = '';
     return;
   }
-  
-  const picksMade = picks.length;
+
+  // No picks yet — clear div and return cleanly
+  if (!picks || picks.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
   
   // Separate Group Stage and Knockout picks
   const groupStagePicks = picks.filter(p => p.rounds?.round_number === 1 || !p.rounds);
   const knockoutPicks = picks.filter(p => p.rounds?.round_number >= 2);
-  
-  if (picksMade === 0) {
-    container.innerHTML = `
-      <div class="current-pick-card">
-        <h3>Your Picks</h3>
-        <p class="text-secondary">No picks yet.</p>
-      </div>
-    `;
-    return;
-  }
-  
+
   // Show knockout picks if any exist
   if (knockoutPicks.length > 0) {
     // Build cards for every knockout pick made so far, most recent first
