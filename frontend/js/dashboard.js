@@ -109,7 +109,6 @@ async function loadDashboard() {
         displayMatchdayPickFlow();
       }
       
-      displayCurrentPicks(roundPicks);
       displayRoundMatches(allMatches, currentRound);
       displayTournamentHistory();
       displayEligibleTeams();
@@ -663,7 +662,6 @@ async function submitKnockoutPick(teamId, homeTeamName, awayTeamName, predictedH
       _scorePickTeamId = null;
 
       displayKnockoutPickFlow();
-      displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
 
@@ -1035,7 +1033,6 @@ async function submitMatchdayPicks() {
       
       // Re-render all affected sections
       displayMatchdayPickFlow();
-      displayCurrentPicks(roundPicks);
       displayTournamentHistory();
       displayEligibleTeams();
       
@@ -2207,7 +2204,6 @@ async function pollForResults() {
     }
 
     // Re-render only the affected sections — no full page reload
-    displayCurrentPicks(roundPicks);
     displayTournamentHistory();
     displayEligibleTeams();
     displayRoundMatches(allMatches, currentRound);
