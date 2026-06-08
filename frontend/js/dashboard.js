@@ -1114,7 +1114,7 @@ function displayCurrentPicks(picks) {
   let html = `
     <div class="current-pick-card">
       <h3>Your Group Stage Picks</h3>
-      <p>Total: ${picksMade} / 9 picks</p>
+      <p>Total: ${picks.length} / 9 picks</p>
   `;
   
   // Group picks by matchday
