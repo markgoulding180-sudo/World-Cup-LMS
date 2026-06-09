@@ -663,7 +663,7 @@ async function submitKnockoutPick(teamId, homeTeamName, awayTeamName, predictedH
       displayEligibleTeams();
 
       setTimeout(() => {
-        document.getElementById('current-pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('available-teams')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } else {
       const error = await response.json();
@@ -962,7 +962,7 @@ function updateSelectedPreview() {
     // All 3 selected - scroll to Make Your Pick section to show submit button
     html += `<p class="selection-hint" style="color: var(--accent-green);"><i class="fas fa-check"></i> All 3 teams selected! Click Submit below.</p>`;
     setTimeout(() => {
-      const el = document.getElementById('current-pick-section');
+      const el = document.getElementById('available-teams');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 300);
   }
@@ -1035,7 +1035,7 @@ async function submitMatchdayPicks() {
       displayEligibleTeams();
 
       setTimeout(() => {
-        document.getElementById('current-pick-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('available-teams')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } else {
       alert('Some picks failed. Please try again.');
