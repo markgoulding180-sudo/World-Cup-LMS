@@ -1795,6 +1795,73 @@ async function downloadFullTournamentCSV() {
       }));
     });
 
+    // Also fetch all teams for the teams status section
+    const teamsRes = await fetch('/api/teams');
+    const teamsData = await teamsRes.json();
+    const allTeams = teamsData.teams || [];
+
+    // Work out knocked-out teams from match results
+    const knockedOutTeamIds = new Set();
+    allMatches.forEach(m => {
+      if (m.rounds?.round_number >= 2 && m.status === 'finished' && m.result) {
+        if (m.result === 'H') knockedOutTeamIds.add(m.away_team_id);
+        else if (m.result === 'A') knockedOutTeamIds.add(m.home_team_id);
+      }
+    });
+    // If R32 exists, teams not in R32 are also knocked out of tournament
+    const r32Matches = allMatches.filter(m => m.rounds?.round_number === 2);
+    if (r32Matches.length > 0) {
+      const r32TeamIds = new Set();
+      r32Matches.forEach(m => {
+        if (m.home_team_id) r32TeamIds.add(m.home_team_id);
+        if (m.away_team_id) r32TeamIds.add(m.away_team_id);
+      });
+      allTeams.forEach(t => {
+        if (!r32TeamIds.has(t.id)) knockedOutTeamIds.add(t.id);
+      });
+    }
+
+    // Build team name → id lookup
+    const teamNameById = new Map(allTeams.map(t => [t.id, t.name]));
+
+    players.forEach((player, idx) => {
+      const playerPicks = allPicks.filter(p =>
+        (p.users?.display_name || p.users?.username) === (player.display_name || player.username)
+      );
+
+      // All teams this player has used across ALL rounds
+      const usedTeams = playerPicks.map(p => p.teams?.name || teamNameById.get(p.team_id) || '').filter(Boolean);
+
+      // Current row exists — add Teams Used List to end
+      const currentRow = rows[idx + 1]; // +1 because row 0 is headers
+      if (currentRow) {
+        const usedStr = usedTeams.join(' | ');
+        currentRow.push(usedStr.includes(',') ? `"${usedStr}"` : usedStr);
+      }
+    });
+
+    // Add Teams Used List header
+    rows[0].push('Teams Used (all rounds)');
+
+    // ── TEAMS STATUS SECTION ──────────────────────────────────────
+    // Blank separator rows
+    rows.push([]);
+    rows.push(['--- TEAMS STATUS ---', 'Knocked Out of Tournament?', 'Group Name']);
+    rows.push(['(reference data for eligible teams calculation)']);
+    rows.push([]);
+
+    // Sort teams by group then name
+    const sortedTeams = [...allTeams].sort((a, b) => {
+      if (a.group_name < b.group_name) return -1;
+      if (a.group_name > b.group_name) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    sortedTeams.forEach(t => {
+      const isKnockedOut = knockedOutTeamIds.has(t.id);
+      rows.push([t.name, isKnockedOut ? 'YES' : 'NO', t.group_name || '']);
+    });
+
     const csv = rows.map(r => r.join(',')).join('\n');
     const now = new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
     downloadCSV(csv, `wc-full-tournament-data-${now}.csv`);
