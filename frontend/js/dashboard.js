@@ -962,10 +962,8 @@ function updateSelectedPreview() {
     // All 3 selected - scroll to Make Your Pick section to show submit button
     html += `<p class="selection-hint" style="color: var(--accent-green);"><i class="fas fa-check"></i> All 3 teams selected! Click Submit below.</p>`;
     setTimeout(() => {
-      
-      if (pickSection) {
-        pickSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      const el = document.getElementById('current-pick-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 300);
   }
   
