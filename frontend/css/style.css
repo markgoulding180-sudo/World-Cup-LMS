@@ -253,7 +253,16 @@ body.dashboard-page {
   border: 1px solid var(--border-color);
   border-radius: 1rem;
   padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.status-card {
+  padding: 0.85rem 1rem;
+}
+
+.pick-section {
+  border-color: rgba(96,165,250,0.5);
+  box-shadow: 0 0 0 1px rgba(96,165,250,0.15);
 }
 
 .status-card h2,
