@@ -1404,33 +1404,32 @@ function updateStatusCard(data) {
     
     statusDiv.innerHTML = `
       <div class="${isEliminated ? 'eliminated' : 'active-status'}">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
-          <h2 class="user-name" style="margin:0;font-size:1.15rem;">${data.display_name || data.username || 'Player'}</h2>
-          <div class="points-stats-row" style="margin:0;gap:0.5rem;flex:1;justify-content:flex-end;">
-            <div class="points-stat" style="padding:0.45rem 0.7rem;min-width:64px;">
-              <div class="points-value" style="font-size:1.3rem;">${totalPoints}</div>
-              <div class="points-label" style="font-size:0.7rem;margin-top:0.15rem;">Points</div>
-            </div>
-            <div class="points-stat" style="padding:0.45rem 0.7rem;min-width:64px;">
-              <div class="points-value" style="font-size:1.3rem;">${wins}</div>
-              <div class="points-label" style="font-size:0.7rem;margin-top:0.15rem;">Wins</div>
-            </div>
-            <div class="points-stat" style="padding:0.45rem 0.7rem;min-width:64px;">
-              <div class="points-value" style="font-size:1.3rem;">#${rank}</div>
-              <div class="points-label" style="font-size:0.7rem;margin-top:0.15rem;">Rank</div>
-            </div>
+        <h2 class="user-name" style="margin:0 0 0.5rem;font-size:1.15rem;text-align:center;">${data.display_name || data.username || 'Player'}</h2>
+
+        <div style="display:flex;justify-content:center;gap:0.5rem;">
+          <div class="points-stat" style="padding:0.4rem 0.6rem;min-width:70px;flex:1;max-width:110px;">
+            <div class="points-value" style="font-size:1.3rem;">${totalPoints}</div>
+            <div class="points-label" style="font-size:0.7rem;margin-top:0.1rem;">Points</div>
+          </div>
+          <div class="points-stat" style="padding:0.4rem 0.6rem;min-width:70px;flex:1;max-width:110px;">
+            <div class="points-value" style="font-size:1.3rem;">${wins}</div>
+            <div class="points-label" style="font-size:0.7rem;margin-top:0.1rem;">Wins</div>
+          </div>
+          <div class="points-stat" style="padding:0.4rem 0.6rem;min-width:70px;flex:1;max-width:110px;">
+            <div class="points-value" style="font-size:1.3rem;">#${rank}</div>
+            <div class="points-label" style="font-size:0.7rem;margin-top:0.1rem;">Rank</div>
           </div>
         </div>
 
         <div id="countdown-card"></div>
-        
-        ${isEliminated ? 
-          `<p class="eliminated-text" style="margin-top:0.4rem;font-size:0.8rem;"><i class="fas fa-times-circle"></i> Eliminated</p>` :
+
+        ${isEliminated ?
+          `<p class="eliminated-text" style="margin-top:0.4rem;font-size:0.8rem;text-align:center;"><i class="fas fa-times-circle"></i> Eliminated</p>` :
           data.current_round === 'waiting' ?
-          `<p class="waiting-text" style="margin-top:0.4rem;font-size:0.8rem;"><i class="fas fa-clock"></i> Waiting for next round</p>` :
+          `<p class="waiting-text" style="margin-top:0.4rem;font-size:0.8rem;text-align:center;"><i class="fas fa-clock"></i> Waiting for next round</p>` :
           currentRound && currentRound.round_number >= 2 ?
-          `<p class="round-text" style="margin-top:0.4rem;font-size:0.8rem;"><i class="fas fa-play-circle"></i> ${currentRound.name}</p>` :
-          `<p class="matchday-text" style="margin-top:0.4rem;font-size:0.8rem;">Matchday ${data.current_matchday || currentMatchday}</p>`
+          `<p class="round-text" style="margin-top:0.4rem;font-size:0.8rem;text-align:center;"><i class="fas fa-play-circle"></i> ${currentRound.name}</p>` :
+          `<p class="matchday-text" style="margin-top:0.4rem;font-size:0.8rem;text-align:center;">Matchday ${data.current_matchday || currentMatchday}</p>`
         }
       </div>
     `;
