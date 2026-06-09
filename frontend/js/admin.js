@@ -1466,6 +1466,78 @@ async function downloadPicksCSV() {
   }
 }
 
+async function downloadMatchResultsCSV() {
+  const btn = document.getElementById('download-results-btn');
+  if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; btn.disabled = true; }
+
+  try {
+    // Fetch all matches with team names and round info
+    const res = await fetch('/api/matches?limit=500');
+    const data = await res.json();
+    const matches = data.matches || [];
+
+    if (matches.length === 0) {
+      alert('No match data available yet. Run Setup Tournament first.');
+      return;
+    }
+
+    const headers = [
+      'Round', 'Matchday', 'Date (UK)', 'Time (UK)',
+      'Home Team', 'Away Team',
+      'Home Score (90min)', 'Away Score (90min)',
+      'ET Home', 'ET Away', 'Pens Home', 'Pens Away',
+      'Result', 'Winner', 'Status'
+    ];
+
+    const rows = [headers];
+
+    matches.forEach(m => {
+      const matchDate = new Date(m.match_time);
+      const dateStr = matchDate.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'Europe/London' });
+      const timeStr = matchDate.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone:'Europe/London' });
+
+      const roundName = m.rounds?.name || 'Unknown';
+      const matchday = m.matchday || '-';
+      const homeTeam = m.home_team?.name || '-';
+      const awayTeam = m.away_team?.name || '-';
+      const homeScore = m.home_score !== null && m.home_score !== undefined ? m.home_score : '-';
+      const awayScore = m.away_score !== null && m.away_score !== undefined ? m.away_score : '-';
+      const etHome  = m.et_home_score  !== null && m.et_home_score  !== undefined ? m.et_home_score  : '-';
+      const etAway  = m.et_away_score  !== null && m.et_away_score  !== undefined ? m.et_away_score  : '-';
+      const penHome = m.pen_home_score !== null && m.pen_home_score !== undefined ? m.pen_home_score : '-';
+      const penAway = m.pen_away_score !== null && m.pen_away_score !== undefined ? m.pen_away_score : '-';
+
+      let result = '-';
+      let winner = '-';
+      if (m.result === 'H') { result = 'Home Win'; winner = homeTeam; }
+      else if (m.result === 'A') { result = 'Away Win'; winner = awayTeam; }
+      else if (m.result === 'D') { result = 'Draw'; winner = '-'; }
+
+      const status = m.status || 'upcoming';
+
+      rows.push([
+        roundName, matchday, dateStr, timeStr,
+        homeTeam, awayTeam,
+        homeScore, awayScore,
+        etHome, etAway, penHome, penAway,
+        result, winner, status
+      ].map(v => {
+        const s = String(v);
+        return s.includes(',') ? `"${s}"` : s;
+      }));
+    });
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const now = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    downloadCSV(csv, `wc-match-results-${now}.csv`);
+
+  } catch (e) {
+    alert('Error generating match results CSV: ' + e.message);
+  } finally {
+    if (btn) { btn.innerHTML = '<i class="fas fa-futbol"></i> Download Match Results (CSV)'; btn.disabled = false; }
+  }
+}
+
 function downloadCSV(content, filename) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1582,108 +1654,111 @@ async function downloadFullTournamentCSV() {
   if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...'; btn.disabled = true; }
 
   try {
-    const [picksRes, lbRes, entriesRes] = await Promise.all([
+    const [picksRes, lbRes, matchesRes] = await Promise.all([
       fetch('/api/picks?admin=true'),
       fetch('/api/leaderboard'),
-      fetch('/api/entries?admin=true')
+      fetch('/api/matches?limit=500')
     ]);
 
-    const picksData = await picksRes.json();
-    const lbData = await lbRes.json();
+    const picksData  = await picksRes.json();
+    const lbData     = await lbRes.json();
+    const matchesData = await matchesRes.json();
 
-    const allPicks = picksData.picks || [];
-    const players = lbData.leaderboard || [];
+    const allPicks   = picksData.picks || [];
+    const players    = lbData.leaderboard || [];
+    const allMatches = matchesData.matches || [];
 
-    // Build headers
+    // Helper: get match score for a team in a given round
+    const getMatchScore = (teamId, roundId) => {
+      if (!teamId || !roundId) return '—';
+      const match = allMatches.find(m =>
+        m.round_id === roundId &&
+        (m.home_team_id === teamId || m.away_team_id === teamId) &&
+        m.home_score !== null && m.home_score !== undefined
+      );
+      if (!match) return '—';
+      // Format: home-away (e.g. 2-1)
+      return `${match.home_score}-${match.away_score}`;
+    };
+
+    // Build headers — match score added after each pick's points
     const headers = [
-      'Player Name',
-      'Entry Date',
-      'Status',
-      'Total Points',
+      'Player Name', 'Entry Date', 'Status', 'Total Points',
       // Group Stage MD1
-      'GS MD1 Pick 1', 'GS MD1 P1 Result', 'GS MD1 P1 Pts',
-      'GS MD1 Pick 2', 'GS MD1 P2 Result', 'GS MD1 P2 Pts',
-      'GS MD1 Pick 3', 'GS MD1 P3 Result', 'GS MD1 P3 Pts',
+      'GS MD1 Pick 1', 'GS MD1 P1 Result', 'GS MD1 P1 Pts', 'GS MD1 P1 Score',
+      'GS MD1 Pick 2', 'GS MD1 P2 Result', 'GS MD1 P2 Pts', 'GS MD1 P2 Score',
+      'GS MD1 Pick 3', 'GS MD1 P3 Result', 'GS MD1 P3 Pts', 'GS MD1 P3 Score',
       // Group Stage MD2
-      'GS MD2 Pick 1', 'GS MD2 P1 Result', 'GS MD2 P1 Pts',
-      'GS MD2 Pick 2', 'GS MD2 P2 Result', 'GS MD2 P2 Pts',
-      'GS MD2 Pick 3', 'GS MD2 P3 Result', 'GS MD2 P3 Pts',
+      'GS MD2 Pick 1', 'GS MD2 P1 Result', 'GS MD2 P1 Pts', 'GS MD2 P1 Score',
+      'GS MD2 Pick 2', 'GS MD2 P2 Result', 'GS MD2 P2 Pts', 'GS MD2 P2 Score',
+      'GS MD2 Pick 3', 'GS MD2 P3 Result', 'GS MD2 P3 Pts', 'GS MD2 P3 Score',
       // Group Stage MD3
-      'GS MD3 Pick 1', 'GS MD3 P1 Result', 'GS MD3 P1 Pts',
-      'GS MD3 Pick 2', 'GS MD3 P2 Result', 'GS MD3 P2 Pts',
-      'GS MD3 Pick 3', 'GS MD3 P3 Result', 'GS MD3 P3 Pts',
+      'GS MD3 Pick 1', 'GS MD3 P1 Result', 'GS MD3 P1 Pts', 'GS MD3 P1 Score',
+      'GS MD3 Pick 2', 'GS MD3 P2 Result', 'GS MD3 P2 Pts', 'GS MD3 P2 Score',
+      'GS MD3 Pick 3', 'GS MD3 P3 Result', 'GS MD3 P3 Pts', 'GS MD3 P3 Score',
       'GS Total Points',
-      // Knockout rounds
-      'R32 Pick', 'R32 Result', 'R32 Pts', 'R32 Note',
-      'R16 Pick', 'R16 Result', 'R16 Pts', 'R16 Note',
-      'QF Pick',  'QF Result',  'QF Pts', 'QF Score Prediction', 'QF Score Bonus',
-      'SF Pick',  'SF Result',  'SF Pts', 'SF Score Prediction', 'SF Score Bonus',
-      'Final Pick', 'Final Result', 'Final Pts', 'Final Score Prediction', 'Final Score Bonus',
+      // Knockout
+      'R32 Pick', 'R32 Result', 'R32 Pts', 'R32 Match Score',
+      'R16 Pick', 'R16 Result', 'R16 Pts', 'R16 Match Score',
+      'QF Pick',  'QF Result',  'QF Pts', 'QF Match Score', 'QF Score Prediction', 'QF Score Bonus',
+      'SF Pick',  'SF Result',  'SF Pts', 'SF Match Score', 'SF Score Prediction', 'SF Score Bonus',
+      'Final Pick', 'Final Result', 'Final Pts', 'Final Match Score', 'Final Score Prediction', 'Final Score Bonus',
       'Went Out Round'
     ];
 
     const rows = [headers];
 
     players.forEach(player => {
-      // Get all picks for this player from allPicks (has matchday data)
       const playerPicks = allPicks.filter(p =>
         (p.users?.display_name || p.users?.username) === (player.display_name || player.username)
       );
 
-      // Group stage picks by matchday
       const gsPicks = playerPicks.filter(p => p.rounds?.round_number === 1);
       const md1 = gsPicks.filter(p => p.matchday === 1).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
       const md2 = gsPicks.filter(p => p.matchday === 2).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
       const md3 = gsPicks.filter(p => p.matchday === 3).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
 
-      // Knockout picks
       const r32 = playerPicks.find(p => p.rounds?.round_number === 2);
       const r16 = playerPicks.find(p => p.rounds?.round_number === 3);
       const qf  = playerPicks.find(p => p.rounds?.round_number === 4);
       const sf  = playerPicks.find(p => p.rounds?.round_number === 5);
       const fin = playerPicks.find(p => p.rounds?.round_number === 6);
 
-      // Helper to get pick fields
+      // Pick + result + pts + match score
       const pickCol = (pick) => pick
-        ? [pick.teams?.name || '', pick.result || 'pending', pick.points || 0]
-        : ['—', '—', 0];
+        ? [pick.teams?.name || '', pick.result || 'pending', pick.points || 0, getMatchScore(pick.team_id, pick.round_id)]
+        : ['—', '—', 0, '—'];
 
-      // Helper for QF/SF/Final — includes score prediction and bonus
+      // QF/SF/Final — pick + result + pts + match score + prediction + bonus
       const scorePickCol = (pick) => {
-        if (!pick) return ['—', '—', 0, '—', 0];
+        if (!pick) return ['—', '—', 0, '—', '—', 0];
         const prediction = (pick.predicted_home_score !== null && pick.predicted_home_score !== undefined)
-          ? `${pick.predicted_home_score}-${pick.predicted_away_score}`
-          : '—';
+          ? `${pick.predicted_home_score}-${pick.predicted_away_score}` : '—';
         return [
           pick.teams?.name || '',
           pick.result || 'pending',
           pick.points || 0,
+          getMatchScore(pick.team_id, pick.round_id),
           prediction,
           pick.score_bonus || 0
         ];
       };
 
-      // MD pick cols (3 picks per matchday, pad with blanks if fewer)
       const mdCols = (picks) => {
         const out = [];
-        for (let i = 0; i < 3; i++) {
-          out.push(...pickCol(picks[i]));
-        }
+        for (let i = 0; i < 3; i++) out.push(...pickCol(picks[i]));
         return out;
       };
 
-      // GS total
       const gsTotal = [...md1,...md2,...md3].reduce((s,p) => s + (p.points || 0), 0);
 
-      // Knockout note for R32/R16
       const koNote = (pick, roundNum) => {
-        if (pick) return '';
+        if (pick) return getMatchScore(pick.team_id, pick.round_id);
         const roundPicks = allPicks.filter(p => p.rounds?.round_number === roundNum);
-        if (roundPicks.length === 0) return 'Round not yet played';
-        return 'No eligible teams available';
+        if (roundPicks.length === 0) return 'Not played yet';
+        return 'No eligible teams';
       };
 
-      // Work out which round they went out
       let wentOut = '';
       if (fin && fin.result === 'loss') wentOut = 'Final';
       else if (sf && sf.result === 'loss') wentOut = 'Semi Finals';
@@ -1695,8 +1770,7 @@ async function downloadFullTournamentCSV() {
       else wentOut = 'Still active';
 
       const entryDate = player.entered_at
-        ? new Date(player.entered_at).toLocaleDateString('en-GB')
-        : '—';
+        ? new Date(player.entered_at).toLocaleDateString('en-GB') : '—';
 
       const row = [
         player.display_name || player.username,
@@ -1707,15 +1781,14 @@ async function downloadFullTournamentCSV() {
         ...mdCols(md2),
         ...mdCols(md3),
         gsTotal,
-        ...pickCol(r32), koNote(r32, 2),
-        ...pickCol(r16), koNote(r16, 3),
+        ...pickCol(r32),
+        ...pickCol(r16),
         ...scorePickCol(qf),
         ...scorePickCol(sf),
         ...scorePickCol(fin),
         wentOut
       ];
 
-      // Wrap any field with commas in quotes
       rows.push(row.map(v => {
         const s = String(v);
         return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s;
@@ -1729,7 +1802,7 @@ async function downloadFullTournamentCSV() {
   } catch(e) {
     alert('Error: ' + e.message);
   } finally {
-    if (btn) { btn.innerHTML = '<i class="fas fa-download"></i> Download Full Tournament Data (CSV)'; btn.disabled = false; }
+    if (btn) { btn.innerHTML = '<i class="fas fa-file-csv"></i> Download Full Tournament Data (CSV)'; btn.disabled = false; }
   }
 }
 
