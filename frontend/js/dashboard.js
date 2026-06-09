@@ -2143,6 +2143,16 @@ async function pollForResults() {
     }
 
     // Re-render only the affected sections — no full page reload
+    // Re-fetch entries to update points/rank in stats card
+    const entriesRes = await fetch('/api/entries', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (entriesRes.ok) {
+      const entriesData = await entriesRes.json();
+      updateStatusCard(entriesData);
+    }
+
+    displayCurrentPicks(roundPicks);
     displayTournamentHistory();
     displayEligibleTeams();
     displayRoundMatches(allMatches, currentRound);
