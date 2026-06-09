@@ -155,7 +155,7 @@ function displayTournamentFinishedState() {
   isWaitingForNextRound = true; // Reuse flag so Your Picks shows last pick not group stage
   const container = document.getElementById('available-teams');
   container.innerHTML = `
-    <div style="text-align:center;padding:2rem 1rem;background:rgba(255,215,0,0.08);border:2px solid var(--accent-gold);border-radius:1rem;">
+    <div style="text-align:center;padding:0.75rem 1rem;background:rgba(255,215,0,0.08);border:2px solid var(--accent-gold);border-radius:1rem;">
       <div style="font-size:3rem;margin-bottom:0.75rem;">🏆</div>
       <h2 style="color:var(--accent-gold);margin-bottom:0.5rem;">Tournament Complete!</h2>
       <p style="color:var(--text-primary);margin-bottom:0.5rem;">The 2026 World Cup is over.</p>
@@ -186,7 +186,7 @@ function displayWaitingState() {
   const comingNext   = nextRoundNames[lastClosedNum] || 'next round';
 
   container.innerHTML = `
-    <div class="waiting-state" style="text-align:center;padding:3rem 1rem;">
+    <div class="waiting-state" style="text-align:center;padding:1rem;">
       <div style="font-size:3rem;margin-bottom:1rem;">⏳</div>
       <h2 style="margin-bottom:0.5rem;">Waiting for Next Round</h2>
       <p style="color:var(--text-secondary);margin-bottom:1rem;">
@@ -280,7 +280,7 @@ function displayEliminatedState(round) {
   // This is called when user has NO eligible teams — even in the Final this means they can't pick
   if (round.round_number === 6) {
     container.innerHTML = `
-      <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
+      <div style="text-align:center;padding:0.75rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
         <div style="font-size:3rem;margin-bottom:0.75rem;">😔</div>
         <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">No Teams Available for the Final</h2>
         <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
@@ -297,7 +297,7 @@ function displayEliminatedState(round) {
   }
 
   container.innerHTML = `
-    <div style="text-align:center;padding:2rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
+    <div style="text-align:center;padding:0.75rem 1rem;background:rgba(239,68,68,0.08);border:2px solid var(--accent-red);border-radius:1rem;">
       <div style="font-size:3rem;margin-bottom:0.75rem;">😔</div>
       <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">No Teams Available for ${roundName}</h2>
       <p style="color:var(--text-secondary);margin-bottom:0.75rem;">
@@ -699,15 +699,15 @@ function displayMatchdayPickFlow() {
   
   if (currentMatchday > 3) {
     container.innerHTML = `
-      <div style="text-align:center;padding:1.5rem 1rem;">
-        <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
-        <h3 style="color:var(--accent-green);margin-bottom:0.25rem;">All Group Stage Picks In!</h3>
-        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem;">
+      <div style="text-align:center;padding:0.75rem 1rem;">
+        <div style="font-size:1.5rem;margin-bottom:0.25rem;">✅</div>
+        <h3 style="color:var(--accent-green);margin-bottom:0.2rem;font-size:1rem;">All Group Stage Picks In!</h3>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:0.4rem;">
           9/9 picks submitted across 3 matchdays.
         </p>
-        <p style="font-size:0.8rem;color:var(--text-secondary);">
+        <p style="font-size:0.78rem;color:var(--text-secondary);">
           <i class="fas fa-arrow-down" style="color:var(--accent-gold);"></i>
-          See <strong style="color:var(--accent-gold);">My History</strong> tab below for results
+          See <strong style="color:var(--accent-gold);">My History</strong> tab for results
         </p>
       </div>
     `;
@@ -2143,16 +2143,6 @@ async function pollForResults() {
     }
 
     // Re-render only the affected sections — no full page reload
-    // Re-fetch entries to update points/rank in stats card
-    const entriesRes = await fetch('/api/entries', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (entriesRes.ok) {
-      const entriesData = await entriesRes.json();
-      updateStatusCard(entriesData);
-    }
-
-    displayCurrentPicks(roundPicks);
     displayTournamentHistory();
     displayEligibleTeams();
     displayRoundMatches(allMatches, currentRound);

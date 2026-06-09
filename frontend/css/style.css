@@ -1587,30 +1587,46 @@ a {
 
 /* Tab Navigation */
 .section-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0;
+  border-bottom: none;
 }
 
 .tab-btn {
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.6rem 0.4rem;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(96,165,250,0.35);
+  border-radius: 0.6rem;
   color: var(--text-secondary);
   font-weight: 600;
+  font-size: 0.78rem;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
   transition: all 0.2s;
+  text-align: center;
+  line-height: 1.2;
+  min-height: 48px;
 }
 
 .tab-btn:hover {
+  border-color: rgba(96,165,250,0.7);
+  background: rgba(96,165,250,0.08);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .tab-btn.active {
+  border-color: var(--accent-gold);
+  background: rgba(255,215,0,0.1);
   color: var(--accent-gold);
-  border-bottom-color: var(--accent-gold);
+  box-shadow: 0 0 10px rgba(255,215,0,0.15);
 }
 
 .tab-content {
@@ -2095,6 +2111,9 @@ a {
   
   /* Cards mobile */
   .pick-section, .admin-card, .status-card {
+    padding: 0.85rem;
+    border-radius: 0.75rem;
+  }
     padding: 0.5rem;
     margin-bottom: 0.5rem;
     border-radius: 0.5rem;
@@ -2242,12 +2261,14 @@ a {
   
   /* Tab buttons mobile */
   .section-tabs {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
   }
-  
+
   .tab-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    padding: 0.5rem 0.3rem;
+    font-size: 0.72rem;
+    min-height: 44px;
   }
   
   /* Admin match filter mobile */
