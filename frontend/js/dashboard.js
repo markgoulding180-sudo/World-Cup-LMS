@@ -975,7 +975,10 @@ function clearSelections() {
   displayMatchdayPickFlow();
 }
 
+let _submitting = false; // guard against double-submit
+
 async function submitMatchdayPicks() {
+  if (_submitting) return; // already in flight
   const token = localStorage.getItem('wc_lms_token');
 
   if (!tournamentId) {
@@ -990,6 +993,14 @@ async function submitMatchdayPicks() {
     alert(`Please select ${needed} team${needed !== 1 ? 's' : ''} for Matchday ${currentMatchday}`);
     return;
   }
+
+  // Disable submit button immediately
+  const submitBtn = document.querySelector('.submit-picks-btn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+  }
+  _submitting = true;
   
   try {
     // Submit all picks
@@ -1027,6 +1038,7 @@ async function submitMatchdayPicks() {
       }
 
       determineCurrentMatchday();
+      _submitting = false;
       alert(`✓ Picks saved! Good luck!`);
 
       displayMatchdayPickFlow();
@@ -1038,9 +1050,13 @@ async function submitMatchdayPicks() {
         document.getElementById('available-teams')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } else {
+      _submitting = false;
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '✓ Submit Matchday Picks'; }
       alert('Some picks failed. Please try again.');
     }
   } catch (error) {
+    _submitting = false;
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '✓ Submit Matchday Picks'; }
     alert('Error submitting picks: ' + error.message);
   }
 }
