@@ -1381,13 +1381,14 @@ module.exports = async (req, res) => {
       const label = req.body.label || `Snapshot ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`;
 
       // Fetch all tables that make up tournament state
-      const [picks, matches, rounds, entries, tournaments, clock] = await Promise.all([
+      const [picks, matches, rounds, entries, tournaments, clock, users] = await Promise.all([
         supabase.from('picks').select('*'),
         supabase.from('matches').select('*'),
         supabase.from('rounds').select('*'),
         supabase.from('tournament_entries').select('*'),
         supabase.from('tournaments').select('*'),
-        supabase.from('master_clock').select('*')
+        supabase.from('master_clock').select('*'),
+        supabase.from('users').select('*')
       ]);
 
       const snapshotData = {
@@ -1397,7 +1398,8 @@ module.exports = async (req, res) => {
         rounds: rounds.data || [],
         tournament_entries: entries.data || [],
         tournaments: tournaments.data || [],
-        master_clock: clock.data || []
+        master_clock: clock.data || [],
+        users: users.data || []
       };
 
       const { data, error } = await supabase
@@ -1414,7 +1416,8 @@ module.exports = async (req, res) => {
           picks: snapshotData.picks.length,
           matches: snapshotData.matches.length,
           rounds: snapshotData.rounds.length,
-          entries: snapshotData.tournament_entries.length
+          entries: snapshotData.tournament_entries.length,
+          users: snapshotData.users.length
         }
       });
     } catch (e) {
@@ -1477,7 +1480,12 @@ module.exports = async (req, res) => {
       if (d.tournament_entries?.length) await supabase.from('tournament_entries').insert(d.tournament_entries);
       if (d.picks?.length) await supabase.from('picks').insert(d.picks);
 
-      // 3. Restore master_clock
+      // 3. Restore users table (upsert — won't fail if user already exists)
+      if (d.users?.length) {
+        await supabase.from('users').upsert(d.users, { onConflict: 'id' });
+      }
+
+      // 4. Restore master_clock
       if (d.master_clock?.length) {
         await supabase.from('master_clock').upsert(d.master_clock);
       }
@@ -1489,7 +1497,8 @@ module.exports = async (req, res) => {
           picks: d.picks?.length || 0,
           matches: d.matches?.length || 0,
           rounds: d.rounds?.length || 0,
-          entries: d.tournament_entries?.length || 0
+          entries: d.tournament_entries?.length || 0,
+          users: d.users?.length || 0
         }
       });
     } catch (e) {
