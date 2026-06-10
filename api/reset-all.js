@@ -2,7 +2,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const FOOTBALL_DATA_URL = 'https://api.football-data.org/v4/competitions/WC/matches?season=2026';
-const FOOTBALL_DATA_TOKEN = 'aef925b3b2df4c6e922f08a5498bdab0';
+const FOOTBALL_DATA_TOKEN = process.env.FOOTBALL_DATA_TOKEN || 'aef925b3b2df4c6e922f08a5498bdab0';
 const FAKE_ID = '00000000-0000-0000-0000-000000000000';
 
 const TEAM_MAPPINGS = {

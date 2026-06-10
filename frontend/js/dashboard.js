@@ -2139,9 +2139,10 @@ async function pollForResults() {
     console.log(`[Poll] ${data.matchesUpdated} matches, ${data.picksProcessed} picks, ${data.pointsAwarded} pts`);
 
     // Re-fetch only what changed
-    const [matchesRes, picksRes] = await Promise.all([
+    const [matchesRes, picksRes, entriesRes] = await Promise.all([
       fetch('/api/matches?limit=200'),
-      fetch('/api/picks', { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch('/api/picks', { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch('/api/entries',  { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
 
     if (matchesRes.ok) {
@@ -2155,7 +2156,16 @@ async function pollForResults() {
       roundPicks = currentRound ? userPicks.filter(p => p.round_id === currentRound.id) : [];
     }
 
+    // Update stats card (points/rank) — silent fail if it errors
+    if (entriesRes.ok) {
+      try {
+        const entriesData = await entriesRes.json();
+        updateStatusCard(entriesData);
+      } catch(e) { /* non-fatal */ }
+    }
+
     // Re-render only the affected sections — no full page reload
+    displayCurrentPicks(roundPicks);
     displayTournamentHistory();
     displayEligibleTeams();
     displayRoundMatches(allMatches, currentRound);
