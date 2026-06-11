@@ -1381,14 +1381,13 @@ module.exports = async (req, res) => {
       const label = req.body.label || `Snapshot ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`;
 
       // Fetch all tables that make up tournament state
-      const [picks, matches, rounds, entries, tournaments, clock, users] = await Promise.all([
+      const [picks, matches, rounds, entries, tournaments, clock] = await Promise.all([
         supabase.from('picks').select('*'),
         supabase.from('matches').select('*'),
         supabase.from('rounds').select('*'),
         supabase.from('tournament_entries').select('*'),
         supabase.from('tournaments').select('*'),
-        supabase.from('master_clock').select('*'),
-        supabase.from('users').select('*')
+        supabase.from('master_clock').select('*')
       ]);
 
       const snapshotData = {
@@ -1398,8 +1397,7 @@ module.exports = async (req, res) => {
         rounds: rounds.data || [],
         tournament_entries: entries.data || [],
         tournaments: tournaments.data || [],
-        master_clock: clock.data || [],
-        users: users.data || []
+        master_clock: clock.data || []
       };
 
       const { data, error } = await supabase
@@ -1416,8 +1414,7 @@ module.exports = async (req, res) => {
           picks: snapshotData.picks.length,
           matches: snapshotData.matches.length,
           rounds: snapshotData.rounds.length,
-          entries: snapshotData.tournament_entries.length,
-          users: snapshotData.users.length
+          entries: snapshotData.tournament_entries.length
         }
       });
     } catch (e) {
@@ -1480,12 +1477,7 @@ module.exports = async (req, res) => {
       if (d.tournament_entries?.length) await supabase.from('tournament_entries').insert(d.tournament_entries);
       if (d.picks?.length) await supabase.from('picks').insert(d.picks);
 
-      // 3. Restore users table (upsert — won't fail if user already exists)
-      if (d.users?.length) {
-        await supabase.from('users').upsert(d.users, { onConflict: 'id' });
-      }
-
-      // 4. Restore master_clock
+      // 3. Restore master_clock
       if (d.master_clock?.length) {
         await supabase.from('master_clock').upsert(d.master_clock);
       }
@@ -1497,8 +1489,7 @@ module.exports = async (req, res) => {
           picks: d.picks?.length || 0,
           matches: d.matches?.length || 0,
           rounds: d.rounds?.length || 0,
-          entries: d.tournament_entries?.length || 0,
-          users: d.users?.length || 0
+          entries: d.tournament_entries?.length || 0
         }
       });
     } catch (e) {
@@ -1517,6 +1508,41 @@ module.exports = async (req, res) => {
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json({ success: true });
     } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── GET REGISTRATION STATUS ───────────────────────────────────────
+  if (action === 'get_registration_status') {
+    try {
+      const { data, error } = await supabase
+        .from('master_clock')
+        .select('registration_open')
+        .single();
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ registration_open: data?.registration_open !== false });
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── TOGGLE REGISTRATION ───────────────────────────────────────────
+  if (action === 'toggle_registration') {
+    try {
+      const { data: current } = await supabase
+        .from('master_clock')
+        .select('registration_open')
+        .single();
+      const newState = current?.registration_open === false ? true : false;
+      const { error } = await supabase
+        .from('master_clock')
+        .update({ registration_open: newState });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({
+        registration_open: newState,
+        message: `Registration is now ${newState ? 'OPEN' : 'CLOSED'}`
+      });
+    } catch(e) {
       return res.status(500).json({ error: e.message });
     }
   }

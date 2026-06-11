@@ -28,6 +28,7 @@ function showPinModal() {
 async function loadAdminData() {
   console.log('Admin panel loaded');
   await loadPollingStatus();
+  await loadRegistrationStatus();
   await loadRoundStatus();
   await loadMatchesForResults();
   await loadAllPicks();
@@ -2124,5 +2125,68 @@ async function deleteSnapshot(snapshotId) {
     loadSnapshots();
   } catch (e) {
     alert('Error: ' + e.message);
+  }
+}
+// ── REGISTRATION CONTROL ──────────────────────────────────────────
+async function loadRegistrationStatus() {
+  try {
+    const res = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_registration_status', admin_pin: ADMIN_PIN })
+    });
+    const data = await res.json();
+    renderRegistrationButton(data.registration_open !== false);
+  } catch(e) {
+    renderRegistrationButton(true); // default open if error
+  }
+}
+
+function renderRegistrationButton(isOpen) {
+  const btn = document.getElementById('registration-toggle-btn');
+  const txt = document.getElementById('registration-status-text');
+  if (!btn) return;
+
+  if (isOpen) {
+    btn.innerHTML = '<i class="fas fa-lock"></i> Close Registration';
+    btn.style.background = 'rgba(239,68,68,0.15)';
+    btn.style.border = '2px solid #ef4444';
+    btn.style.color = '#ef4444';
+    if (txt) txt.textContent = '🟢 Registration is OPEN — new users can sign up';
+  } else {
+    btn.innerHTML = '<i class="fas fa-lock-open"></i> Open Registration';
+    btn.style.background = 'rgba(34,197,94,0.15)';
+    btn.style.border = '2px solid #22c55e';
+    btn.style.color = '#22c55e';
+    if (txt) txt.textContent = '🔴 Registration is CLOSED — no new sign ups allowed';
+  }
+}
+
+async function toggleRegistration() {
+  const btn = document.getElementById('registration-toggle-btn');
+  const txt = document.getElementById('registration-status-text');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...'; }
+
+  try {
+    const res = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle_registration', admin_pin: ADMIN_PIN })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      renderRegistrationButton(data.registration_open);
+      if (txt) txt.textContent = data.registration_open
+        ? '🟢 Registration is OPEN — new users can sign up'
+        : '🔴 Registration is CLOSED — no new sign ups allowed';
+    } else {
+      alert('Error: ' + data.error);
+      loadRegistrationStatus();
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+    loadRegistrationStatus();
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }

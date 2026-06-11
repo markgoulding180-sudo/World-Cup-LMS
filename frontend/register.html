@@ -20,6 +20,15 @@
 
   <main class="container">
     <div class="auth-card">
+      <div id="registration-closed-msg" style="display:none;text-align:center;padding:2rem 1rem;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
+        <h2 style="color:var(--accent-red);margin-bottom:0.5rem;">Registration Closed</h2>
+        <p style="color:var(--text-secondary);margin-bottom:1rem;">
+          The tournament has already started and registration is now closed.
+        </p>
+        <a href="index.html" class="btn btn-primary">Back to Home</a>
+      </div>
+      <div id="registration-form-wrapper">
       <h1><i class="fas fa-user-plus"></i> Register</h1>
       <form id="register-form">
         <div class="form-group">
@@ -123,6 +132,26 @@
         alert('Error: ' + error.message);
       }
     });
+  </script>
+  </div><!-- end registration-form-wrapper -->
+  <script>
+    // Check if registration is open on page load
+    (async () => {
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_registration' })
+        });
+        const data = await res.json();
+        if (data.registration_open === false) {
+          document.getElementById('registration-form-wrapper').style.display = 'none';
+          document.getElementById('registration-closed-msg').style.display = 'block';
+        }
+      } catch(e) {
+        // If check fails, allow registration (fail open)
+      }
+    })();
   </script>
 </body>
 </html>

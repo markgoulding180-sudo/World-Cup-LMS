@@ -71,6 +71,15 @@ module.exports = async (req, res) => {
     }
   }
 
+  // CHECK REGISTRATION STATUS (public — no auth needed)
+  if (action === 'check_registration') {
+    const { data: clock } = await supabase
+      .from('master_clock')
+      .select('registration_open')
+      .single();
+    return res.status(200).json({ registration_open: clock?.registration_open !== false });
+  }
+
   // REGISTER
   if (action === 'register') {
     try {
@@ -78,6 +87,21 @@ module.exports = async (req, res) => {
       
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
+      }
+
+      // Check if registration is open (admins can always register)
+      if (!is_admin) {
+        const { data: clock } = await supabase
+          .from('master_clock')
+          .select('registration_open')
+          .single();
+        
+        if (clock && clock.registration_open === false) {
+          return res.status(403).json({ 
+            error: 'Registration is currently closed. The tournament has already started.',
+            registration_closed: true
+          });
+        }
       }
 
       // Verify admin pin if claiming to be admin

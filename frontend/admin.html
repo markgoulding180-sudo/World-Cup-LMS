@@ -152,6 +152,22 @@
          SECTION 1 — LIVE POLLING CONTROL
          Must be at the top. Turn OFF before testing/simulating.
     ════════════════════════════════════════════════════════ -->
+
+    <!-- REGISTRATION CONTROL -->
+    <div class="admin-card" style="border:2px solid #8B5CF6;">
+      <h2><i class="fas fa-user-plus"></i> Registration Control</h2>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;">
+        Close registration when the tournament starts to stop new users joining mid-tournament. Admins can always register regardless.
+      </p>
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <button id="registration-toggle-btn" class="btn" onclick="toggleRegistration()"
+          style="font-size:1rem;padding:0.6rem 1.4rem;min-width:200px;">
+          Checking...
+        </button>
+        <span id="registration-status-text" style="font-size:0.85rem;color:var(--text-secondary);">Checking status...</span>
+      </div>
+    </div>
+
     <div class="admin-card" id="polling-card" style="border: 2px solid var(--accent-green);">
       <h2><i class="fas fa-satellite-dish"></i> Live Results Polling</h2>
       <p>Controls whether the dashboard automatically fetches results from football-data.org every 5 minutes for all users.</p>
