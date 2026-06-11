@@ -1531,12 +1531,13 @@ module.exports = async (req, res) => {
     try {
       const { data: current } = await supabase
         .from('master_clock')
-        .select('registration_open')
+        .select('id, registration_open')
         .single();
       const newState = current?.registration_open === false ? true : false;
       const { error } = await supabase
         .from('master_clock')
-        .update({ registration_open: newState });
+        .update({ registration_open: newState })
+        .eq('id', current.id);
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json({
         registration_open: newState,
