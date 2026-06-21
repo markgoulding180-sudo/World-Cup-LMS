@@ -2190,3 +2190,58 @@ async function toggleRegistration() {
     if (btn) btn.disabled = false;
   }
 }
+
+// ── ADMIN SET PASSWORD ────────────────────────────────────────────
+async function adminSetPassword() {
+  const emailInput = document.getElementById('set-pw-email');
+  const pwInput = document.getElementById('set-pw-password');
+  const btn = document.getElementById('set-pw-btn');
+  const resultEl = document.getElementById('set-pw-result');
+
+  const email = emailInput.value.trim();
+  const newPassword = pwInput.value.trim();
+
+  if (!email || !newPassword) {
+    resultEl.textContent = '⚠️ Please enter both email and new password.';
+    resultEl.style.color = '#f59e0b';
+    return;
+  }
+  if (newPassword.length < 6) {
+    resultEl.textContent = '⚠️ Password must be at least 6 characters.';
+    resultEl.style.color = '#f59e0b';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Setting...';
+  resultEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/reset-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'admin_set_password',
+        admin_pin: ADMIN_PIN,
+        email: email,
+        new_password: newPassword
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      resultEl.textContent = `✅ Password updated for ${email}. Give them: "${newPassword}"`;
+      resultEl.style.color = '#22c55e';
+      pwInput.value = '';
+    } else {
+      resultEl.textContent = '❌ ' + (data.error || 'Failed to set password');
+      resultEl.style.color = '#ef4444';
+    }
+  } catch (e) {
+    resultEl.textContent = '❌ Error: ' + e.message;
+    resultEl.style.color = '#ef4444';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-key"></i> Set Password';
+  }
+}

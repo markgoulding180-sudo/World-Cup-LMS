@@ -1548,5 +1548,38 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ── ADMIN SET PASSWORD ────────────────────────────────────────────
+  // Manually sets a user's password directly (bypasses email entirely)
+  if (action === 'admin_set_password') {
+    try {
+      const { email, new_password } = req.body;
+      if (!email || !new_password) {
+        return res.status(400).json({ error: 'email and new_password are required' });
+      }
+      if (new_password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+
+      // Find the user by email
+      const { data: usersList, error: listError } = await supabase.auth.admin.listUsers();
+      if (listError) return res.status(500).json({ error: listError.message });
+
+      const user = usersList.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (!user) return res.status(404).json({ error: 'No user found with that email' });
+
+      const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, {
+        password: new_password
+      });
+      if (updateError) return res.status(500).json({ error: updateError.message });
+
+      return res.status(200).json({
+        success: true,
+        message: `Password updated for ${email}`
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   return res.status(400).json({ error: 'Invalid action.' });
 };
