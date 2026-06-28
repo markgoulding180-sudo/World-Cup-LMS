@@ -104,7 +104,10 @@ module.exports = async (req, res) => {
       });
       
       const hasPickInMaxRound = userRoundNumbers.has(maxRound);
-      const isEliminated = maxRound > 1 && !hasPickInMaxRound;
+      const maxRoundHasResults = picks?.some(p =>
+        p.rounds?.round_number === maxRound && p.result !== 'pending'
+      ) || false;
+      const isEliminated = maxRound > 1 && !hasPickInMaxRound && maxRoundHasResults;
       
       return {
         position: index + 1,
