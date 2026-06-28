@@ -310,20 +310,33 @@ module.exports = async (req, res) => {
       const { error: matchUpdateError } = await supabase
         .from('matches')
         .update({
-          home_score: ninetyMinHome,        // 90-minute score
-          away_score: ninetyMinAway,        // 90-minute score
-          et_home_score: etHome,            // ET score (null if not played)
-          et_away_score: etAway,            // ET score (null if not played)
-          pen_home_score: penHome,          // Penalty score (null if not played)
-          pen_away_score: penAway,          // Penalty score (null if not played)
-          winner_team_id: winningTeamId,    // Explicit winner (null for draws)
-          result: result,                   // 'H', 'A', or 'D'
+          home_score: ninetyMinHome,
+          away_score: ninetyMinAway,
+          et_home_score: etHome,
+          et_away_score: etAway,
+          pen_home_score: penHome,
+          pen_away_score: penAway,
+          winner_team_id: winningTeamId,
+          result: result,
           status: 'finished'
         })
-        .eq('id', dbMatch.id);
+        .eq('id', dbMatch.id)
+        .eq('status', 'upcoming'); // Only update if still upcoming - prevents race condition
 
       if (matchUpdateError) {
         skipped.push(`${homeName} vs ${awayName} — DB update failed: ${matchUpdateError.message}`);
+        continue;
+      }
+
+      // Check if another process already finished this match (race condition guard)
+      const { data: checkMatch } = await supabase
+        .from('matches')
+        .select('status')
+        .eq('id', dbMatch.id)
+        .single();
+
+      if (!checkMatch || checkMatch.status !== 'finished') {
+        skipped.push(`${homeName} vs ${awayName} — skipped (already processed by another request)`);
         continue;
       }
 
