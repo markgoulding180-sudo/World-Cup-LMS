@@ -268,7 +268,7 @@ function buildMatchRow(match) {
     timeZone: 'Europe/London'
   });
   const isFinished = match.status === 'finished';
-  const isQForLater = match.round_number >= 4 && !isFinished; // QF, SF, Final need score prediction fields
+  const isQForLater = match.rounds?.round_number >= 4 && !isFinished; // QF, SF, Final need score prediction fields
   
   // Build extra fields for QF/SF/Final (score predictions)
   let extraFields = '';
@@ -288,7 +288,7 @@ function buildMatchRow(match) {
   
   // Build ET/Penalty fields for knockout matches (round 2+)
   let koFields = '';
-  if (match.round_number >= 2 && !isFinished) {
+  if (match.rounds?.round_number >= 2 && !isFinished) {
     koFields = `
       <div style="grid-column:1/-1;margin-top:0.5rem;padding:0.5rem;background:rgba(34,197,94,0.1);border:1px solid var(--accent-green);border-radius:0.25rem;">
         <p style="font-size:0.75rem;color:var(--accent-green);margin-bottom:0.5rem;font-weight:bold;"><i class="fas fa-clock"></i> Extra Time & Penalties (if needed)</p>
@@ -315,7 +315,7 @@ function buildMatchRow(match) {
   }
   
   return `
-    <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}" data-round="${match.round_number}">
+    <div class="match-entry-row ${isFinished ? 'finished' : ''}" data-match-id="${match.id}" data-round="${match.rounds?.round_number}">
       <div class="match-admin-when">${dateStr} @ ${timeStr} ${match.round_name ? `| ${match.round_name}` : ''}</div>
       <div class="match-admin-cards" style="display:grid;grid-template-columns:1fr auto 1fr;gap:0.5rem;">
         <div class="admin-team-card">
@@ -324,7 +324,7 @@ function buildMatchRow(match) {
         </div>
         <div class="admin-vs-card">
           <span class="admin-vs-text">v</span>
-          ${!isFinished ? `<button class="btn admin-save-btn" onclick="submitResult('${match.id}', ${match.round_number})">Save</button>` : '<span class="admin-finished-text">FT</span>'}
+          ${!isFinished ? `<button class="btn admin-save-btn" onclick="submitResult('${match.id}', ${match.rounds?.round_number})">Save</button>` : '<span class="admin-finished-text">FT</span>'}
         </div>
         <div class="admin-team-card">
           <div class="admin-team-header"><img src="${match.away_team?.flag_url}" alt="" class="admin-card-flag"><span class="admin-card-name">${match.away_team?.name}</span></div>
