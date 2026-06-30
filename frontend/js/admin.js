@@ -638,7 +638,10 @@ async function updateResultsFromFixturedownload() {
     const response = await fetch('/api/update-results', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } });
     const data = await response.json();
     if (response.ok) {
-      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Results updated!</p><p>Matches updated: ${data.matchesUpdated || 0}</p><p>Points awarded: ${data.pointsAwarded || 0}</p>`;
+      const skippedHtml = data.skipped && data.skipped.length > 0
+        ? `<details style="margin-top:0.5rem;"><summary style="cursor:pointer;color:#f59e0b;">⚠️ ${data.skipped.length} skipped (click to see why)</summary><pre style="font-size:0.75rem;white-space:pre-wrap;color:#9ca3af;margin-top:0.3rem;">${data.skipped.join('\n')}</pre></details>`
+        : '';
+      statusDiv.innerHTML = `<p style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Results updated!</p><p>Matches updated: ${data.matchesUpdated || 0}</p><p>Points awarded: ${data.pointsAwarded || 0}</p>${skippedHtml}`;
       loadAdminData();
     } else statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${data.error}</p>`;
   } catch (error) { statusDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${error.message}</p>`; }
