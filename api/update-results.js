@@ -2,7 +2,14 @@
 // Points-based system - awards points for wins instead of deducting lives
 const { createClient } = require('@supabase/supabase-js');
 
-const FOOTBALL_DATA_URL = 'https://api.football-data.org/v4/competitions/WC/matches?season=2026';
+// Build URL with date range covering yesterday + next 2 days to catch all recent matches
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(yesterday.getDate() - 1);
+const future = new Date(today);
+future.setDate(future.getDate() + 2);
+const fmt = d => d.toISOString().split('T')[0];
+const FOOTBALL_DATA_URL = `https://api.football-data.org/v4/competitions/WC/matches?season=2026&dateFrom=${fmt(yesterday)}&dateTo=${fmt(future)}`;
 const FOOTBALL_DATA_TOKEN = process.env.FOOTBALL_DATA_TOKEN || 'aef925b3b2df4c6e922f08a5498bdab0';
 
 // Name mappings: football-data.org names → our teams table names
